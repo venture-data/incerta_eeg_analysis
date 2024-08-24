@@ -526,7 +526,7 @@ def plot_frequency_bins(raw, frequency_bins):
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
-app.config['UPLOAD_FOLDER'] = 'C:/temp'
+app.config['UPLOAD_FOLDER'] = 'root:/temp'
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # Set max upload size to 50 MB
 
 # Initialize Flask-SocketIO
