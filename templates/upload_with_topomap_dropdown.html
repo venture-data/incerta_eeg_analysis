@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>EEG Analysis Dashboard</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    .status-indicator {
+      color: white;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    .plot-container img {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container-fluid">
+    <div class="row">
+      <!-- Left Panel -->
+      <div class="col-md-3 bg-dark text-white" style="height: 100vh; overflow-y: auto;">
+        <h1>EEG Analysis</h1>
+        <form method="POST" action="/" enctype="multipart/form-data">
+          <div class="form-group">
+            <label for="file">Upload EEG File (.edf)</label>
+            <input type="file" class="form-control-file" name="file" required>
+          </div>
+          <input type="submit" class="btn btn-primary" value="Upload">
+        </form>
+	{% if max_time > 0 %}
+        <form>
+          <div class="form-group mt-4">
+            <label for="plot_type">Select Analysis</label>
+            <select name="plot_type" id="plot_type" class="form-control" onchange="updatePlotType()">
+              <option value="raw">Raw EEG</option>
+              <option value="cleaned">ICA Cleaned EEG</option>
+              <option value="ica_properties">ICA Components</option>
+	      <option value="delta">Delta Band (1.5 - 4 Hz)</option>
+              <option value="theta">Theta Band (4 - 7.5 Hz)</option>
+              <option value="alpha">Alpha Band (7.5 - 14 Hz)</option>
+              <option value="beta-1">Beta-1 Band (14 - 20 Hz)</option>
+              <option value="beta-2">Beta-2 Band (20 - 30 Hz)</option>
+              <option value="gamma">Gamma Band (30 - 40 Hz)</option>
+	      <option value="topomaps_relative">Relative Power Topomaps</option>
+              <option value="topomaps_absolute">Absolute Power Topomaps</option>
+              <option value="relative_spectra">Relative Spectra</option>
+              <option value="absolute_spectra">Absolute Spectra</option>
+              <option value="theta_beta_ratio">Theta/Beta Ratio</option>
+	      <option value="brain_mapping">Brain Mapping (Theta/Beta)</option>
+	      <option value="occipital_alpha_peak">Occipital Alpha Peak Analysis</option>
+	      <option value="chewing_artifact_detection">Chewing Artifact Detection</option>
+              <option value="ecg_artifact_detection">ECG Artifact Detection</option>
+              <option value="rectus_artifact_detection">Rectus Artifact Detection</option>
+              <option value="roving_eye_artifact_detection">Roving Eye Artifact Detection</option>
+              <option value="muscle_tension_artifact_detection">Muscle Tension Artifact Detection</option>
+	      <option value="blink_artifact_detection">Blink Artifact Detection</option>
+	      <option value="rectus_spike_artifact_detection">Rectus Spike Artifact Detection</option>
+              <option value="pdr_artifact_detection">PDR Artifact Detection</option>
+	      <option value="impedance_artifact_detection">Impedance Artifact Detection</option>
+	      <option value="epileptic_pattern_detection">Epileptic Pattern Detection</option>
+              <option value="dipole_analysis">Dipole Location Analysis</option>
+	      <option value="frequency_bins">Frequency Bins Topomaps</option>
+
+
+            </select>
+          </div>
+
+        <div class="form-group">
+            <label for="start_time">Navigate EEG Data</label>
+            <input type="range" class="slider" id="start_time" name="start_time" min="0" max="{{ max_time }}" step="1" oninput="updateSlider()">
+          </div>
+        </form>
+        {% endif %}
+      </div>
+
+      <!-- Right Panel -->
+      <div class="col-md-9">
+        {% if max_time > 0 %}
+        <div class="plot-container">
+          <h2>EEG Plot</h2>
+          <img src="data:image/png;base64,{{ plot_url }}" alt="EEG Plot" class="img-fluid">
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+<script>
+  var socket = io.connect('http://' + document.domain + ':' + location.port);
+
+  function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+  function updatePlotType() {
+    // Trigger the slider update when the plot type changes
+    debouncedUpdateSlider();
+  }
+
+  function updateSlider() {
+    let sliderValue = document.getElementById("start_time").value;
+    let plotType = document.getElementById("plot_type").value;
+
+    // Emit an event to the server with the slider value and plot type
+    socket.emit('slider_update', {
+      start_time: sliderValue,
+      plot_type: plotType
+    });
+  }
+
+  // Apply debounce to the slider update function
+  const debouncedUpdateSlider = debounce(updateSlider, 300);
+
+  // Use the debounced function for the slider input
+  document.getElementById("start_time").oninput = debouncedUpdateSlider;
+
+  // Listen for the 'update_plot' event from the server
+  socket.on('update_plot', function(data) {
+    if (data.plot_url) {
+      document.querySelector('.plot-container img').src = 'data:image/png;base64,' + data.plot_url;
+    }
+  });
+</script>
+</body>
+</html>
