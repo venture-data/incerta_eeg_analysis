@@ -664,7 +664,7 @@ def handle_slider_update(data):
         elif plot_type == 'cleaned' and global_raw_ica:
             fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
         elif plot_type == "ica_properties":
-            figs = global_ica.plot_properties(global_raw_ica, picks=global_ica.exclude, show=False)
+            figs = global_ica.plot_properties(global_raw_ica, show=False)
     
             # Save each figure to an image and send them to the client
             plot_urls = []
