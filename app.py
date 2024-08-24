@@ -526,7 +526,7 @@ def plot_frequency_bins(raw, frequency_bins):
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
-app.config['UPLOAD_FOLDER'] = 'root/temp'
+app.config['UPLOAD_FOLDER'] = 'C:/temp'
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # Set max upload size to 50 MB
 
 # Initialize Flask-SocketIO
@@ -593,7 +593,7 @@ global_ica = None
 # Route for file upload and main dashboard
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
-    global global_raw, global_raw_ica, global_ica,global_raw_raw
+    global global_raw, global_raw_ica, global_ica
 
     if request.method == 'POST':
         # Handle file upload
@@ -625,6 +625,7 @@ def upload_file():
                 ica.fit(raw)
                 eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name=eog_channels)
                 ica.exclude = eog_indices
+                
                 raw_ica = ica.apply(raw.copy())
                 #creating channel dictionary
                 raw_ica_channel_names = raw_ica.info['ch_names']
@@ -672,6 +673,7 @@ def handle_slider_update(data):
                 fig.savefig(img, format='png')
                 img.seek(0)
                 plot_url = base64.b64encode(img.getvalue()).decode()
+                print (f'this is plot URL: {plot_url}')
                 plot_urls.append(plot_url)
         elif plot_type in ["delta", "theta", "alpha", "beta-1", "beta-2", "gamma"]:
             low, high = bands[plot_type]
@@ -1046,4 +1048,4 @@ def handle_slider_update(data):
         
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0',port=5000)#, use_reloader=False)
+    socketio.run(app, debug=True, host='0.0.0.0', port=8050)#, use_reloader=False)
