@@ -1,0 +1,9 @@
+mne 
+numpy 
+ipywidgets
+Flask
+flask_session
+scikit-learn 
+scipy 
+matplotlib
+flask-socketio
