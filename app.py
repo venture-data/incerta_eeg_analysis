@@ -1199,4 +1199,4 @@ def handle_slider_update(data):
         
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True)#, use_reloader=False)
+    socketio.run(app, debug=True,host='0.0.0.0',port=5000)#, use_reloader=False)
