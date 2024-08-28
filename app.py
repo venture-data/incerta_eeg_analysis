@@ -13,6 +13,13 @@ from scipy.signal import find_peaks
 from mne import make_bem_model, make_bem_solution, make_forward_solution
 from mne.dipole import fit_dipole
 from mne.transforms import Transform
+from openai import OpenAI
+import re
+
+
+import json
+from scipy.integrate import simps  # For band power calculation
+
 
 def detect_rectus_artifacts(raw_ica, start_time, duration=5):
     """
@@ -53,7 +60,6 @@ def detect_rectus_artifacts(raw_ica, start_time, duration=5):
             rectus_segments.append((start_time_artifact, end_time_artifact))
     
     return rectus_segments
-
 def detect_ecg_artifacts(raw_ica, start_time, duration=5):
     """
     Detect ECG/cardiac artifacts in EEG data.
@@ -91,7 +97,6 @@ def detect_ecg_artifacts(raw_ica, start_time, duration=5):
             ecg_segments.append((peak_time, peak_time + 0.1))  # Mark a small window around each peak
     
     return ecg_segments
-
 def detect_chewing_artifacts(raw_ica, start_time, duration=5):
     """
     Detect chewing artifacts in EEG data.
@@ -134,7 +139,6 @@ def detect_chewing_artifacts(raw_ica, start_time, duration=5):
             chewing_segments.append((start_time_artifact, end_time_artifact))
     
     return chewing_segments
-
 def detect_roving_eye_artifacts(raw_ica, start_time, duration=5):
     """
     Detect roving eye artifacts (related to slow lateral eye movements) in EEG data.
@@ -252,7 +256,6 @@ def detect_blink_artifacts(raw_ica, start_time, duration=5):
             blink_segments.append((start_time_artifact, end_time_artifact))
 
     return blink_segments
-
 def detect_rectus_spikes_artifacts(raw_ica, start_time, duration=5):
     """
     Detect rectus spike artifacts in EEG data.
@@ -585,17 +588,115 @@ custom_cmap = LinearSegmentedColormap.from_list("custom_jet", colors)
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
+def extract_detailed_eeg_features(raw):
+    """
+    Extracts detailed features from EEG data for multiple frequency bands.
+
+    Parameters:
+    - raw: mne.io.Raw
+        The ICA-cleaned raw EEG data object.
+
+    Returns:
+    - features_json: str
+        A JSON-formatted string containing the extracted features.
+    """
+    # Define frequency bands
+    bands = {
+        "delta": (1.5, 4),
+        "theta": (4, 7.5),
+        "alpha": (7.5, 14),
+        "beta-1": (14, 20),
+        "beta-2": (20, 30),
+        "gamma": (30, 40)
+    }
+
+    features = {}
+
+    # Iterate over each frequency band to compute features
+    for band, (low_freq, high_freq) in bands.items():
+        print(f"Processing {band.capitalize()} Band ({low_freq}-{high_freq} Hz)...")
+
+        # Filter the data for the specific frequency band
+        band_data = raw.copy().filter(low_freq, high_freq, fir_design='firwin')
+
+        # Calculate the mean and standard deviation for each channel in the band
+        band_mean = np.mean(band_data._data, axis=1)
+        band_std = np.std(band_data._data, axis=1)
+
+        # Calculate the Power Spectral Density (PSD) using the `compute_psd` method
+        psd = band_data.compute_psd(fmin=low_freq, fmax=high_freq)
+        psd_data = psd.get_data().mean(axis=1)  # Average PSD across all epochs
+
+        # Compute Band Power using the Simpson's rule
+        freqs, psd_all = psd.freqs, psd.get_data()
+        band_idx = np.logical_and(freqs >= low_freq, freqs <= high_freq)
+        band_power = simps(psd_all[:, band_idx], dx=np.diff(freqs)[0], axis=1)
+
+        # Compute Hjorth Parameters: Activity, Mobility, and Complexity
+        activity = np.var(band_data._data, axis=1)
+        mobility = np.sqrt(np.var(np.diff(band_data._data, axis=1), axis=1) / activity)
+        complexity = np.sqrt(np.var(np.diff(np.diff(band_data._data, axis=1), axis=1), axis=1) / np.var(np.diff(band_data._data, axis=1), axis=1)) / mobility
+
+        # Store the features in the dictionary
+        features[f'{band}_mean'] = {ch_name: band_mean[idx] for idx, ch_name in enumerate(raw.info['ch_names'])}
+        features[f'{band}_std'] = {ch_name: band_std[idx] for idx, ch_name in enumerate(raw.info['ch_names'])}
+        features[f'{band}_psd'] = {ch_name: psd_data[idx] for idx, ch_name in enumerate(raw.info['ch_names'])}
+        features[f'{band}_power'] = {ch_name: band_power[idx] for idx, ch_name in enumerate(raw.info['ch_names'])}
+        features[f'{band}_hjorth_activity'] = {ch_name: activity[idx] for idx, ch_name in enumerate(raw.info['ch_names'])}
+        features[f'{band}_hjorth_mobility'] = {ch_name: mobility[idx] for idx, ch_name in enumerate(raw.info['ch_names'])}
+        features[f'{band}_hjorth_complexity'] = {ch_name: complexity[idx] for idx, ch_name in enumerate(raw.info['ch_names'])}
+
+    # Convert the features dictionary to a JSON-formatted string
+    features_json = json.dumps(features, indent=4)
+
+    # Print or return the JSON string
+    return features_json
+def generate_raw_summary(raw, ica, eog_channels):
+    # Extract basic information about the raw data
+    num_channels = len(raw.ch_names)
+    sampling_freq = raw.info['sfreq']
+    duration = raw.times[-1] / 60  # Duration in minutes
+    excluded_components = ica.exclude
+    eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name=eog_channels)
+
+    # Create a summary string
+    summary = f"""
+    EEG Data Summary:
+    - Number of channels: {num_channels}
+    - Sampling frequency: {sampling_freq} Hz
+    - Recording duration: {duration:.2f} minutes
+    - EOG channels used for artifact detection: {eog_channels}
+    - Number of ICA components: {ica.n_components_}
+    - Identified EOG artifact components: {eog_indices}
+    - Components excluded after ICA: {excluded_components}
+    - ICA performed with {ica.n_components_} components, random state = {ica.random_state}, and max iterations = {ica.max_iter}.
+    """
+
+    return summary.strip()
+
 # Use global variables to store raw and ICA-cleaned EEG data
 global_raw = None
 global_raw_ica = None
 global_ica = None
+global_raw_openai = None
+global_raw_ica_openai = None
+global_ica_components = None
 
-# Route for file upload and main dashboard
+# Read the API key from the text file
+with open('./apikey.txt', 'r') as file:
+    openai_api_key = file.read().strip()
+
+# OpenAI API Key setup
+client = OpenAI(api_key=openai_api_key)# Route for file upload and main dashboard
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
-    global global_raw, global_raw_ica, global_ica
+    global global_raw, global_raw_ica, global_ica, global_raw_openai, global_raw_ica_openai, global_ica_components
 
     if request.method == 'POST':
+        name = request.form.get('name')
+        dob = request.form.get('dob')
+        age = request.form.get('age')
+        gender = request.form.get('gender')
         # Handle file upload
         if 'file' in request.files:
             try:
@@ -637,6 +738,39 @@ def upload_file():
                 global_raw_ica = raw_ica
                 global_ica = ica
 
+                raw_eeg_features_json = extract_detailed_eeg_features(global_raw)
+                raw_response = client.chat.completions.create(
+                model="chatgpt-4o-latest",
+                messages=[
+                    {"role": "system", "content": "You are an expert in neuroscience and EEG analysis."},
+                    {"role": "user", "content": f"Given the following overview of Raw EEG feature data: {raw_eeg_features_json}, please analyze the data and provide a short report with conclusions, keep them relevant and somewhat short. The participant is a {age}-year-old {gender}, named {name}, respond in a way like you're talking to the participant directly, you can skip any salutations, and you can use participants name here and there. The report should be structured into three sections (don't add any other heading/title): Introduction, Findings, and Conclusion. The language should be formal (not a formal letter with Dear Name and Best regards etc), clear, concise, and suitable for a primary school-going child (aged {age} years), while maintaining proper report format."}
+                ]
+            )
+                global_raw_openai = raw_response.choices[0].message.content
+
+                raw_ica_eeg_features_json = extract_detailed_eeg_features(global_raw_ica)
+                raw_ica_response = client.chat.completions.create(
+                model="chatgpt-4o-latest",
+                messages=[
+                        {"role": "system", "content": "You are an expert in neuroscience and EEG analysis."},
+                        {"role": "user", "content": f"Given the following overview of ICA-cleaned EEG feature data: {raw_ica_eeg_features_json}, please analyze the data and provide a short report with conclusions, emphasizing that the data is now ICA-cleaned. The participant is a {age}-year-old {gender}, named {name}. Write the report in a way that addresses the participant directly, using their name appropriately. The report should be structured into three sections (don't add any other heading/title): Introduction, Findings, and Conclusion. The language should be formal (not a formal letter with Dear Name and Best regards etc), clear, concise, and suitable for a primary school-going child (aged {age} years), while maintaining proper report format. Make sure to mention that the analysis is based on ICA-cleaned EEG data.Also please highlight any problems related to brain functions like sleep issue, learning issues, sensory issues etc"}
+                    ]
+            )
+                global_raw_ica_openai = raw_ica_response.choices[0].message.content
+                
+
+                summary_ica_components = generate_raw_summary(raw, global_ica, eog_channels)
+                response_ica_components = client.chat.completions.create(
+                            model="chatgpt-4o-latest",
+                            messages=[
+                                {"role": "system", "content": "You are an expert in neuroscience, specializing in EEG analysis and ICA artifact removal."},
+                                {"role": "user", "content": f"Given the following EEG data related to ICA components: {summary_ica_components}, please analyze the data and provide a short report with conclusions. Emphasize that the analysis is based on ICA components. The participant is a {age}-year-old {gender}, named {name}. Write the report in a way that addresses the participant directly, using their name as needed. The report should be structured into three sections (don't add any other heading/title): Introduction, Findings, and Conclusion. The language should be formal (not a formal letter with Dear Name and Best regards etc), clear, concise, and suitable for a primary school-going child (aged {age} years), while maintaining proper report format. Ensure to mention that this analysis is specifically considering ICA components and how they affect the overall interpretation of the EEG data."}
+                            ]
+                        )
+                global_ica_components = response_ica_components.choices[0].message.content
+
+                
+                
                 # Determine the maximum time for the EEG data
                 max_time = int(raw.times[-1])
 
@@ -658,13 +792,22 @@ def handle_slider_update(data):
     try:
         start_time = int(data['start_time'])
         plot_type = data['plot_type']
+        plot_url = None  # Initialize plot_url to avoid reference error
+        openai_res = None
 
         if plot_type == 'raw' and global_raw:
             fig = global_raw.plot(start=start_time, duration=5, n_channels=19, show=False)
+            openai_res = global_raw_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
+            print(global_raw_openai)
+
         elif plot_type == 'cleaned' and global_raw_ica:
             fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
+            openai_res = global_raw_ica_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
+            print(global_raw_ica_openai)
         elif plot_type == "ica_properties":
-            figs = global_ica.plot_properties(global_raw_ica, show=False)
+            figs = global_ica.plot_properties(global_raw_ica, picks=global_ica.exclude, show=False)
     
             # Save each figure to an image and send them to the client
             plot_urls = []
@@ -673,8 +816,15 @@ def handle_slider_update(data):
                 fig.savefig(img, format='png')
                 img.seek(0)
                 plot_url = base64.b64encode(img.getvalue()).decode()
-                print (f'this is plot URL: {plot_url}')
+                #
+                #
+                #print (f'this is plot URL: {plot_url}')
                 plot_urls.append(plot_url)
+                
+
+            openai_res = global_ica_components
+            openai_res = openai_res = re.sub(r'[*#]', '', openai_res)
+            print(global_raw_ica_openai)
         elif plot_type in ["delta", "theta", "alpha", "beta-1", "beta-2", "gamma"]:
             low, high = bands[plot_type]
             band_filtered = global_raw_ica.copy().filter(low, high, fir_design='firwin')
@@ -1038,7 +1188,10 @@ def handle_slider_update(data):
         plot_url = base64.b64encode(img.getvalue()).decode()
 
         # Emit the updated plot back to the client
-        emit('update_plot', {'plot_url': plot_url})
+        #emit('update_plot', {'plot_url': plot_url})
+        # Include raw report to send back
+        emit('update_plot', {'plot_url': plot_url, 'raw_report': openai_res})
+        
 
 
 
@@ -1048,4 +1201,4 @@ def handle_slider_update(data):
         
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)#, use_reloader=False)
+    socketio.run(app, debug=True)#, use_reloader=False)
