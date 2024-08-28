@@ -15,8 +15,6 @@ from mne.dipole import fit_dipole
 from mne.transforms import Transform
 from openai import OpenAI
 import re
-
-
 import json
 from scipy.integrate import simpson  # For band power calculation
 
@@ -630,8 +628,7 @@ def extract_detailed_eeg_features(raw):
         # Compute Band Power using the Simpson's rule
         freqs, psd_all = psd.freqs, psd.get_data()
         band_idx = np.logical_and(freqs >= low_freq, freqs <= high_freq)
-        band_power = simpson
-        (psd_all[:, band_idx], dx=np.diff(freqs)[0], axis=1)
+        band_power = simpson(psd_all[:, band_idx], dx=np.diff(freqs)[0], axis=1)
 
         # Compute Hjorth Parameters: Activity, Mobility, and Complexity
         activity = np.var(band_data._data, axis=1)
