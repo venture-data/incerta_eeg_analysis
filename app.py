@@ -683,7 +683,7 @@ global_raw_ica_openai = None
 global_ica_components = None
 
 # Read the API key from the text file
-with open('./apikey.txt', 'r') as file:
+with open('root/apikey.txt', 'r') as file:
     openai_api_key = file.read().strip()
 
 # OpenAI API Key setup
