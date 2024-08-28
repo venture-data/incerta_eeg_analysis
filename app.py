@@ -805,7 +805,7 @@ def handle_slider_update(data):
             openai_res = re.sub(r'[*#]', '', openai_res)
             print(global_raw_ica_openai)
         elif plot_type == "ica_properties":
-            figs = global_ica.plot_properties(global_raw_ica, picks=global_ica.exclude, show=False)
+            figs = global_ica.plot_properties(global_raw_ica, show=False)
     
             # Save each figure to an image and send them to the client
             plot_urls = []
