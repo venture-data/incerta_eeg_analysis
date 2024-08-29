@@ -992,7 +992,7 @@ def generate_detailed_brain_mapping_summary(raw_ica, bands):
     # Combine all lines into a single summary
     summary = "\n".join(summary_lines)
     return summary
-def generate_detailed_occipital_alpha_peak_summary(raw_ica, alpha_band=(7.5, 14)):
+def generate_detailed_occipital_alpha_peak_summary(raw_ica, alpha_band):
     # Compute PSD for Occipital Alpha Peak analysis
     spectrum = raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
     psds, freqs = spectrum.get_data(return_freqs=True)
@@ -1753,7 +1753,7 @@ def upload_file():
 
                 global_brain_mapping_openai = brain_mapping_response
                 #occi alpha peak openai
-                occi_alpha_peak_summary = generate_detailed_occipital_alpha_peak_summary(raw_ica, bands)
+                occi_alpha_peak_summary = generate_detailed_occipital_alpha_peak_summary(raw_ica, alpha_band=(7.5, 14))
                 occi_alpha_peak_response = main_gpt_call("EEG data focused on occipital alpha peaks"
                                                        , occi_alpha_peak_summary,
                                                         name, age, gender, known_issues,medications)
