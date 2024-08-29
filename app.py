@@ -18,7 +18,7 @@ import re
 
 
 import json
-from scipy.integrate import simps  # For band power calculation
+from scipy.integrate import simpson  # For band power calculation
 
 
 def detect_rectus_artifacts(raw_ica, start_time, duration=5):
@@ -638,7 +638,7 @@ def extract_detailed_eeg_features(raw):
         # Compute Band Power using the Simpson's rule
         freqs, psd_all = psd.freqs, psd.get_data()
         band_idx = np.logical_and(freqs >= low_freq, freqs <= high_freq)
-        band_power = simps(psd_all[:, band_idx], dx=np.diff(freqs)[0], axis=1)
+        band_power = simpson(psd_all[:, band_idx], dx=np.diff(freqs)[0], axis=1)
 
         # Compute Hjorth Parameters: Activity, Mobility, and Complexity
         activity = np.var(band_data._data, axis=1)
