@@ -15,8 +15,10 @@ from mne.dipole import fit_dipole
 from mne.transforms import Transform
 from openai import OpenAI
 import re
+
+
 import json
-from scipy.integrate import simpson  # For band power calculation
+from scipy.integrate import simps  # For band power calculation
 
 
 def detect_rectus_artifacts(raw_ica, start_time, duration=5):
@@ -581,6 +583,14 @@ colors = [
 ]
 custom_cmap = LinearSegmentedColormap.from_list("custom_jet", colors)
 
+# Define channel groups for regional analysis (frontal, parietal, occipital, etc.)
+channel_groups = {
+    "frontal": ["Fp1", "Fp2", "F3", "F4", "Fz"],
+    "parietal": ["P3", "P4", "Pz"],
+    "occipital": ["O1", "O2"],
+    "temporal": ["T3", "T4", "T5", "T6"],
+    "central": ["C3", "C4", "Cz"]
+}
 
 # Ensure the upload folder exists
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
@@ -628,7 +638,7 @@ def extract_detailed_eeg_features(raw):
         # Compute Band Power using the Simpson's rule
         freqs, psd_all = psd.freqs, psd.get_data()
         band_idx = np.logical_and(freqs >= low_freq, freqs <= high_freq)
-        band_power = simpson(psd_all[:, band_idx], dx=np.diff(freqs)[0], axis=1)
+        band_power = simps(psd_all[:, band_idx], dx=np.diff(freqs)[0], axis=1)
 
         # Compute Hjorth Parameters: Activity, Mobility, and Complexity
         activity = np.var(band_data._data, axis=1)
@@ -671,6 +681,182 @@ def generate_raw_summary(raw, ica, eog_channels):
     """
 
     return summary.strip()
+def generate_delta_band_summary_per_channel_full_duration(raw_ica,fmin,fmax):
+    # Delta band filter range
+    low, high = fmin,fmax
+
+    # Filter the data for the delta band across the entire duration
+    delta_filtered = raw_ica.copy().filter(low, high, fir_design='firwin')
+
+    # Get the entire data and time array
+    data, times = delta_filtered[:, :]
+
+    # Generate summaries for each channel
+    channel_summaries = []
+    for i, channel_name in enumerate(raw_ica.info['ch_names']):
+        channel_data = data[i, :]
+        mean_power = np.mean(np.abs(channel_data)**2)
+        variance = np.var(channel_data)
+        max_amplitude = np.max(np.abs(channel_data))
+        min_amplitude = np.min(np.abs(channel_data))
+
+        # Create a summary string for each channel
+        summary = f"""
+        Channel: {channel_name}
+        - Frequency range: {low} Hz to {high} Hz
+        - Duration analyzed: Entire recording
+        - Mean power in the delta band: {mean_power:.2f} µV²
+        - Variance: {variance:.2f} µV²
+        - Maximum amplitude: {max_amplitude:.2f} µV
+        - Minimum amplitude: {min_amplitude:.2f} µV
+        """
+        channel_summaries.append(summary.strip())
+
+    # Combine all channel summaries
+    complete_summary = "\n\n".join(channel_summaries)
+    return complete_summary
+def generate_detailed_relative_power_summary(raw_ica, bands, channel_groups):
+    # Compute PSD and relative power for topomaps
+    spectrum = raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+    psds, freqs = spectrum.get_data(return_freqs=True)
+
+    band_powers = {}
+    for band, (fmin, fmax) in bands.items():
+        freq_mask = (freqs >= fmin) & (freqs <= fmax)
+        band_powers[band] = np.mean(psds[:, freq_mask], axis=1)
+
+    total_power = np.sum(list(band_powers.values()), axis=0)
+    relative_powers = {band: (power / total_power) * 100 for band, power in band_powers.items()}
+
+    # Regional Analysis: Break down power into specific regions (e.g., frontal, parietal)
+    regional_summaries = []
+    for region, channels in channel_groups.items():
+        region_powers = {}
+        for band in bands:
+            region_power = np.mean([relative_powers[band][raw_ica.ch_names.index(ch)] for ch in channels])
+            region_powers[band] = region_power
+
+        regional_summary = f"{region.capitalize()} Region:"
+        for band, power in region_powers.items():
+            regional_summary += f"\n  - {band.capitalize()} Band: Average Power: {power:.2f}%"
+        regional_summaries.append(regional_summary)
+
+    # Generate summary based on detailed analysis
+    summary_lines = [
+        "Detailed Relative Power Analysis Summary:",
+        "The analysis computed the relative power distribution across six EEG frequency bands:"
+    ]
+
+    for band, power in relative_powers.items():
+        avg_power = np.mean(power)
+        std_power = np.std(power)
+        max_power = np.max(power)
+        min_power = np.min(power)
+        summary_lines.append(
+            f"- {band.capitalize()} Band ({bands[band][0]} - {bands[band][1]} Hz): "
+            f"Average Power: {avg_power:.2f}%, Std Dev: {std_power:.2f}%, Max Power: {max_power:.2f}%, Min Power: {min_power:.2f}%."
+        )
+
+    summary_lines.append("\nRegional Analysis:")
+    summary_lines.extend(regional_summaries)
+
+    summary_lines.append(
+        "The detailed analysis provides insights into how different brain regions contribute to various frequency bands, "
+        "reflecting cognitive functions such as relaxation, attention, and higher-order processing."
+    )
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+def generate_detailed_absolute_power_summary(raw_ica, bands, channel_groups):
+    # Compute PSD and absolute power for topomaps
+    spectrum = raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+    psds, freqs = spectrum.get_data(return_freqs=True)
+
+    # Convert PSD to absolute power in µV²
+    band_powers = {}
+    for band, (fmin, fmax) in bands.items():
+        freq_mask = (freqs >= fmin) & (freqs <= fmax)
+        # Sum across the frequency bins within the band and scale to µV²
+        band_powers[band] = np.sum(psds[:, freq_mask], axis=1)
+
+    # Include frequencies and PSD values in the summary
+    summary_lines = [
+        "Detailed Absolute Power Analysis Summary:",
+        "The analysis computed the absolute power distribution across six EEG frequency bands:",
+        f"Frequencies: {freqs}",
+        f"PSD Values (first channel): {psds[0]}"
+    ]
+
+    for band, power in band_powers.items():
+        avg_power = np.mean(power)
+        std_power = np.std(power)
+        max_power = np.max(power)
+        min_power = np.min(power)
+        summary_lines.append(
+            f"- {band.capitalize()} Band ({bands[band][0]} - {bands[band][1]} Hz): "
+            f"Average Power: {avg_power:.10f} µV², Std Dev: {std_power:.10f} µV², Max Power: {max_power:.10f} µV², Min Power: {min_power:.10f} µV²."
+        )
+
+    summary_lines.append("\nRegional and Channel-Specific Analysis:")
+    for region, channels in channel_groups.items():
+        summary_lines.append(f"\n{region.capitalize()} Region:")
+        for band in bands:
+            region_power = np.mean([band_powers[band][raw_ica.ch_names.index(ch)] for ch in channels])
+            summary_lines.append(f"  - {band.capitalize()} Band: {region_power:.10f} µV² (Average across {', '.join(channels)})")
+
+        for ch in channels:
+            summary_lines.append(f"\nChannel {ch} Analysis:")
+            for band in bands:
+                ch_index = raw_ica.ch_names.index(ch)
+                ch_power = band_powers[band][ch_index]
+                summary_lines.append(f"  - {band.capitalize()} Band: {ch_power:.10f} µV²")
+
+    summary_lines.append(
+        "\nThe detailed analysis provides insights into the distribution of absolute power across different regions and channels, "
+        "reflecting specific brain activities related to the analyzed frequency bands."
+    )
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+def generate_detailed_relative_spectra_summary(raw_ica, bands):
+    # Compute PSD and relative power for spectra
+    spectrum = raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+    psds, freqs = spectrum.get_data(return_freqs=True)
+
+    band_powers = {}
+    for band, (fmin, fmax) in bands.items():
+        freq_mask = (freqs >= fmin) & (freqs <= fmax)
+        band_powers[band] = np.mean(psds[:, freq_mask], axis=1)
+
+    total_power = np.sum(list(band_powers.values()), axis=0)
+    relative_powers = {band: (power / total_power) * 100 for band, power in band_powers.items()}
+
+    # Generate the summary based on the relative spectra
+    summary_lines = [
+        "Detailed Relative Power Spectra Analysis Summary:",
+        "This analysis computed the relative power distribution across six EEG frequency bands at the channel level.",
+        f"Frequencies: {freqs}",
+        f"Total Power (first channel): {total_power[0]}"
+    ]
+
+    # Channel-specific analysis
+    for idx, ch_name in enumerate(raw_ica.ch_names):
+        summary_lines.append(f"\nChannel {ch_name} Analysis:")
+        for band, power in relative_powers.items():
+            summary_lines.append(
+                f"  - {band.capitalize()} Band ({bands[band][0]} - {bands[band][1]} Hz): "
+                f"Relative Power: {power[idx]:.2f}%"
+            )
+        summary_lines.append(
+            f"  - Total Power: {total_power[idx]:.2f} (µV²)"
+        )
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+
 
 # Use global variables to store raw and ICA-cleaned EEG data
 global_raw = None
@@ -678,23 +864,33 @@ global_raw_ica = None
 global_ica = None
 global_raw_openai = None
 global_raw_ica_openai = None
-global_ica_components = None
+global_ica_components_openai = None
+global_bands_openai = {}
+global_relative_topo_openai = None
+global_abs_topo_openai = None
+global_rel_spectra_openai = None
+
+
 
 # Read the API key from the text file
-with open('/root/apikey.txt', 'r') as file:
+with open('./apikey.txt', 'r') as file:
     openai_api_key = file.read().strip()
 
 # OpenAI API Key setup
 client = OpenAI(api_key=openai_api_key)# Route for file upload and main dashboard
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
-    global global_raw, global_raw_ica, global_ica, global_raw_openai, global_raw_ica_openai, global_ica_components
+    global global_raw, global_raw_ica, global_ica, global_raw_openai, \
+    global_raw_ica_openai, global_ica_components_openai, name, dob, \
+    age, gender, known_issues, global_bands_openai, global_relative_topo_openai, \
+    global_abs_topo_openai, global_rel_spectra_openai
 
     if request.method == 'POST':
         name = request.form.get('name')
         dob = request.form.get('dob')
         age = request.form.get('age')
         gender = request.form.get('gender')
+        known_issues = request.form.get('known_issues')
         # Handle file upload
         if 'file' in request.files:
             try:
@@ -765,10 +961,81 @@ def upload_file():
                                 {"role": "user", "content": f"Given the following EEG data related to ICA components: {summary_ica_components}, please analyze the data and provide a short report with conclusions. Emphasize that the analysis is based on ICA components. The participant is a {age}-year-old {gender}, named {name}. Write the report in a way that addresses the participant directly, using their name as needed. The report should be structured into three sections (don't add any other heading/title): Introduction, Findings, and Conclusion. The language should be formal (not a formal letter with Dear Name and Best regards etc), clear, concise, and suitable for a primary school-going child (aged {age} years), while maintaining proper report format. Ensure to mention that this analysis is specifically considering ICA components and how they affect the overall interpretation of the EEG data."}
                             ]
                         )
-                global_ica_components = response_ica_components.choices[0].message.content
+                global_ica_components_openai = response_ica_components.choices[0].message.content
 
+                for band in bands.keys():
+                    print(band)
+                    low, high = bands[band]
+                    band_summary = generate_delta_band_summary_per_channel_full_duration(global_raw_ica.copy(),low,high)
+            
+                    band_response = client.chat.completions.create(
+                    model="chatgpt-4o-latest",
+                    messages=[
+                            {"role": "system", "content": "You are an expert in neuroscience, specializing in EEG analysis and frequency band interpretation."},
+                            {"role": "user", "content": f"""Given the following summary of EEG data focused on the 
+                             {band} band: {band_summary}, 
+                             please analyze the data and provide a short report with conclusions, 
+                             specifically focusing on the {band} band. The participant is a {age}-year-old {gender}, 
+                             named {name} having following known issues {known_issues}. Write the report in a 
+                             way that addresses the 
+                             participant directly, using their name when appropriate. The report should 
+                             be structured into three sections (don't add any other heading/title): Introduction, 
+                             Findings, and Conclusion. Do not sugar coat it, make sure to bring up anything alarming 
+                             in the data in the conclusion, or any possible dignosis. Don't add aigning off remarks 
+                             like, yours sincerely etc. The language should be formal, clear, concise, and suitable 
+                             for a primary school-going child (aged {age} years), while maintaining proper report 
+                             format. Make sure to explain what the findings suggest about brain activity."""}
+                        ]
+                        )
+                    global_bands_openai[band] = band_response.choices[0].message.content
+                    
+                relative_power_topomaps_summary = generate_detailed_relative_power_summary(raw_ica, 
+                                                                                            bands, channel_groups)
+                rel_pwr_topo_response = client.chat.completions.create(
+                model="chatgpt-4o-latest",
+                messages=[
+                        {"role": "system", "content": "You are an expert in neuroscience, specializing in EEG analysis"},
+                        {"role": "user", "content": f"""Given the following summary of EEG data focused on the 
+                            relative spectra topomaps: {relative_power_topomaps_summary}, 
+                            please analyze the data and provide a short report with conclusions, 
+                            specifically focusing on the relative power spectrum. The participant is a {age}-year-old 
+                            {gender}, 
+                            named {name} having following known issues {known_issues}. Write the report in a 
+                            way that addresses the 
+                            participant directly, using their name when appropriate. The report should 
+                            be structured into three sections (don't add any other heading/title): Introduction, 
+                            Findings, and Conclusion. Do not sugar coat it, make sure to bring up anything alarming 
+                            in the data in the conclusion, or any possible dignosis. Don't add aigning off remarks 
+                            like, yours sincerely etc. The language should be formal, clear, concise, and suitable 
+                            for a primary school-going child (aged {age} years), while maintaining proper report 
+                            format. Make sure to explain what the findings suggest about brain activity."""}
+                    ]
+                    )
+                global_relative_topo_openai = rel_pwr_topo_response.choices[0].message.content
                 
-                
+
+                detailed_absolute_power_summary = generate_detailed_absolute_power_summary(raw, bands, channel_groups)
+                abs_pwr_topo_response = client.chat.completions.create(
+                model="chatgpt-4o-latest",
+                messages=[
+                        {"role": "system", "content": "You are an expert in neuroscience, specializing in EEG analysis"},
+                        {"role": "user", "content": f"""Given the following summary of EEG data focused on the 
+                            absolute spectra topomaps: {detailed_absolute_power_summary}, 
+                            please analyze the data and provide a short report with conclusions, 
+                            specifically focusing on the relative power spectrum. The participant is a {age}-year-old 
+                            {gender}, 
+                            named {name} having following known issues {known_issues}. Write the report in a 
+                            way that addresses the 
+                            participant directly, using their name when appropriate. The report should 
+                            be structured into three sections (don't add any other heading/title): Introduction, 
+                            Findings, and Conclusion. Do not sugar coat it, make sure to bring up anything alarming 
+                            in the data in the conclusion, or any possible dignosis. Don't add aigning off remarks 
+                            like, yours sincerely etc. The language should be formal, clear, concise, and suitable 
+                            for a primary school-going child (aged {age} years), while maintaining proper report 
+                            format. Make sure to explain what the findings suggest about brain activity."""}
+                    ]
+                    )
+                global_abs_topo_openai = abs_pwr_topo_response.choices[0].message.content
                 # Determine the maximum time for the EEG data
                 max_time = int(raw.times[-1])
 
@@ -805,7 +1072,7 @@ def handle_slider_update(data):
             openai_res = re.sub(r'[*#]', '', openai_res)
             print(global_raw_ica_openai)
         elif plot_type == "ica_properties":
-            figs = global_ica.plot_properties(global_raw_ica, show=False)
+            figs = global_ica.plot_properties(global_raw_ica, picks=global_ica.exclude, show=False)
     
             # Save each figure to an image and send them to the client
             plot_urls = []
@@ -820,13 +1087,17 @@ def handle_slider_update(data):
                 plot_urls.append(plot_url)
                 
 
-            openai_res = global_ica_components
-            openai_res = openai_res = re.sub(r'[*#]', '', openai_res)
-            print(global_raw_ica_openai)
+            openai_res = global_ica_components_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
+            print(global_ica_components_openai)
         elif plot_type in ["delta", "theta", "alpha", "beta-1", "beta-2", "gamma"]:
             low, high = bands[plot_type]
             band_filtered = global_raw_ica.copy().filter(low, high, fir_design='firwin')
             fig = band_filtered.plot(start=start_time, duration=5, n_channels=19, show=False)
+            
+            openai_res = global_bands_openai[plot_type]
+            openai_res = re.sub(r'[*#]', '', openai_res)
+            
         elif plot_type == "topomaps_relative":
             # Compute PSD and relative power for topomaps
             spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
@@ -846,6 +1117,9 @@ def handle_slider_update(data):
                 ax.set_title(f'{band.capitalize()} Band')
             plt.suptitle('Relative Power Topomaps', fontsize=16)
             plt.colorbar(axes[0].images[0], ax=axes, orientation='horizontal', fraction=0.05, pad=0.07)
+            
+            openai_res = global_relative_topo_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
         elif plot_type == "topomaps_absolute":
             # Compute PSD and absolute power for topomaps
             spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
@@ -863,6 +1137,9 @@ def handle_slider_update(data):
                 ax.set_title(f'{band.capitalize()} Band')
             plt.suptitle('Absolute Power Topomaps', fontsize=16)
             plt.colorbar(axes[0].images[0], ax=axes, orientation='horizontal', fraction=0.05, pad=0.07)  
+            
+            openai_res = global_abs_topo_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
         elif plot_type == 'relative_spectra':
             spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
             psds, freqs = spectrum.get_data(return_freqs=True)
@@ -1199,4 +1476,4 @@ def handle_slider_update(data):
         
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True,host='0.0.0.0',port=5000)#, use_reloader=False)
+    socketio.run(app, debug=True, host='0.0.0.0',port=5000)#, use_reloader=False)
