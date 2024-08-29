@@ -873,7 +873,7 @@ global_rel_spectra_openai = None
 
 
 # Read the API key from the text file
-with open('./apikey.txt', 'r') as file:
+with open('/root/apikey.txt', 'r') as file:
     openai_api_key = file.read().strip()
 
 # OpenAI API Key setup
