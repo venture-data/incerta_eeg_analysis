@@ -26,36 +26,40 @@
       <div class="col-md-3 bg-dark text-white" style="height: 100vh; overflow-y: auto;">
         <h1>EEG Analysis</h1>
         <form method="POST" action="/" enctype="multipart/form-data">
-          <div class="form-group">
-            <label for="file">Upload EEG File (.edf)</label>
-            <input type="file" class="form-control-file" name="file" required>
-          </div>
+            <div class="form-group">
+                <label for="file">Upload EEG File (.edf)</label>
+                <input type="file" class="form-control-file" name="file" required>
+            </div>
 
-          <!-- Additional Input Fields for OpenAI Prompt -->
-          <div class="form-group">
-            <label for="name">Name</label>
-            <input type="text" class="form-control" id="name" name="name" required>
-          </div>
+            <!-- Additional Input Fields for OpenAI Prompt -->
+            <div class="form-group">
+                <label for="name">Name</label>
+                <input type="text" class="form-control" id="name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="known_issues">Known Issues</label>
+                <input type="text" class="form-control" id="known_issues" name="known_issues" required>
+            </div>
 
-          <div class="form-group">
-            <label for="dob">Date of Birth</label>
-            <input type="date" class="form-control" id="dob" name="dob" required>
-          </div>
+            <div class="form-group">
+                <label for="dob">Date of Birth</label>
+                <input type="date" class="form-control" id="dob" name="dob" required onchange="calculateAge()">
+            </div>
 
-          <div class="form-group">
-            <label for="age">Age</label>
-            <input type="number" class="form-control" id="age" name="age" required>
-          </div>
+            <div class="form-group">
+                <label for="age">Age</label>
+                <input type="number" class="form-control" id="age" name="age" readonly>
+            </div>
 
-          <div class="form-group">
-            <label for="gender">Gender</label>
-            <select class="form-control" id="gender" name="gender" required>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
-          </div>
+            <div class="form-group">
+                <label for="gender">Gender</label>
+                <select class="form-control" id="gender" name="gender" required>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                </select>
+            </div>
 
-          <input type="submit" class="btn btn-primary" value="Upload">
+            <input type="submit" class="btn btn-primary" value="Upload">
         </form>
         {% if max_time > 0 %}
         <form>
@@ -148,6 +152,19 @@
         start_time: sliderValue,
         plot_type: plotType
       });
+      }
+    function calculateAge() {
+        let dob = document.getElementById('dob').value;
+        if (dob) {
+            let dobDate = new Date(dob);
+            let today = new Date();
+            let age = today.getFullYear() - dobDate.getFullYear();
+            let monthDiff = today.getMonth() - dobDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dobDate.getDate())) {
+                age--;
+            }
+            document.getElementById('age').value = age;
+        }
     }
 
     const debouncedUpdateSlider = debounce(updateSlider, 300);
