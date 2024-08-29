@@ -595,6 +595,31 @@ channel_groups = {
 # Ensure the upload folder exists
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
+    
+def main_gpt_call(analysis, summary, participant_name,age,gender,known_issues,medications):
+    response = client.chat.completions.create(
+        model="chatgpt-4o-latest",
+        messages=[
+            {"role": "system", "content": """You are an expert in neuroscience, specializing in
+             EEG analysis and frequency band interpretation."""},
+            {"role": "user", "content": f"""Given the following summary of EEG data focused on {analysis} 
+                            : {summary}, 
+                            please analyze the data and provide a short report with conclusions, 
+                            specifically focusing on the {analysis}. The participant is a {age}-year-old 
+                            {gender}, 
+                            named {name} having following known issues {known_issues}. the participant is 
+                            taking medications: {medications}. Write the report in a 
+                            way that addresses the participant directly, using their name when appropriate. 
+                            The report should be structured into three sections (don't add any other heading/title): 
+                            Introduction, Findings, and Conclusion. Do not sugar coat it, make sure to bring up 
+                            anything alarming in the data in the conclusion, or any possible dignosis. Don't add 
+                            signing off remarks like, yours sincerely etc. The language should be formal, clear, 
+                            concise, and suitable for a primary school-going child (aged {age} years), while 
+                            maintaining proper report format. Make sure to explain what the findings suggest 
+                            about brain activity.Please write the report in British English"""}
+        ]
+    )
+    return response.choices[0].message.content
 
 def extract_detailed_eeg_features(raw):
     """
@@ -608,16 +633,6 @@ def extract_detailed_eeg_features(raw):
     - features_json: str
         A JSON-formatted string containing the extracted features.
     """
-    # Define frequency bands
-    bands = {
-        "delta": (1.5, 4),
-        "theta": (4, 7.5),
-        "alpha": (7.5, 14),
-        "beta-1": (14, 20),
-        "beta-2": (20, 30),
-        "gamma": (30, 40)
-    }
-
     features = {}
 
     # Iterate over each frequency band to compute features
@@ -856,6 +871,157 @@ def generate_detailed_relative_spectra_summary(raw_ica, bands):
     # Combine all lines into a single summary
     summary = "\n".join(summary_lines)
     return summary
+def generate_detailed_absolute_spectra_summary(raw_ica, bands):
+    # Compute PSD for absolute power spectra
+    spectrum = raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+    psds, freqs = spectrum.get_data(return_freqs=True)
+
+    band_powers = {}
+    for band, (fmin, fmax) in bands.items():
+        freq_mask = (freqs >= fmin) & (freqs <= fmax)
+        band_powers[band] = np.mean(psds[:, freq_mask], axis=1)
+
+    # Generate the summary based on the absolute spectra
+    summary_lines = [
+        "Detailed Absolute Power Spectra Analysis Summary:",
+        "This analysis computed the absolute power distribution across six EEG frequency bands at the channel level.",
+        f"Frequencies: {freqs}",
+        f"Total Power (first channel): {np.sum(psds[0]):.10f} (µV²)"
+    ]
+
+    # Channel-specific analysis
+    for idx, ch_name in enumerate(raw_ica.ch_names):
+        summary_lines.append(f"\nChannel {ch_name} Analysis:")
+        for band, power in band_powers.items():
+            summary_lines.append(
+                f"  - {band.capitalize()} Band ({bands[band][0]} - {bands[band][1]} Hz): "
+                f"Absolute Power: {power[idx]:.10f} (µV²)"
+            )
+        summary_lines.append(
+            f"  - Total Power: {np.sum(psds[idx]):.10f} (µV²)"
+        )
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+def generate_detailed_theta_beta_ratio_summary(raw_ica, bands):
+    # Compute PSD for the Theta/Beta ratio
+    spectrum = raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+    psds, freqs = spectrum.get_data(return_freqs=True)
+
+    # Calculate Theta and Beta power
+    theta_power = np.mean(psds[:, (freqs >= bands['theta'][0]) & (freqs <= bands['theta'][1])], axis=1)
+    beta_power = np.mean(psds[:, (freqs >= bands['beta-1'][0]) & (freqs <= bands['beta-1'][1])], axis=1)
+
+    # Compute Theta/Beta ratio
+    theta_beta_ratio = theta_power / beta_power
+
+    # Generate the summary
+    summary_lines = [
+        "Detailed Theta/Beta Ratio Analysis Summary:",
+        "This analysis computed the Theta/Beta ratio across all EEG channels to provide insights into cognitive states.",
+        f"Frequencies: {freqs}",
+        f"PSD Values (first channel): {psds[0]}"
+    ]
+
+    # Channel-specific analysis
+    for idx, ch_name in enumerate(raw_ica.ch_names):
+        summary_lines.append(f"\nChannel {ch_name} Analysis:")
+        summary_lines.append(
+            f"  - Theta Power: {theta_power[idx]:.10f} (µV²)"
+        )
+        summary_lines.append(
+            f"  - Beta Power: {beta_power[idx]:.10f} (µV²)"
+        )
+        summary_lines.append(
+            f"  - Theta/Beta Ratio: {theta_beta_ratio[idx]:.10f}"
+        )
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+def generate_detailed_brain_mapping_summary(raw_ica, bands):
+    # Compute PSD for the Theta/Beta ratio
+    spectrum = raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+    psds, freqs = spectrum.get_data(return_freqs=True)
+
+    # Calculate Theta and Beta power
+    theta_power = np.mean(psds[:, (freqs >= bands['theta'][0]) & (freqs <= bands['theta'][1])], axis=1)
+    beta_power = np.mean(psds[:, (freqs >= bands['beta-1'][0]) & (freqs <= bands['beta-1'][1])], axis=1)
+
+    # Compute Theta/Beta ratio
+    theta_beta_ratio = theta_power / beta_power
+
+    # Determine channels with increased and decreased activity
+    increased_activity_channels = np.where(theta_beta_ratio > np.mean(theta_beta_ratio) + np.std(theta_beta_ratio))[0]
+    decreased_activity_channels = np.where(theta_beta_ratio < np.mean(theta_beta_ratio) - np.std(theta_beta_ratio))[0]
+
+    # Generate summary
+    summary_lines = [
+        "Detailed Brain Mapping Analysis Summary:",
+        "This analysis visualizes the Theta/Beta ratio across EEG channels to identify regions with increased or decreased activity.",
+        "Channels showing increased activity (marked in green) have higher-than-average Theta/Beta ratios, while channels showing decreased activity (marked in red) have lower-than-average ratios.",
+    ]
+
+    if len(increased_activity_channels) > 0:
+        summary_lines.append("\nChannels with Increased Activity (Theta/Beta Ratio > Mean + 1 Std Dev):")
+        for ch_idx in increased_activity_channels:
+            ch_name = raw_ica.ch_names[ch_idx]
+            summary_lines.append(f"  - {ch_name}: Theta/Beta Ratio = {theta_beta_ratio[ch_idx]:.2f}")
+    else:
+        summary_lines.append("\nNo channels were identified with significantly increased activity.")
+
+    if len(decreased_activity_channels) > 0:
+        summary_lines.append("\nChannels with Decreased Activity (Theta/Beta Ratio < Mean - 1 Std Dev):")
+        for ch_idx in decreased_activity_channels:
+            ch_name = raw_ica.ch_names[ch_idx]
+            summary_lines.append(f"  - {ch_name}: Theta/Beta Ratio = {theta_beta_ratio[ch_idx]:.2f}")
+    else:
+        summary_lines.append("\nNo channels were identified with significantly decreased activity.")
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+def generate_detailed_occipital_alpha_peak_summary(raw_ica, alpha_band=(7.5, 14)):
+    # Compute PSD for Occipital Alpha Peak analysis
+    spectrum = raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+    psds, freqs = spectrum.get_data(return_freqs=True)
+
+    # Define the occipital channels
+    occipital_channels = ['O1', 'O2']
+    occipital_psds = psds[[raw_ica.ch_names.index(ch) for ch in occipital_channels], :]
+
+    # Extract the alpha band frequency range
+    alpha_mask = np.where((freqs >= alpha_band[0]) & (freqs <= alpha_band[1]))[0]
+    alpha_freqs = freqs[alpha_mask]
+    occipital_psds_alpha = occipital_psds[:, alpha_mask]
+
+    # Find the peak alpha frequency for each occipital channel
+    alpha_peaks = {}
+    for idx, ch_name in enumerate(occipital_channels):
+        alpha_psd = occipital_psds_alpha[idx]
+        peak_idx = np.argmax(alpha_psd)
+        alpha_peaks[ch_name] = alpha_freqs[peak_idx]
+
+    # Generate the summary
+    summary_lines = [
+        "Detailed Occipital Alpha Peak Analysis Summary:",
+        "This analysis focuses on detecting the alpha peak frequency in the occipital channels (O1, O2), which is important for assessing resting-state brain activity.",
+        f"Alpha Frequency Range Analyzed: {alpha_band[0]} - {alpha_band[1]} Hz",
+        "The following are the detected alpha peaks for each occipital channel:"
+    ]
+
+    for ch_name, peak_freq in alpha_peaks.items():
+        summary_lines.append(f"  - {ch_name}: Peak Alpha Frequency = {peak_freq:.2f} Hz")
+
+    summary_lines.append("\nThis analysis helps determine the dominant alpha frequency in the occipital region, which is often linked to relaxation and visual processing.")
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+
+
+
 
 
 # Use global variables to store raw and ICA-cleaned EEG data
@@ -869,6 +1035,10 @@ global_bands_openai = {}
 global_relative_topo_openai = None
 global_abs_topo_openai = None
 global_rel_spectra_openai = None
+global_abs_spectra_openai = None
+global_theta_beta_ratio_openai = None
+global_brain_mapping_openai = None
+global_occipital_alpha_peak_openai = None
 
 
 
@@ -881,9 +1051,10 @@ client = OpenAI(api_key=openai_api_key)# Route for file upload and main dashboar
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
     global global_raw, global_raw_ica, global_ica, global_raw_openai, \
-    global_raw_ica_openai, global_ica_components_openai, name, dob, \
-    age, gender, known_issues, global_bands_openai, global_relative_topo_openai, \
-    global_abs_topo_openai, global_rel_spectra_openai
+    global_raw_ica_openai, global_ica_components_openai, name, dob, age, \
+    gender, known_issues, global_bands_openai, global_relative_topo_openai, \
+    global_abs_topo_openai, global_rel_spectra_openai, global_abs_spectra_openai, \
+    global_theta_beta_ratio_openai, global_brain_mapping_openai,global_occipital_alpha_peak_openai
 
     if request.method == 'POST':
         name = request.form.get('name')
@@ -891,6 +1062,7 @@ def upload_file():
         age = request.form.get('age')
         gender = request.form.get('gender')
         known_issues = request.form.get('known_issues')
+        medications = request.form.get('medications')
         # Handle file upload
         if 'file' in request.files:
             try:
@@ -933,35 +1105,20 @@ def upload_file():
                 global_ica = ica
 
                 raw_eeg_features_json = extract_detailed_eeg_features(global_raw)
-                raw_response = client.chat.completions.create(
-                model="chatgpt-4o-latest",
-                messages=[
-                    {"role": "system", "content": "You are an expert in neuroscience and EEG analysis."},
-                    {"role": "user", "content": f"Given the following overview of Raw EEG feature data: {raw_eeg_features_json}, please analyze the data and provide a short report with conclusions, keep them relevant and somewhat short. The participant is a {age}-year-old {gender}, named {name}, respond in a way like you're talking to the participant directly, you can skip any salutations, and you can use participants name here and there. The report should be structured into three sections (don't add any other heading/title): Introduction, Findings, and Conclusion. The language should be formal (not a formal letter with Dear Name and Best regards etc), clear, concise, and suitable for a primary school-going child (aged {age} years), while maintaining proper report format."}
-                ]
-            )
-                global_raw_openai = raw_response.choices[0].message.content
+                raw_response = main_gpt_call("Raw EEG feature data", raw_eeg_features_json, name, 
+                                             age,gender,known_issues,medications)
+                global_raw_openai = raw_response
 
                 raw_ica_eeg_features_json = extract_detailed_eeg_features(global_raw_ica)
-                raw_ica_response = client.chat.completions.create(
-                model="chatgpt-4o-latest",
-                messages=[
-                        {"role": "system", "content": "You are an expert in neuroscience and EEG analysis."},
-                        {"role": "user", "content": f"Given the following overview of ICA-cleaned EEG feature data: {raw_ica_eeg_features_json}, please analyze the data and provide a short report with conclusions, emphasizing that the data is now ICA-cleaned. The participant is a {age}-year-old {gender}, named {name}. Write the report in a way that addresses the participant directly, using their name appropriately. The report should be structured into three sections (don't add any other heading/title): Introduction, Findings, and Conclusion. The language should be formal (not a formal letter with Dear Name and Best regards etc), clear, concise, and suitable for a primary school-going child (aged {age} years), while maintaining proper report format. Make sure to mention that the analysis is based on ICA-cleaned EEG data.Also please highlight any problems related to brain functions like sleep issue, learning issues, sensory issues etc"}
-                    ]
-            )
-                global_raw_ica_openai = raw_ica_response.choices[0].message.content
+                raw_ica_response = main_gpt_call("ICA-cleaned EEG feature data", raw_ica_eeg_features_json,
+                                                 name, age, gender, known_issues,medications)
+                global_raw_ica_openai = raw_ica_response
                 
 
                 summary_ica_components = generate_raw_summary(raw, global_ica, eog_channels)
-                response_ica_components = client.chat.completions.create(
-                            model="chatgpt-4o-latest",
-                            messages=[
-                                {"role": "system", "content": "You are an expert in neuroscience, specializing in EEG analysis and ICA artifact removal."},
-                                {"role": "user", "content": f"Given the following EEG data related to ICA components: {summary_ica_components}, please analyze the data and provide a short report with conclusions. Emphasize that the analysis is based on ICA components. The participant is a {age}-year-old {gender}, named {name}. Write the report in a way that addresses the participant directly, using their name as needed. The report should be structured into three sections (don't add any other heading/title): Introduction, Findings, and Conclusion. The language should be formal (not a formal letter with Dear Name and Best regards etc), clear, concise, and suitable for a primary school-going child (aged {age} years), while maintaining proper report format. Ensure to mention that this analysis is specifically considering ICA components and how they affect the overall interpretation of the EEG data."}
-                            ]
-                        )
-                global_ica_components_openai = response_ica_components.choices[0].message.content
+                response_ica_components = main_gpt_call("ICA component and property analysis", summary_ica_components,
+                                                 name, age, gender, known_issues,medications)
+                global_ica_components_openai = response_ica_components
 
                 for band in bands.keys():
                     print(band)
@@ -976,66 +1133,64 @@ def upload_file():
                              {band} band: {band_summary}, 
                              please analyze the data and provide a short report with conclusions, 
                              specifically focusing on the {band} band. The participant is a {age}-year-old {gender}, 
-                             named {name} having following known issues {known_issues}. Write the report in a 
-                             way that addresses the 
+                             named {name} having following known issues {known_issues}. The participant is taking 
+                             medications: {medications}. Write the report in a way that addresses the 
                              participant directly, using their name when appropriate. The report should 
                              be structured into three sections (don't add any other heading/title): Introduction, 
                              Findings, and Conclusion. Do not sugar coat it, make sure to bring up anything alarming 
                              in the data in the conclusion, or any possible dignosis. Don't add aigning off remarks 
                              like, yours sincerely etc. The language should be formal, clear, concise, and suitable 
                              for a primary school-going child (aged {age} years), while maintaining proper report 
-                             format. Make sure to explain what the findings suggest about brain activity."""}
+                             format. Make sure to explain what the findings suggest about brain activity.
+                             Please write the response in British English"""}
                         ]
                         )
                     global_bands_openai[band] = band_response.choices[0].message.content
                     
                 relative_power_topomaps_summary = generate_detailed_relative_power_summary(raw_ica, 
                                                                                             bands, channel_groups)
-                rel_pwr_topo_response = client.chat.completions.create(
-                model="chatgpt-4o-latest",
-                messages=[
-                        {"role": "system", "content": "You are an expert in neuroscience, specializing in EEG analysis"},
-                        {"role": "user", "content": f"""Given the following summary of EEG data focused on the 
-                            relative spectra topomaps: {relative_power_topomaps_summary}, 
-                            please analyze the data and provide a short report with conclusions, 
-                            specifically focusing on the relative power spectrum. The participant is a {age}-year-old 
-                            {gender}, 
-                            named {name} having following known issues {known_issues}. Write the report in a 
-                            way that addresses the 
-                            participant directly, using their name when appropriate. The report should 
-                            be structured into three sections (don't add any other heading/title): Introduction, 
-                            Findings, and Conclusion. Do not sugar coat it, make sure to bring up anything alarming 
-                            in the data in the conclusion, or any possible dignosis. Don't add aigning off remarks 
-                            like, yours sincerely etc. The language should be formal, clear, concise, and suitable 
-                            for a primary school-going child (aged {age} years), while maintaining proper report 
-                            format. Make sure to explain what the findings suggest about brain activity."""}
-                    ]
-                    )
-                global_relative_topo_openai = rel_pwr_topo_response.choices[0].message.content
+                rel_pwr_topo_response = main_gpt_call("Relative Power spectra topomaps analysis", relative_power_topomaps_summary,
+                                                 name, age, gender, known_issues,medications)
+                global_relative_topo_openai = rel_pwr_topo_response
                 
 
                 detailed_absolute_power_summary = generate_detailed_absolute_power_summary(raw, bands, channel_groups)
-                abs_pwr_topo_response = client.chat.completions.create(
-                model="chatgpt-4o-latest",
-                messages=[
-                        {"role": "system", "content": "You are an expert in neuroscience, specializing in EEG analysis"},
-                        {"role": "user", "content": f"""Given the following summary of EEG data focused on the 
-                            absolute spectra topomaps: {detailed_absolute_power_summary}, 
-                            please analyze the data and provide a short report with conclusions, 
-                            specifically focusing on the relative power spectrum. The participant is a {age}-year-old 
-                            {gender}, 
-                            named {name} having following known issues {known_issues}. Write the report in a 
-                            way that addresses the 
-                            participant directly, using their name when appropriate. The report should 
-                            be structured into three sections (don't add any other heading/title): Introduction, 
-                            Findings, and Conclusion. Do not sugar coat it, make sure to bring up anything alarming 
-                            in the data in the conclusion, or any possible dignosis. Don't add aigning off remarks 
-                            like, yours sincerely etc. The language should be formal, clear, concise, and suitable 
-                            for a primary school-going child (aged {age} years), while maintaining proper report 
-                            format. Make sure to explain what the findings suggest about brain activity."""}
-                    ]
-                    )
-                global_abs_topo_openai = abs_pwr_topo_response.choices[0].message.content
+                abs_pwr_topo_response = main_gpt_call("Absolute Power spectra topomaps analysis", detailed_absolute_power_summary,
+                                                 name, age, gender, known_issues,medications)
+                global_abs_topo_openai = abs_pwr_topo_response
+                
+                relative_spectra_summary = generate_detailed_relative_spectra_summary(raw_ica, bands)
+                rel_spectra_response = main_gpt_call("Relative Power Spectra Analysis (area graphs)", relative_spectra_summary,
+                                                 name, age, gender, known_issues,medications)
+
+                global_rel_spectra_openai = rel_spectra_response
+                
+                abs_spectra_summary = generate_detailed_absolute_spectra_summary(raw_ica, bands)
+                abs_spectra_response = main_gpt_call("Absolute Power spectra topomaps analysis", abs_spectra_summary,
+                                                 name, age, gender, known_issues,medications)
+
+                global_abs_spectra_openai = abs_spectra_response
+                
+                theta_beta_summary = generate_detailed_theta_beta_ratio_summary(raw_ica, bands)
+                theta_beta_response = main_gpt_call("Theta/Beta ratio topomap analysis", theta_beta_summary,
+                                                 name, age, gender, known_issues,medications)
+
+                global_theta_beta_ratio_openai = theta_beta_response
+                
+                brain_mapping_summary = generate_detailed_brain_mapping_summary(raw_ica, bands)
+                brain_mapping_response = main_gpt_call("Brain mapping topomap analysis with increased and decreased activity channels"
+                                                       , brain_mapping_summary,
+                                                        name, age, gender, known_issues,medications)
+
+                global_brain_mapping_openai = brain_mapping_response
+                
+                occi_alpha_peak_summary = generate_detailed_brain_mapping_summary(raw_ica, bands)
+                occi_alpha_peak_response = main_gpt_call("EEG data focused on occipital alpha peaks"
+                                                       , occi_alpha_peak_summary,
+                                                        name, age, gender, known_issues,medications)
+
+                global_occipital_alpha_peak_openai = occi_alpha_peak_response
+                
                 # Determine the maximum time for the EEG data
                 max_time = int(raw.times[-1])
 
@@ -1065,7 +1220,6 @@ def handle_slider_update(data):
             openai_res = global_raw_openai
             openai_res = re.sub(r'[*#]', '', openai_res)
             print(global_raw_openai)
-
         elif plot_type == 'cleaned' and global_raw_ica:
             fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
             openai_res = global_raw_ica_openai
@@ -1097,7 +1251,6 @@ def handle_slider_update(data):
             
             openai_res = global_bands_openai[plot_type]
             openai_res = re.sub(r'[*#]', '', openai_res)
-            
         elif plot_type == "topomaps_relative":
             # Compute PSD and relative power for topomaps
             spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
@@ -1160,6 +1313,8 @@ def handle_slider_update(data):
                 ax.set_xlim([0.5, 50])
                 ax.set_xlabel('Frequency (Hz)')
                 ax.set_ylabel('Relative Power (%)')
+            openai_res = global_rel_spectra_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
         elif plot_type == 'absolute_spectra':
             spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
             psds, freqs = spectrum.get_data(return_freqs=True)
@@ -1176,6 +1331,8 @@ def handle_slider_update(data):
                 ax.set_ylim([0, np.max(psds[idx]) * 1.1])
                 ax.set_xlabel('Frequency (Hz)')
                 ax.set_ylabel('Absolute Power')
+            openai_res = global_abs_spectra_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
         elif plot_type == "theta_beta_ratio":
             # Compute the Theta/Beta ratio
             spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
@@ -1189,6 +1346,9 @@ def handle_slider_update(data):
             plot_topomap(theta_beta_ratio, global_raw_ica.info, axes=ax, show=False, cmap=custom_cmap)
             ax.set_title('Theta/Beta Ratio')
             plt.colorbar(ax.images[0], ax=ax, orientation='horizontal', fraction=0.05, pad=0.07)
+            
+            openai_res = global_theta_beta_ratio_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
         elif plot_type == 'brain_mapping':
             spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
             psds, freqs = spectrum.get_data(return_freqs=True)
@@ -1223,6 +1383,9 @@ def handle_slider_update(data):
             # Remove any unnecessary elements
             ax.axis('off')
             ax.set_title('Theta/Beta Ratio Topographic Map', color='black')
+            
+            openai_res = global_brain_mapping_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
         elif plot_type == "occipital_alpha_peak":
             # Compute the PSDs for Occipital channels
             # Compute PSD and relative power for topomaps and spectra
@@ -1247,6 +1410,8 @@ def handle_slider_update(data):
             ax.set_xlabel('Frequency (Hz)')
             ax.set_ylabel('Power')
             ax.legend()
+            openai_res = global_occipital_alpha_peak_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
         elif plot_type == "chewing_artifact_detection":
             # Chewing artifact detection logic
             chewing_channels = ['T3', 'T4','T5','T6']  # Channels focused on detecting rectus artifacts
@@ -1476,4 +1641,4 @@ def handle_slider_update(data):
         
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0',port=5000)#, use_reloader=False)
+    socketio.run(app, debug=True, host='0.0.0.0', port = 5000)#, use_reloader=False)
