@@ -684,55 +684,28 @@ def extract_detailed_eeg_features(raw):
 
     # Print or return the JSON string
     return features_json
-def compute_ica_summary(ica, raw_data):
+def generate_raw_summary(raw, ica, eog_channels):
+    # Extract basic information about the raw data
+    num_channels = len(raw.ch_names)
+    sampling_freq = raw.info['sfreq']
+    duration = raw.times[-1] / 60  # Duration in minutes
+    excluded_components = ica.exclude
+    eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name=eog_channels)
+
+    # Create a summary string
+    summary = f"""
+    # EEG Data Summary:
+    - Number of channels: {num_channels}
+    - Sampling frequency: {sampling_freq} Hz
+    - Recording duration: {duration:.2f} minutes
+    - EOG channels used for artifact detection: {eog_channels}
+    - Number of ICA components: {ica.n_components_}
+    - Identified EOG artifact components: {eog_indices}
+    - Components excluded after ICA: {excluded_components}
+    - ICA performed with {ica.n_components_} components, random state = {ica.random_state}, and max iterations = {ica.max_iter}.
     """
-    Compute a summary of the ICA components for EEG data.
 
-    Parameters:
-    - ica: The fitted ICA object (from MNE).
-    - raw_data: The raw EEG data used to fit the ICA.
-
-    Returns:
-    - summary_json: A JSON string summarizing the ICA component analysis.
-    """
-    summary = {}
-
-    # Iterate over each component to compute metrics
-    for idx in range(ica.n_components_):
-        component_summary = {}
-
-        # Get the variance explained by each component
-        variance_explained = np.var(ica.get_sources(raw_data).get_data()[idx])
-        component_summary['variance_explained'] = variance_explained
-
-        # Compute the frequency spectrum (Power Spectral Density) for the component
-        psd, freqs = mne.time_frequency.psd_array_multitaper(
-            ica.get_sources(raw_data).get_data()[idx],
-            sfreq=raw_data.info['sfreq'],
-            fmin=0.1,
-            fmax=100.0
-        )
-        component_summary['psd_mean'] = np.mean(psd).tolist()
-        component_summary['psd_max'] = np.max(psd).tolist()
-
-        # Get the topographic map
-        component_summary['topographic_map'] = ica.get_components()[:, idx].tolist()
-
-        # Calculate kurtosis and skewness using scipy
-        component_data = ica.get_sources(raw_data).get_data()[idx]
-        component_summary['kurtosis'] = float(kurtosis(component_data))
-        component_summary['skewness'] = float(skew(component_data))
-
-        # Correlation with EOG or any other artifact channels (if applicable)
-        # eog_correlation = ica.score_sources(raw_data, target='eog')
-        # component_summary['eog_correlation'] = eog_correlation[idx]
-
-        summary[f'IC_{idx}'] = component_summary
-
-    # Convert the summary dictionary to a JSON-formatted string
-    summary_json = json.dumps(summary, indent=4)
-
-    return summary_json
+    return summary.strip()
 def generate_delta_band_summary_per_channel_full_duration(raw_ica,fmin,fmax):
     # Delta band filter range
     low, high = fmin,fmax
@@ -1711,7 +1684,7 @@ def upload_file():
                 global_raw_ica_openai = raw_ica_response
                 
                 #ica component openai
-                summary_ica_components = compute_ica_summary(global_ica, global_raw_ica)
+                summary_ica_components = generate_raw_summary(global_raw,global_ica,eog_channels)
                 response_ica_components = main_gpt_call("ICA component and property analysis", summary_ica_components,
                                                  name, age, gender, known_issues,medications)
                 global_ica_components_openai = response_ica_components
