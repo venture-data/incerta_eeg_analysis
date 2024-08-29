@@ -15,6 +15,7 @@ from mne.dipole import fit_dipole
 from mne.transforms import Transform
 from openai import OpenAI
 import re
+from scipy.stats import kurtosis, skew
 
 
 import json
@@ -109,6 +110,7 @@ def detect_chewing_artifacts(raw_ica, start_time, duration=5):
     Returns:
     - List of tuples indicating the start and end time of chewing artifacts.
     """
+    # Generate the summary
 
     # Define the chewing artifact frequency range (e.g., 1-3 Hz as per research)
     freq_range = (1, 3)
@@ -592,6 +594,14 @@ channel_groups = {
     "central": ["C3", "C4", "Cz"]
 }
 
+frequency_bins = {
+                'Bin 1 (~0.98 Hz)': (0.97, 0.99),
+                'Bin 2 (~1.95 Hz)': (1.94, 1.96),
+                'Bin 3 (~8.30 Hz)': (8.29, 8.31),
+                'Bin 4 (~26.51 Hz)': (26.50, 26.62),
+                'Bin 5 (~30.76 Hz)': (30.75, 30.77)
+            }
+
 # Ensure the upload folder exists
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
@@ -674,28 +684,55 @@ def extract_detailed_eeg_features(raw):
 
     # Print or return the JSON string
     return features_json
-def generate_raw_summary(raw, ica, eog_channels):
-    # Extract basic information about the raw data
-    num_channels = len(raw.ch_names)
-    sampling_freq = raw.info['sfreq']
-    duration = raw.times[-1] / 60  # Duration in minutes
-    excluded_components = ica.exclude
-    eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name=eog_channels)
-
-    # Create a summary string
-    summary = f"""
-    EEG Data Summary:
-    - Number of channels: {num_channels}
-    - Sampling frequency: {sampling_freq} Hz
-    - Recording duration: {duration:.2f} minutes
-    - EOG channels used for artifact detection: {eog_channels}
-    - Number of ICA components: {ica.n_components_}
-    - Identified EOG artifact components: {eog_indices}
-    - Components excluded after ICA: {excluded_components}
-    - ICA performed with {ica.n_components_} components, random state = {ica.random_state}, and max iterations = {ica.max_iter}.
+def compute_ica_summary(ica, raw_data):
     """
+    Compute a summary of the ICA components for EEG data.
 
-    return summary.strip()
+    Parameters:
+    - ica: The fitted ICA object (from MNE).
+    - raw_data: The raw EEG data used to fit the ICA.
+
+    Returns:
+    - summary_json: A JSON string summarizing the ICA component analysis.
+    """
+    summary = {}
+
+    # Iterate over each component to compute metrics
+    for idx in range(ica.n_components_):
+        component_summary = {}
+
+        # Get the variance explained by each component
+        variance_explained = np.var(ica.get_sources(raw_data).get_data()[idx])
+        component_summary['variance_explained'] = variance_explained
+
+        # Compute the frequency spectrum (Power Spectral Density) for the component
+        psd, freqs = mne.time_frequency.psd_array_multitaper(
+            ica.get_sources(raw_data).get_data()[idx],
+            sfreq=raw_data.info['sfreq'],
+            fmin=0.1,
+            fmax=100.0
+        )
+        component_summary['psd_mean'] = np.mean(psd).tolist()
+        component_summary['psd_max'] = np.max(psd).tolist()
+
+        # Get the topographic map
+        component_summary['topographic_map'] = ica.get_components()[:, idx].tolist()
+
+        # Calculate kurtosis and skewness using scipy
+        component_data = ica.get_sources(raw_data).get_data()[idx]
+        component_summary['kurtosis'] = float(kurtosis(component_data))
+        component_summary['skewness'] = float(skew(component_data))
+
+        # Correlation with EOG or any other artifact channels (if applicable)
+        # eog_correlation = ica.score_sources(raw_data, target='eog')
+        # component_summary['eog_correlation'] = eog_correlation[idx]
+
+        summary[f'IC_{idx}'] = component_summary
+
+    # Convert the summary dictionary to a JSON-formatted string
+    summary_json = json.dumps(summary, indent=4)
+
+    return summary_json
 def generate_delta_band_summary_per_channel_full_duration(raw_ica,fmin,fmax):
     # Delta band filter range
     low, high = fmin,fmax
@@ -1019,10 +1056,553 @@ def generate_detailed_occipital_alpha_peak_summary(raw_ica, alpha_band=(7.5, 14)
     # Combine all lines into a single summary
     summary = "\n".join(summary_lines)
     return summary
+def generate_detailed_chewing_artifact_summary_full_duration(raw_ica, chewing_channels, detect_chewing_artifacts, window_duration=5):
+    # Calculate the number of windows needed to cover the entire EEG recording
+    total_duration = raw_ica.times[-1]
+    num_windows = int(np.ceil(total_duration / window_duration))
 
+    # Generate the summary
+    summary_lines = [
+        "Comprehensive Chewing Artifact Detection Summary:",
+        "This analysis covers the entire EEG recording, detecting chewing-related artifacts in the temporal channels (T3, T4, F7, F8), which are most sensitive to muscle activity during chewing."
+    ]
 
+    for window_idx in range(num_windows):
+        start_time = window_idx * window_duration
+        end_time = min((window_idx + 1) * window_duration, total_duration)
 
+        # Detect chewing artifacts in the current window
+        chewing_segments = detect_chewing_artifacts(raw_ica, start_time, end_time - start_time)
 
+        if chewing_segments:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            for segment in chewing_segments:
+                affected_channels = []
+                for ch in chewing_channels:
+                    ch_index = raw_ica.ch_names.index(ch)
+                    if any(segment[0] <= t <= segment[1] for t in np.arange(start_time, end_time, 1 / raw_ica.info['sfreq'])):
+                        affected_channels.append(ch)
+                if affected_channels:
+                    summary_lines.append(f"  - Segment: {segment[0]:.2f}s to {segment[1]:.2f}s, Affected Channels: {', '.join(affected_channels)}")
+        else:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            summary_lines.append("  - No significant chewing artifacts detected within this time segment.")
+
+    summary_lines.append("\nThis detailed and comprehensive analysis spans the entire EEG recording, identifying all time periods heavily influenced by chewing activity across the temporal channels.")
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+def generate_detailed_ecg_artifact_summary_full_duration(raw_ica, ecg_channels, detect_ecg_artifacts, window_duration=5):
+    """
+    Generate a detailed and granular summary of ECG artifact detection across the entire EEG recording.
+
+    Parameters:
+    - raw_ica: The ICA-cleaned raw data object.
+    - ecg_channels: List of channels to focus on for ECG artifact detection.
+    - detect_ecg_artifacts: Function to detect ECG artifacts in a given segment.
+    - window_duration: Duration of each analysis window in seconds.
+
+    Returns:
+    - A detailed summary string ready for analysis and reporting.
+    """
+    # Calculate the total recording duration
+    total_duration = raw_ica.times[-1]
+    num_windows = int(np.ceil(total_duration / window_duration))
+
+    # Initialize summary
+    summary_lines = [
+        "Comprehensive ECG Artifact Detection Summary:",
+        "This analysis covers the entire EEG recording, detecting cardiac/ECG-related artifacts in selected channels (T3, T4, Cz) that are most likely to pick up ECG activity.",
+        f"Total recording duration: {total_duration:.2f} seconds.",
+        f"Analysis conducted in {num_windows} time windows, each {window_duration} seconds long."
+    ]
+
+    # Analyze the EEG recording in windows
+    for window_idx in range(num_windows):
+        start_time = window_idx * window_duration
+        end_time = min((window_idx + 1) * window_duration, total_duration)
+
+        # Detect ECG artifacts in the current window
+        ecg_segments = detect_ecg_artifacts(raw_ica, start_time, end_time - start_time)
+
+        # Add details for the current window
+        if ecg_segments:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            for segment in ecg_segments:
+                affected_channels = []
+                for ch in ecg_channels:
+                    ch_index = raw_ica.ch_names.index(ch)
+                    # Check if the segment is relevant for this channel
+                    if any(segment[0] <= t <= segment[1] for t in np.arange(start_time, end_time, 1 / raw_ica.info['sfreq'])):
+                        affected_channels.append(ch)
+                if affected_channels:
+                    summary_lines.append(f"  - Segment: {segment[0]:.2f}s to {segment[1]:.2f}s, Affected Channels: {', '.join(affected_channels)}")
+        else:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            summary_lines.append("  - No significant ECG artifacts detected within this time segment.")
+
+    summary_lines.append("\nThis comprehensive analysis identifies ECG artifacts across the entire EEG recording, highlighting time periods that are affected by cardiac activity.")
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+def generate_detailed_rectus_artifact_summary_full_duration(raw_ica, rectus_channels, detect_rectus_artifacts, window_duration=5):
+    """
+    Generate a detailed and granular summary of rectus artifact detection across the entire EEG recording.
+
+    Parameters:
+    - raw_ica: The ICA-cleaned raw data object.
+    - rectus_channels: List of channels to focus on for rectus artifact detection.
+    - detect_rectus_artifacts: Function to detect rectus artifacts in a given segment.
+    - window_duration: Duration of each analysis window in seconds.
+
+    Returns:
+    - A detailed summary string ready for analysis and reporting.
+    """
+    # Calculate the total recording duration
+    total_duration = raw_ica.times[-1]
+    num_windows = int(np.ceil(total_duration / window_duration))
+
+    # Initialize summary
+    summary_lines = [
+        "Comprehensive Rectus Artifact Detection Summary:",
+        "This analysis covers the entire EEG recording, detecting rectus-related (eye movement) artifacts in selected frontal channels (Fp1, Fp2) that are most likely to pick up slow eye movements.",
+        f"Total recording duration: {total_duration:.2f} seconds.",
+        f"Analysis conducted in {num_windows} time windows, each {window_duration} seconds long."
+    ]
+
+    # Analyze the EEG recording in windows
+    for window_idx in range(num_windows):
+        start_time = window_idx * window_duration
+        end_time = min((window_idx + 1) * window_duration, total_duration)
+
+        # Detect rectus artifacts in the current window
+        rectus_segments = detect_rectus_artifacts(raw_ica, start_time, end_time - start_time)
+
+        # Add details for the current window
+        if rectus_segments:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            for segment in rectus_segments:
+                affected_channels = []
+                for ch in rectus_channels:
+                    ch_index = raw_ica.ch_names.index(ch)
+                    # Check if the segment is relevant for this channel
+                    if any(segment[0] <= t <= segment[1] for t in np.arange(start_time, end_time, 1 / raw_ica.info['sfreq'])):
+                        affected_channels.append(ch)
+                if affected_channels:
+                    summary_lines.append(f"  - Segment: {segment[0]:.2f}s to {segment[1]:.2f}s, Affected Channels: {', '.join(affected_channels)}")
+        else:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            summary_lines.append("  - No significant rectus artifacts detected within this time segment.")
+
+    summary_lines.append("\nThis comprehensive analysis identifies rectus artifacts across the entire EEG recording, highlighting time periods that are affected by slow eye movements.")
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+def generate_detailed_roving_eye_artifact_summary_full_duration(raw_ica, roving_channels, detect_roving_eye_artifacts, window_duration=5):
+    """
+    Generate a detailed and granular summary of roving eye artifact detection across the entire EEG recording.
+
+    Parameters:
+    - raw_ica: The ICA-cleaned raw data object.
+    - roving_channels: List of channels to focus on for roving eye artifact detection.
+    - detect_roving_eye_artifacts: Function to detect roving eye artifacts in a given segment.
+    - window_duration: Duration of each analysis window in seconds.
+
+    Returns:
+    - A detailed summary string ready for analysis and reporting.
+    """
+    # Calculate the total recording duration
+    total_duration = raw_ica.times[-1]
+    num_windows = int(np.ceil(total_duration / window_duration))
+
+    # Initialize summary
+    summary_lines = [
+        "Comprehensive Roving Eye Artifact Detection Summary:",
+        "This analysis covers the entire EEG recording, detecting roving eye (slow lateral movement) artifacts in selected frontal channels (Fp1, Fp2) that are most likely to pick up such artifacts.",
+        f"Total recording duration: {total_duration:.2f} seconds.",
+        f"Analysis conducted in {num_windows} time windows, each {window_duration} seconds long."
+    ]
+
+    # Analyze the EEG recording in windows
+    for window_idx in range(num_windows):
+        start_time = window_idx * window_duration
+        end_time = min((window_idx + 1) * window_duration, total_duration)
+
+        # Detect roving eye artifacts in the current window
+        roving_segments = detect_roving_eye_artifacts(raw_ica, start_time, end_time - start_time)
+
+        # Add details for the current window
+        if roving_segments:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            for segment in roving_segments:
+                affected_channels = []
+                for ch in roving_channels:
+                    ch_index = raw_ica.ch_names.index(ch)
+                    # Check if the segment is relevant for this channel
+                    if any(segment[0] <= t <= segment[1] for t in np.arange(start_time, end_time, 1 / raw_ica.info['sfreq'])):
+                        affected_channels.append(ch)
+                if affected_channels:
+                    summary_lines.append(f"  - Segment: {segment[0]:.2f}s to {segment[1]:.2f}s, Affected Channels: {', '.join(affected_channels)}")
+        else:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            summary_lines.append("  - No significant roving eye artifacts detected within this time segment.")
+
+    summary_lines.append("\nThis comprehensive analysis identifies roving eye artifacts across the entire EEG recording, highlighting time periods that are affected by slow lateral eye movements.")
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+def generate_detailed_muscle_tension_artifact_summary_full_duration(raw_ica, muscle_channels, detect_muscle_tension_artifacts, window_duration=5):
+    """
+    Generate a detailed and granular summary of muscle tension artifact detection across the entire EEG recording.
+
+    Parameters:
+    - raw_ica: The ICA-cleaned raw data object.
+    - muscle_channels: List of channels to focus on for muscle tension artifact detection.
+    - detect_muscle_tension_artifacts: Function to detect muscle tension artifacts in a given segment.
+    - window_duration: Duration of each analysis window in seconds.
+
+    Returns:
+    - A detailed summary string ready for analysis and reporting.
+    """
+    # Calculate the total recording duration
+    total_duration = raw_ica.times[-1]
+    num_windows = int(np.ceil(total_duration / window_duration))
+
+    # Initialize summary
+    summary_lines = [
+        "Comprehensive Muscle Tension Artifact Detection Summary:",
+        "This analysis covers the entire EEG recording, detecting muscle tension artifacts in selected temporal channels (T3, T4, F7, F8) that are most likely to pick up high-frequency muscle activity.",
+        f"Total recording duration: {total_duration:.2f} seconds.",
+        f"Analysis conducted in {num_windows} time windows, each {window_duration} seconds long."
+    ]
+
+    # Analyze the EEG recording in windows
+    for window_idx in range(num_windows):
+        start_time = window_idx * window_duration
+        end_time = min((window_idx + 1) * window_duration, total_duration)
+
+        # Detect muscle tension artifacts in the current window
+        muscle_segments = detect_muscle_tension_artifacts(raw_ica, start_time, end_time - start_time)
+
+        # Add details for the current window
+        if muscle_segments:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            for segment in muscle_segments:
+                affected_channels = []
+                for ch in muscle_channels:
+                    ch_index = raw_ica.ch_names.index(ch)
+                    # Check if the segment is relevant for this channel
+                    if any(segment[0] <= t <= segment[1] for t in np.arange(start_time, end_time, 1 / raw_ica.info['sfreq'])):
+                        affected_channels.append(ch)
+                if affected_channels:
+                    summary_lines.append(f"  - Segment: {segment[0]:.2f}s to {segment[1]:.2f}s, Affected Channels: {', '.join(affected_channels)}")
+        else:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            summary_lines.append("  - No significant muscle tension artifacts detected within this time segment.")
+
+    summary_lines.append("\nThis comprehensive analysis identifies muscle tension artifacts across the entire EEG recording, highlighting time periods that are affected by high-frequency muscle activity.")
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+def generate_detailed_blink_artifact_summary_full_duration(raw_ica, blink_channels, detect_blink_artifacts, window_duration=5):
+    """
+    Generate a detailed and granular summary of blink artifact detection across the entire EEG recording.
+
+    Parameters:
+    - raw_ica: The ICA-cleaned raw data object.
+    - blink_channels: List of channels to focus on for blink artifact detection.
+    - detect_blink_artifacts: Function to detect blink artifacts in a given segment.
+    - window_duration: Duration of each analysis window in seconds.
+
+    Returns:
+    - A detailed summary string ready for analysis and reporting.
+    """
+    # Calculate the total recording duration
+    total_duration = raw_ica.times[-1]
+    num_windows = int(np.ceil(total_duration / window_duration))
+
+    # Initialize summary
+    summary_lines = [
+        "Comprehensive Blink Artifact Detection Summary:",
+        "This analysis covers the entire EEG recording, detecting blink artifacts in selected frontal channels (Fp1, Fp2) that are most likely to pick up slow blink movements.",
+        f"Total recording duration: {total_duration:.2f} seconds.",
+        f"Analysis conducted in {num_windows} time windows, each {window_duration} seconds long."
+    ]
+
+    # Analyze the EEG recording in windows
+    for window_idx in range(num_windows):
+        start_time = window_idx * window_duration
+        end_time = min((window_idx + 1) * window_duration, total_duration)
+
+        # Detect blink artifacts in the current window
+        blink_segments = detect_blink_artifacts(raw_ica, start_time, end_time - start_time)
+
+        # Add details for the current window
+        if blink_segments:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            for segment in blink_segments:
+                affected_channels = []
+                for ch in blink_channels:
+                    ch_index = raw_ica.ch_names.index(ch)
+                    # Check if the segment is relevant for this channel
+                    if any(segment[0] <= t <= segment[1] for t in np.arange(start_time, end_time, 1 / raw_ica.info['sfreq'])):
+                        affected_channels.append(ch)
+                if affected_channels:
+                    summary_lines.append(f"  - Segment: {segment[0]:.2f}s to {segment[1]:.2f}s, Affected Channels: {', '.join(affected_channels)}")
+        else:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            summary_lines.append("  - No significant blink artifacts detected within this time segment.")
+
+    summary_lines.append("\nThis comprehensive analysis identifies blink artifacts across the entire EEG recording, highlighting time periods that are affected by slow blink movements.")
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+def generate_detailed_rectus_spike_artifact_summary_full_duration(raw_ica, rectus_channels, detect_rectus_spikes_artifacts, window_duration=5):
+    """
+    Generate a detailed and granular summary of rectus spike artifact detection across the entire EEG recording.
+
+    Parameters:
+    - raw_ica: The ICA-cleaned raw data object.
+    - rectus_channels: List of channels to focus on for rectus spike artifact detection.
+    - detect_rectus_spikes_artifacts: Function to detect rectus spike artifacts in a given segment.
+    - window_duration: Duration of each analysis window in seconds.
+
+    Returns:
+    - A detailed summary string ready for analysis and reporting.
+    """
+    # Calculate the total recording duration
+    total_duration = raw_ica.times[-1]
+    num_windows = int(np.ceil(total_duration / window_duration))
+
+    # Initialize summary
+    summary_lines = [
+        "Comprehensive Rectus Spike Artifact Detection Summary:",
+        "This analysis covers the entire EEG recording, detecting rectus spike artifacts in selected frontal channels (Fp1, Fp2) that are most likely to pick up rapid deflections related to sudden eye movements or muscle contractions.",
+        f"Total recording duration: {total_duration:.2f} seconds.",
+        f"Analysis conducted in {num_windows} time windows, each {window_duration} seconds long."
+    ]
+
+    # Analyze the EEG recording in windows
+    for window_idx in range(num_windows):
+        start_time = window_idx * window_duration
+        end_time = min((window_idx + 1) * window_duration, total_duration)
+
+        # Detect rectus spike artifacts in the current window
+        rectus_spike_segments = detect_rectus_spikes_artifacts(raw_ica, start_time, end_time - start_time)
+
+        # Add details for the current window
+        if rectus_spike_segments:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            for segment in rectus_spike_segments:
+                affected_channels = []
+                for ch in rectus_channels:
+                    ch_index = raw_ica.ch_names.index(ch)
+                    # Check if the segment is relevant for this channel
+                    if any(segment[0] <= t <= segment[1] for t in np.arange(start_time, end_time, 1 / raw_ica.info['sfreq'])):
+                        affected_channels.append(ch)
+                if affected_channels:
+                    summary_lines.append(f"  - Segment: {segment[0]:.2f}s to {segment[1]:.2f}s, Affected Channels: {', '.join(affected_channels)}")
+        else:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            summary_lines.append("  - No significant rectus spike artifacts detected within this time segment.")
+
+    summary_lines.append("\nThis comprehensive analysis identifies rectus spike artifacts across the entire EEG recording, highlighting time periods that are affected by rapid deflections in frontal channels.")
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+def generate_detailed_pdr_artifact_summary_full_duration(raw_ica, pdr_channels, detect_pdr_artifacts, window_duration=5):
+    """
+    Generate a detailed and granular summary of PDR artifact detection across the entire EEG recording.
+
+    Parameters:
+    - raw_ica: The ICA-cleaned raw data object.
+    - pdr_channels: List of channels to focus on for PDR artifact detection.
+    - detect_pdr_artifacts: Function to detect PDR artifacts in a given segment.
+    - window_duration: Duration of each analysis window in seconds.
+
+    Returns:
+    - A detailed summary string ready for analysis and reporting.
+    """
+    # Calculate the total recording duration
+    total_duration = raw_ica.times[-1]
+    num_windows = int(np.ceil(total_duration / window_duration))
+
+    # Initialize summary
+    summary_lines = [
+        "Comprehensive PDR Artifact Detection Summary:",
+        "This analysis covers the entire EEG recording, detecting PDR artifacts in selected occipital channels (O1, O2) that are most likely to pick up alpha rhythms associated with relaxed states.",
+        f"Total recording duration: {total_duration:.2f} seconds.",
+        f"Analysis conducted in {num_windows} time windows, each {window_duration} seconds long."
+    ]
+
+    # Analyze the EEG recording in windows
+    for window_idx in range(num_windows):
+        start_time = window_idx * window_duration
+        end_time = min((window_idx + 1) * window_duration, total_duration)
+
+        # Detect PDR artifacts in the current window
+        pdr_segments = detect_pdr_artifacts(raw_ica, start_time, end_time - start_time)
+
+        # Add details for the current window
+        if pdr_segments:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            for segment in pdr_segments:
+                affected_channels = []
+                for ch in pdr_channels:
+                    ch_index = raw_ica.ch_names.index(ch)
+                    # Check if the segment is relevant for this channel
+                    if any(segment[0] <= t <= segment[1] for t in np.arange(start_time, end_time, 1 / raw_ica.info['sfreq'])):
+                        affected_channels.append(ch)
+                if affected_channels:
+                    summary_lines.append(f"  - Segment: {segment[0]:.2f}s to {segment[1]:.2f}s, Affected Channels: {', '.join(affected_channels)}")
+        else:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            summary_lines.append("  - No significant PDR artifacts detected within this time segment.")
+
+    summary_lines.append("\nThis comprehensive analysis identifies PDR artifacts across the entire EEG recording, highlighting time periods that are affected by alpha rhythms in the occipital channels.")
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+def generate_detailed_impedance_artifact_summary_full_duration(raw_ica, detect_impedance_artifacts, window_duration=5):
+    """
+    Generate a detailed and granular summary of impedance artifact detection across the entire EEG recording.
+
+    Parameters:
+    - raw_ica: The ICA-cleaned raw data object.
+    - detect_impedance_artifacts: Function to detect impedance artifacts in a given segment.
+    - window_duration: Duration of each analysis window in seconds.
+
+    Returns:
+    - A detailed summary string ready for analysis and reporting.
+    """
+    # Calculate the total recording duration
+    total_duration = raw_ica.times[-1]
+    num_windows = int(np.ceil(total_duration / window_duration))
+
+    # Initialize summary
+    summary_lines = [
+        "Comprehensive Impedance Artifact Detection Summary:",
+        "This analysis covers the entire EEG recording, detecting impedance artifacts caused by poor electrode contact. These artifacts typically manifest as slow drifts in the signal.",
+        f"Total recording duration: {total_duration:.2f} seconds.",
+        f"Analysis conducted in {num_windows} time windows, each {window_duration} seconds long."
+    ]
+
+    # Analyze the EEG recording in windows
+    for window_idx in range(num_windows):
+        start_time = window_idx * window_duration
+        end_time = min((window_idx + 1) * window_duration, total_duration)
+
+        # Detect impedance artifacts in the current window
+        impedance_segments = detect_impedance_artifacts(raw_ica, start_time, end_time - start_time)
+
+        # Add details for the current window
+        if impedance_segments:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            for segment in impedance_segments:
+                summary_lines.append(f"  - Segment: {segment[0]:.2f}s to {segment[1]:.2f}s")
+        else:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            summary_lines.append("  - No significant impedance artifacts detected within this time segment.")
+
+    summary_lines.append("\nThis comprehensive analysis identifies impedance artifacts across the entire EEG recording, highlighting time periods that are affected by slow drifts in the signal.")
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+def generate_detailed_epileptic_pattern_summary_full_duration(raw_ica, detect_epileptic_patterns, window_duration=5):
+    """
+    Generate a detailed and granular summary of epileptic pattern detection across the entire EEG recording.
+
+    Parameters:
+    - raw_ica: The ICA-cleaned raw data object.
+    - detect_epileptic_patterns: Function to detect epileptic patterns in a given segment.
+    - window_duration: Duration of each analysis window in seconds.
+
+    Returns:
+    - A detailed summary string ready for analysis and reporting.
+    """
+    # Calculate the total recording duration
+    total_duration = raw_ica.times[-1]
+    num_windows = int(np.ceil(total_duration / window_duration))
+
+    # Initialize summary
+    summary_lines = [
+        "Comprehensive Epileptic Pattern Detection Summary:",
+        "This analysis covers the entire EEG recording, detecting epileptic patterns such as spikes and sharp waves that may be indicative of seizure activity.",
+        f"Total recording duration: {total_duration:.2f} seconds.",
+        f"Analysis conducted in {num_windows} time windows, each {window_duration} seconds long."
+    ]
+
+    # Analyze the EEG recording in windows
+    for window_idx in range(num_windows):
+        start_time = window_idx * window_duration
+        end_time = min((window_idx + 1) * window_duration, total_duration)
+
+        # Detect epileptic patterns in the current window
+        epileptic_segments = detect_epileptic_patterns(raw_ica, start_time, end_time - start_time)
+
+        # Add details for the current window
+        if epileptic_segments:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            for segment in epileptic_segments:
+                summary_lines.append(f"  - Epileptic Pattern Detected: {segment[0]:.2f}s to {segment[1]:.2f}s")
+        else:
+            summary_lines.append(f"\nAnalyzed time segment: {start_time:.2f}s to {end_time:.2f}s")
+            summary_lines.append("  - No significant epileptic patterns detected within this time segment.")
+
+    summary_lines.append("\nThis comprehensive analysis identifies epileptic patterns across the entire EEG recording, highlighting time periods that may indicate potential seizure activity.")
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
+def generate_frequency_bin_summary(raw, frequency_bins):
+    """
+    Generate a detailed summary for custom frequency bins analysis.
+
+    Parameters:
+    - raw: mne.io.Raw
+        The raw EEG data after ICA cleaning.
+    - frequency_bins: dict
+        A dictionary with frequency bins as keys and frequency ranges as values.
+
+    Returns:
+    - A detailed summary string ready for further analysis or report generation.
+    """
+    summary_lines = []
+    summary_lines.append("Detailed Frequency Bin Analysis Summary:")
+
+    # Loop through each frequency bin to analyze
+    for bin_name, (low_freq, high_freq) in frequency_bins.items():
+        summary_lines.append(f"\nAnalyzing {bin_name} ({low_freq:.2f} - {high_freq:.2f} Hz):")
+
+        # Filter the data for the given frequency bin
+        raw_filtered = raw.copy().filter(l_freq=low_freq, h_freq=high_freq, fir_design='firwin')
+
+        # Compute the power spectral density (PSD)
+        spectrum = raw_filtered.compute_psd(method='welch', fmin=low_freq, fmax=high_freq, n_fft=2048)
+        psd, freqs = spectrum.get_data(return_freqs=True)
+
+        # Select the relevant frequency range and compute average power
+        idx = np.logical_and(freqs >= low_freq, freqs <= high_freq)
+        psd_mean = np.mean(psd[:, idx], axis=1)
+
+        # Add detailed channel-level summary for the current frequency bin
+        for ch_idx, ch_name in enumerate(raw.info['ch_names']):
+            summary_lines.append(f"  - {ch_name}: Average Power: {psd_mean[ch_idx]:.2f} µV²")
+
+    summary_lines.append("\nThis analysis highlights the power distribution across custom frequency bins and provides insights into specific brain activities captured within these ranges.")
+
+    # Combine all lines into a single summary
+    summary = "\n".join(summary_lines)
+    return summary
 
 # Use global variables to store raw and ICA-cleaned EEG data
 global_raw = None
@@ -1039,7 +1619,18 @@ global_abs_spectra_openai = None
 global_theta_beta_ratio_openai = None
 global_brain_mapping_openai = None
 global_occipital_alpha_peak_openai = None
-
+global_chewing_artifect_openai = None
+global_ecg_artifect_openai  = None
+global_rectus_artifect_openai = None 
+global_roving_eye_artifect_openai = None 
+global_muscle_tension_artifect_openai = None 
+global_blink_artifect_openai = None
+global_blink_artifect_openai = None 
+global_rectus_spike_artifect_openai = None 
+global_pdr_openai = None 
+global_impedance_openai = None 
+global_epileptic_openai = None 
+global_frq_bins_openai = None
 
 
 # Read the API key from the text file
@@ -1054,7 +1645,11 @@ def upload_file():
     global_raw_ica_openai, global_ica_components_openai, name, dob, age, \
     gender, known_issues, global_bands_openai, global_relative_topo_openai, \
     global_abs_topo_openai, global_rel_spectra_openai, global_abs_spectra_openai, \
-    global_theta_beta_ratio_openai, global_brain_mapping_openai,global_occipital_alpha_peak_openai
+    global_theta_beta_ratio_openai, global_brain_mapping_openai,global_occipital_alpha_peak_openai, \
+    global_chewing_artifect_openai, global_ecg_artifect_openai,global_rectus_artifect_openai, \
+    global_roving_eye_artifect_openai, global_muscle_tension_artifect_openai, global_blink_artifect_openai, \
+    global_blink_artifect_openai,global_rectus_spike_artifect_openai, global_pdr_openai, \
+    global_impedance_openai, global_epileptic_openai, global_frq_bins_openai
 
     if request.method == 'POST':
         name = request.form.get('name')
@@ -1104,22 +1699,23 @@ def upload_file():
                 global_raw_ica = raw_ica
                 global_ica = ica
 
+                #raw openai
                 raw_eeg_features_json = extract_detailed_eeg_features(global_raw)
                 raw_response = main_gpt_call("Raw EEG feature data", raw_eeg_features_json, name, 
                                              age,gender,known_issues,medications)
                 global_raw_openai = raw_response
-
+                #raw ica openai
                 raw_ica_eeg_features_json = extract_detailed_eeg_features(global_raw_ica)
                 raw_ica_response = main_gpt_call("ICA-cleaned EEG feature data", raw_ica_eeg_features_json,
                                                  name, age, gender, known_issues,medications)
                 global_raw_ica_openai = raw_ica_response
                 
-
-                summary_ica_components = generate_raw_summary(raw, global_ica, eog_channels)
+                #ica component openai
+                summary_ica_components = compute_ica_summary(global_ica, global_raw_ica)
                 response_ica_components = main_gpt_call("ICA component and property analysis", summary_ica_components,
                                                  name, age, gender, known_issues,medications)
                 global_ica_components_openai = response_ica_components
-
+                #band wise openai
                 for band in bands.keys():
                     print(band)
                     low, high = bands[band]
@@ -1146,51 +1742,157 @@ def upload_file():
                         ]
                         )
                     global_bands_openai[band] = band_response.choices[0].message.content
-                    
+                #rel power topo openai
                 relative_power_topomaps_summary = generate_detailed_relative_power_summary(raw_ica, 
                                                                                             bands, channel_groups)
                 rel_pwr_topo_response = main_gpt_call("Relative Power spectra topomaps analysis", relative_power_topomaps_summary,
                                                  name, age, gender, known_issues,medications)
                 global_relative_topo_openai = rel_pwr_topo_response
                 
-
+                #abs power topo openai
                 detailed_absolute_power_summary = generate_detailed_absolute_power_summary(raw, bands, channel_groups)
                 abs_pwr_topo_response = main_gpt_call("Absolute Power spectra topomaps analysis", detailed_absolute_power_summary,
                                                  name, age, gender, known_issues,medications)
                 global_abs_topo_openai = abs_pwr_topo_response
-                
+                #rel spectra openai
                 relative_spectra_summary = generate_detailed_relative_spectra_summary(raw_ica, bands)
                 rel_spectra_response = main_gpt_call("Relative Power Spectra Analysis (area graphs)", relative_spectra_summary,
                                                  name, age, gender, known_issues,medications)
 
                 global_rel_spectra_openai = rel_spectra_response
-                
+                #abs spectra opwnai
                 abs_spectra_summary = generate_detailed_absolute_spectra_summary(raw_ica, bands)
-                abs_spectra_response = main_gpt_call("Absolute Power spectra topomaps analysis", abs_spectra_summary,
+                abs_spectra_response = main_gpt_call("Absolute Power spectra analysis (area graphs)", abs_spectra_summary,
                                                  name, age, gender, known_issues,medications)
 
                 global_abs_spectra_openai = abs_spectra_response
-                
+                #theta beta ratio openai
                 theta_beta_summary = generate_detailed_theta_beta_ratio_summary(raw_ica, bands)
                 theta_beta_response = main_gpt_call("Theta/Beta ratio topomap analysis", theta_beta_summary,
                                                  name, age, gender, known_issues,medications)
 
                 global_theta_beta_ratio_openai = theta_beta_response
-                
+                #brain mapping openai
                 brain_mapping_summary = generate_detailed_brain_mapping_summary(raw_ica, bands)
                 brain_mapping_response = main_gpt_call("Brain mapping topomap analysis with increased and decreased activity channels"
                                                        , brain_mapping_summary,
                                                         name, age, gender, known_issues,medications)
 
                 global_brain_mapping_openai = brain_mapping_response
-                
-                occi_alpha_peak_summary = generate_detailed_brain_mapping_summary(raw_ica, bands)
+                #occi alpha peak openai
+                occi_alpha_peak_summary = generate_detailed_occipital_alpha_peak_summary(raw_ica, bands)
                 occi_alpha_peak_response = main_gpt_call("EEG data focused on occipital alpha peaks"
                                                        , occi_alpha_peak_summary,
                                                         name, age, gender, known_issues,medications)
 
                 global_occipital_alpha_peak_openai = occi_alpha_peak_response
                 
+                #chewing openai
+                chewing_artifect_summary = generate_detailed_chewing_artifact_summary_full_duration(raw_ica, 
+                                                                                                    ['T3', 'T4', 'F7', 'F8'], 
+                                                                                                    detect_chewing_artifacts, 
+                                                                                                    5)
+                chewing_artifect_response = main_gpt_call("EEG data focused on chewing artifact detection"
+                                                       , chewing_artifect_summary,
+                                                        name, age, gender, known_issues,medications)
+
+                global_chewing_artifect_openai = chewing_artifect_response
+                
+                #ecg openai
+                ecg_artifect_summary = generate_detailed_ecg_artifact_summary_full_duration(raw_ica, 
+                                                                                                    ['T3', 'T4', 'Cz'], 
+                                                                                                    detect_ecg_artifacts, 
+                                                                                                    5)
+                ecg_artifect_response = main_gpt_call("EEG data focused on ECG artifact detection"
+                                                       , ecg_artifect_summary,
+                                                        name, age, gender, known_issues,medications)
+
+                global_ecg_artifect_openai = ecg_artifect_response
+                #rectus openai
+                rectus_artifect_summary = generate_detailed_rectus_artifact_summary_full_duration(raw_ica, 
+                                                                                                    ['Fp1', 'Fp2'], 
+                                                                                                    detect_rectus_artifacts, 
+                                                                                                    5)
+                rectus_artifect_response = main_gpt_call("EEG data focused on rectus artifact detection"
+                                                       , rectus_artifect_summary,
+                                                        name, age, gender, known_issues,medications)
+
+                global_rectus_artifect_openai = rectus_artifect_response
+                #roving eye openai
+                roving_artifect_summary = generate_detailed_roving_eye_artifact_summary_full_duration(raw_ica, 
+                                                                                                    ['Fp1', 'Fp2'], 
+                                                                                                    detect_roving_eye_artifacts, 
+                                                                                                    5)
+                roving_artifect_response = main_gpt_call("EEG data focused on roving eye artifact detection"
+                                                       , roving_artifect_summary,
+                                                        name, age, gender, known_issues,medications)
+
+                global_roving_eye_artifect_openai = roving_artifect_response
+                #muscle artifect openai
+                muscle_artifect_summary = generate_detailed_muscle_tension_artifact_summary_full_duration(raw_ica, 
+                                                                                                    ['T3', 'T4', 'F7', 'F8'], 
+                                                                                                    detect_muscle_tension_artifacts, 
+                                                                                                    5)
+                muscle_artifect_response = main_gpt_call("EEG data focused on muscle tension artifact detection"
+                                                       , muscle_artifect_summary,
+                                                        name, age, gender, known_issues,medications)
+
+                global_muscle_tension_artifect_openai = muscle_artifect_response
+                #blink artifect openai
+                blink_artifect_summary = generate_detailed_blink_artifact_summary_full_duration(raw_ica, 
+                                                                                                    ['Fp1', 'Fp2'], 
+                                                                                                    detect_blink_artifacts, 
+                                                                                                    5)
+                blink_artifect_response = main_gpt_call("EEG data focused on blink artifact detection"
+                                                       , blink_artifect_summary,
+                                                        name, age, gender, known_issues,medications)
+
+                global_blink_artifect_openai = blink_artifect_response
+                #rectus spike artifect openai
+                rspike_artifect_summary = generate_detailed_rectus_spike_artifact_summary_full_duration(raw_ica, 
+                                                                                                    ['Fp1', 'Fp2'], 
+                                                                                                    detect_rectus_spikes_artifacts, 
+                                                                                                    5)
+                rspike_artifect_response = main_gpt_call("EEG data focused on rectus spikes artifact detection"
+                                                       , rspike_artifect_summary,
+                                                        name, age, gender, known_issues,medications)
+
+                global_rectus_spike_artifect_openai = rspike_artifect_response
+                #pdr artifect openai
+                pdr_artifect_summary = generate_detailed_pdr_artifact_summary_full_duration(raw_ica, 
+                                                                                                    ['O1', 'O2'], 
+                                                                                                    detect_pdr_artifacts, 
+                                                                                                    5)
+                pdr_artifect_response = main_gpt_call("EEG data focused on PDR artifact detection"
+                                                       , pdr_artifect_summary,
+                                                        name, age, gender, known_issues,medications)
+
+                global_pdr_openai = pdr_artifect_response
+                #impedance artifect openai
+                impedance_artifect_summary = generate_detailed_impedance_artifact_summary_full_duration(raw_ica, 
+                                                                                                    detect_impedance_artifacts, 
+                                                                                                    5)
+                impedance_artifect_response = main_gpt_call("EEG data focused on impedance artifact detection"
+                                                       , impedance_artifect_summary,
+                                                        name, age, gender, known_issues,medications)
+
+                global_impedance_openai = impedance_artifect_response
+                #epileptic artifect openai
+                epileptic_artifect_summary = generate_detailed_epileptic_pattern_summary_full_duration(raw_ica, 
+                                                                                                    detect_epileptic_patterns, 
+                                                                                                    5)
+                epileptic_artifect_response = main_gpt_call("EEG data focused on epileptic patterns artifact detection"
+                                                       , epileptic_artifect_summary,
+                                                        name, age, gender, known_issues,medications)
+
+                global_epileptic_openai = epileptic_artifect_response
+                #freq binz openai
+                freq_bins_artifect_summary = generate_frequency_bin_summary(raw_ica, frequency_bins)
+                freq_bins_artifect_response = main_gpt_call("EEG different frequency bin analysis"
+                                                       , freq_bins_artifect_summary,
+                                                        name, age, gender, known_issues,medications)
+
+                global_frq_bins_openai = freq_bins_artifect_response
                 # Determine the maximum time for the EEG data
                 max_time = int(raw.times[-1])
 
@@ -1410,6 +2112,8 @@ def handle_slider_update(data):
             ax.set_xlabel('Frequency (Hz)')
             ax.set_ylabel('Power')
             ax.legend()
+            
+
             openai_res = global_occipital_alpha_peak_openai
             openai_res = re.sub(r'[*#]', '', openai_res)
         elif plot_type == "chewing_artifact_detection":
@@ -1434,6 +2138,8 @@ def handle_slider_update(data):
                     ax.axvspan(segment[0], segment[1], color='red', alpha=0.3, label=f'Chewing Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
 
             #ax.legend()
+            openai_res = global_chewing_artifect_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
         elif plot_type == "ecg_artifact_detection":
             # ECG artifact detection logic
             ecg_channels = ['T3', 'T4', 'Cz']  # Channels focused on detecting rectus artifacts
@@ -1455,6 +2161,9 @@ def handle_slider_update(data):
                 for ch in ecg_channels:
                     ch_index = global_raw_ica.ch_names.index(ch)
                     ax.axvspan(segment[0], segment[1], color='blue', alpha=0.3, label=f'ECG Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
+            
+            openai_res = global_ecg_artifect_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
         elif plot_type == "rectus_artifact_detection":
             # Rectus artifact detection logic
             #rectus_segments = detect_rectus_artifacts(global_raw, start_time, duration=5)
@@ -1484,6 +2193,9 @@ def handle_slider_update(data):
                     ax.axvspan(segment[0], segment[1], color='orange', alpha=0.3, label=f'Rectus Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
 
             #ax.legend()
+
+            openai_res = global_rectus_artifect_openai
+            openai_res = re.sub(r'[*#]', '', openai_res) 
         elif plot_type == "roving_eye_artifact_detection":
             roving_channels = ['O1', 'O2']  # Channels focused on detecting rectus artifacts
             # Roving eye artifact detection logic
@@ -1505,6 +2217,9 @@ def handle_slider_update(data):
                 for ch in roving_segments:
                     ch_index = global_raw_ica.ch_names.index(ch)
                     ax.axvspan(segment[0], segment[1], color='purple', alpha=0.3, label=f'Roving Artifact ({ch})') 
+                    
+            openai_res = global_roving_eye_artifect_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
         elif plot_type == "muscle_tension_artifact_detection":
             # Muscle tension artifact detection logic
             muscle_channels = ['T3', 'T4','T5','T6']  # Channels focused on detecting rectus artifacts
@@ -1525,6 +2240,9 @@ def handle_slider_update(data):
                 for ch in muscle_channels:
                     ch_index = global_raw_ica.ch_names.index(ch)
                     ax.axvspan(segment[0], segment[1], color='magenta', alpha=0.3, label=f'Blink Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
+                    
+            openai_res = global_muscle_tension_artifect_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
         elif plot_type == "blink_artifact_detection":
             # Blink artifact detection logic
             blink_channels = ['O1', 'O2']  # Channels focused on detecting rectus artifacts
@@ -1545,6 +2263,9 @@ def handle_slider_update(data):
                 for ch in blink_channels:
                     ch_index = global_raw_ica.ch_names.index(ch)
                     ax.axvspan(segment[0], segment[1], color='yellow', alpha=0.3, label=f'Blink Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
+                    
+            openai_res = global_blink_artifect_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
         elif plot_type == "rectus_spike_artifact_detection":
             # Rectus spike artifact detection logic
             rectus_spike_channels = ['O1', 'O2']  # Channels focused on detecting rectus artifacts
@@ -1564,6 +2285,8 @@ def handle_slider_update(data):
                 for ch in rectus_spike_channels:
                     ch_index = global_raw_ica.ch_names.index(ch)
                     ax.axvspan(segment[0], segment[1], color='cyan', alpha=0.3, label=f'Blink Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
+            openai_res = global_rectus_spike_artifect_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
         # PDR artifact detection logic
         elif plot_type == "pdr_artifact_detection":
             pdr_channels = ['Fp1', 'Fp2']  # Channels focused on detecting rectus artifacts
@@ -1583,6 +2306,9 @@ def handle_slider_update(data):
                 for ch in pdr_channels:
                     ch_index = global_raw_ica.ch_names.index(ch)
                     ax.axvspan(segment[0], segment[1], color='olive', alpha=0.3, label=f'Blink Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
+                    
+            openai_res = global_pdr_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
         elif plot_type == "impedance_artifact_detection":
             # Impedance artifact detection logic
             impedance_segments = detect_impedance_artifacts(global_raw_ica, start_time, duration=5)
@@ -1595,6 +2321,9 @@ def handle_slider_update(data):
             ax = fig.axes[0]
             for segment in impedance_segments:
                 ax.axvspan(segment[0], segment[1], color='steelblue', alpha=0.3, label='Impedance Artifact')
+                
+            openai_res = global_impedance_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
         elif plot_type == "epileptic_pattern_detection":
             epileptic_segments = detect_epileptic_patterns(global_raw_ica, start_time, duration=5)
 
@@ -1606,17 +2335,17 @@ def handle_slider_update(data):
             ax = fig.axes[0]
             for segment in epileptic_segments:
                 ax.axvspan(segment[0], segment[1], color='purple', alpha=0.3, label='Epileptic Pattern')
+                
+            openai_res = global_epileptic_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
         elif plot_type == "dipole_analysis":
             fig = perform_dipole_analysis()
+            openai_res = None
         elif plot_type == 'frequency_bins':
-                frequency_bins = {
-                    'Bin 1 (~0.98 Hz)': (0.97, 0.99),
-                    'Bin 2 (~1.95 Hz)': (1.94, 1.96),
-                    'Bin 3 (~8.30 Hz)': (8.29, 8.31),
-                    'Bin 4 (~26.51 Hz)': (26.50, 26.62),
-                    'Bin 5 (~30.76 Hz)': (30.75, 30.77)
-                }
-                fig = plot_frequency_bins(global_raw, frequency_bins)
+            fig = plot_frequency_bins(global_raw, frequency_bins)
+                
+            openai_res = global_frq_bins_openai
+            openai_res = re.sub(r'[*#]', '', openai_res)
 
         else:
             return  # No action if the plot type is unrecognized or data is not loaded
@@ -1641,4 +2370,4 @@ def handle_slider_update(data):
         
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port = 5000)#, use_reloader=False)
+    socketio.run(app, debug=True, host='0.0.0.0', port= 5000)#, use_reloader=False)
