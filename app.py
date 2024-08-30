@@ -608,25 +608,41 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
     
 def main_gpt_call(analysis, summary, participant_name,age,gender,known_issues,medications):
     response = client.chat.completions.create(
-        model="chatgpt-4o-latest",
-        messages=[
-            {"role": "system", "content": """You are an expert in neuroscience, specializing in
-             EEG analysis and frequency band interpretation."""},
-            {"role": "user", "content": f"""Given the following summary of EEG data focused on {analysis} 
-                            : {summary}, 
-                            please analyze the data and provide a short report with conclusions, 
-                            specifically focusing on the {analysis}. The participant is a {age}-year-old 
-                            {gender}, 
-                            named {name} having following known issues {known_issues}. the participant is 
-                            taking medications: {medications}. Write the report in a 
-                            way that addresses the participant directly, using their name when appropriate. 
-                            The report should be structured into three sections (don't add any other heading/title): 
-                            Introduction, Findings, and Conclusion. Do not sugar coat it, make sure to bring up 
-                            anything alarming in the data in the conclusion, or any possible dignosis. Don't add 
-                            signing off remarks like, yours sincerely etc. The language should be formal, clear, 
-                            concise, and suitable for a primary school-going child (aged {age} years), while 
-                            maintaining proper report format. Make sure to explain what the findings suggest 
-                            about brain activity.Please write the report in British English"""}
+    model="chatgpt-4o-latest",
+    messages=[
+        {"role": "system", "content": """You are an expert in neuroscience, specializing in EEG analysis and frequency 
+          band interpretation."""},
+        {"role": "user", "content": f"""Given the following summary of EEG data focused on {analysis}: {summary}, 
+                        please analyze the data and provide a short report with conclusions, specifically focusing 
+                        on the {analysis}. The participant is a {age}-year-old {gender}, 
+                        having the following known issues: {known_issues}. 
+                        The participant is taking medications: {medications}. 
+                        
+                        Write the report in a way that addresses the participant directly, 
+                        as if speaking to them. 
+                        The report should be structured into three sections (do not add any other headings or titles): 
+                        Introduction, Findings, and Conclusion. 
+
+                        The Introduction should be concise and directly related to the analysis, 
+                        without including information about EEG or how it works, 
+                        since the participant already understands that. 
+
+                        Do not include sentences like 'It is important to further investigate 
+                        these results with a healthcare provider...' 
+                        or any other similar suggestions about seeking additional medical advice.
+                        Do not use phrases like 'you have done a fantastic job...' or any other sentences that praise 
+                        the participant, to avoid sounding AI-generated. 
+
+                        In the Findings section, provide explanations for technical terms such as 
+                        EEG channels, which part of the brain their position is or frequency bands (if relevant) in simple terms. 
+                        Explain their relevance to the analysis clearly and in a way 
+                        suitable for a primary school-going child aged {age} years. 
+
+                        Ensure the language remains formal, clear, concise, and written in British English. 
+                        Do not include signing-off remarks, greetings, or introductory explanations about EEG.
+                        Make sure to bring up anything alarming in the data in the Conclusion or any 
+                        possible diagnosis, without any sugar coating. Remember to keep it short and concise throughout. 
+                        """}
         ]
     )
     return response.choices[0].message.content
@@ -1701,17 +1717,34 @@ def upload_file():
                             {"role": "user", "content": f"""Given the following summary of EEG data focused on the 
                              {band} band: {band_summary}, 
                              please analyze the data and provide a short report with conclusions, 
-                             specifically focusing on the {band} band. The participant is a {age}-year-old {gender}, 
-                             named {name} having following known issues {known_issues}. The participant is taking 
-                             medications: {medications}. Write the report in a way that addresses the 
-                             participant directly, using their name when appropriate. The report should 
-                             be structured into three sections (don't add any other heading/title): Introduction, 
-                             Findings, and Conclusion. Do not sugar coat it, make sure to bring up anything alarming 
-                             in the data in the conclusion, or any possible dignosis. Don't add aigning off remarks 
-                             like, yours sincerely etc. The language should be formal, clear, concise, and suitable 
-                             for a primary school-going child (aged {age} years), while maintaining proper report 
-                             format. Make sure to explain what the findings suggest about brain activity.
-                             Please write the response in British English"""}
+                             specifically focusing on the {band} band. The participant is a {age}-year-old {gender},
+                             having following known issues {known_issues}. The participant is taking medications: {medications}. 
+
+                            Write the report in a way that addresses the participant directly, 
+                            as if speaking to them. 
+                            The report should be structured into three sections (do not add any other headings or titles): 
+                            Introduction, Findings, and Conclusion. 
+                            
+                            The Introduction should be concise and directly related to the analysis, 
+                            without including information about EEG or how it works, 
+                            since the participant already understands that. 
+                            
+                            Do not include sentences like 'It is important to further investigate 
+                            these results with a healthcare provider...' 
+                            or any other similar suggestions about seeking additional medical advice.
+                            Do not use phrases like 'you have done a fantastic job...' or any other sentences that praise 
+                            the participant, to avoid sounding AI-generated. 
+                            
+                            In the Findings section, provide explanations for technical terms such as 
+                            EEG channels, which part of the brain their position is or frequency bands (if relevant) in simple terms. 
+                            Explain their relevance to the analysis clearly and in a way 
+                            suitable for a primary school-going child aged {age} years. 
+                            
+                            Ensure the language remains formal, clear, concise, and written in British English. 
+                            Do not include signing-off remarks, greetings, or introductory explanations about EEG.
+                            Make sure to bring up anything alarming in the data in the Conclusion or any 
+                            possible diagnosis, without any sugar coating. Remember to keep it short and concise throughout. 
+                            """}
                         ]
                         )
                     global_bands_openai[band] = band_response.choices[0].message.content
