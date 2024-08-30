@@ -123,6 +123,11 @@
               <!-- Change 'report-text' to match the ID in the JavaScript -->
               <p id="report-text"></p>
           </div>
+          <div id="report-medical-container">
+              <h3>EEG Medical Expert Analysis Report</h3>
+              <!-- Change 'report-text' to match the ID in the JavaScript -->
+              <p id="report-medical-text"></p>
+          </div>
           {% endif %}
       </div>
     </div>
@@ -184,6 +189,11 @@
             document.getElementById('report-text').innerText = data.raw_report;
             // Ensure the report container is visible when there is a report
             document.getElementById('report-container').style.display = 'block';
+        }
+        if (data.raw_medical_report) {
+            document.getElementById('report-medical-text').innerText = data.raw_medical_report;
+            // Ensure the report container is visible when there is a report
+            document.getElementById('report-medical-container').style.display = 'block';
         }
     });
 
