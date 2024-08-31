@@ -807,13 +807,15 @@ def extract_detailed_eeg_features(raw):
 
     # Print or return the JSON string
     return features_json
-def generate_raw_summary(raw, ica, eog_channels):
+def generate_raw_summary(raw, ica, channel_dict):
     # Extract basic information about the raw data
     num_channels = len(raw.ch_names)
     sampling_freq = raw.info['sfreq']
     duration = raw.times[-1] / 60  # Duration in minutes
-    excluded_components = ica.exclude
-    eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name=eog_channels)
+    #excluded_components = ica.exclude
+    ica_picks=[channel_dict['T3'], channel_dict['T4'], channel_dict['F7'],
+                                channel_dict['F8'], channel_dict['Fp1'], channel_dict['Fp2'],
+                                channel_dict['Cz']]
 
     # Create a summary string
     summary = f"""
@@ -821,10 +823,8 @@ def generate_raw_summary(raw, ica, eog_channels):
     - Number of channels: {num_channels}
     - Sampling frequency: {sampling_freq} Hz
     - Recording duration: {duration:.2f} minutes
-    - EOG channels used for artifact detection: {eog_channels}
     - Number of ICA components: {ica.n_components_}
-    - Identified EOG artifact components: {eog_indices}
-    - Components excluded after ICA: {excluded_components}
+    - ICA components Pics: {ica_picks}
     - ICA performed with {ica.n_components_} components, random state = {ica.random_state}, and max iterations = {ica.max_iter}.
     """
 
@@ -1753,6 +1753,8 @@ global_epileptic_openai_med = None
 global_frq_bins_openai_med = None
 
 
+global_channel_dict = None
+
 # Read the API key from the text file
 with open('/root/apikey.txt', 'r') as file:
     openai_api_key = file.read().strip()
@@ -1778,7 +1780,8 @@ def upload_file():
     global_chewing_artifect_openai_med, global_ecg_artifect_openai_med,global_rectus_artifect_openai_med, \
     global_roving_eye_artifect_openai_med, global_muscle_tension_artifect_openai_med, global_blink_artifect_openai_med, \
     global_blink_artifect_openai_med,global_rectus_spike_artifect_openai_med, global_pdr_openai_med, \
-    global_impedance_openai_med, global_epileptic_openai_med, global_frq_bins_openai_med
+    global_impedance_openai_med, global_epileptic_openai_med, global_frq_bins_openai_med, \
+    global_channel_dict
 
     if request.method == 'POST':
         name = request.form.get('name')
@@ -1808,20 +1811,24 @@ def upload_file():
                 raw.set_eeg_reference(ref_channels='average')
                 
                 # Set the EOG channels (Fp1 and Fp2) for detecting eye movement artifacts
-                eog_channels = ['Fp1', 'Fp2']
+                #eog_channels = ['Fp1', 'Fp2']
                 
 
                 # Perform ICA for artifact correction
                 ica = mne.preprocessing.ICA(n_components=19, random_state=97, max_iter=800)
                 ica.fit(raw)
-                eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name=eog_channels)
-                ica.exclude = eog_indices
+                #eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name=eog_channels)
+                #ica.exclude = eog_indices
+                # Get channel names and their indices
+                channel_names = raw.info['ch_names']  # List of channel names
+                channel_dict = {name: idx for idx, name in enumerate(channel_names)}  # Create a dictionary with channel names and their indices
                 
+                global_channel_dict = channel_dict
                 raw_ica = ica.apply(raw.copy())
                 #creating channel dictionary
-                raw_ica_channel_names = raw_ica.info['ch_names']
+                #raw_ica_channel_names = raw_ica.info['ch_names']
                 # Store channel names and indexes in a dictionary
-                channel_index_dict = {name: index for index, name in enumerate(raw_ica_channel_names)}
+                #channel_index_dict = {name: index for index, name in enumerate(raw_ica_channel_names)}
 
                 # Store the processed data globally
                 global_raw = raw
@@ -1848,7 +1855,7 @@ def upload_file():
                 global_raw_ica_openai_med = raw_ica_response_med
                 
                 #ica component openai
-                summary_ica_components = generate_raw_summary(global_raw,global_ica,eog_channels)
+                summary_ica_components = generate_raw_summary(global_raw,global_ica,channel_dict)
                 response_ica_components = main_gpt_call("ICA component and property analysis", summary_ica_components,
                                                  bands, age, gender, known_issues,medications)
                 global_ica_components_openai = response_ica_components
@@ -2241,19 +2248,25 @@ def handle_slider_update(data):
             openai_res_med = re.sub(r'[*#]', '', openai_res_med)
             print(global_raw_ica_openai)
         elif plot_type == "ica_properties":
-            figs = global_ica.plot_properties(global_raw_ica, show=False)
+            #figs = global_ica.plot_properties(global_raw_ica, picks=[global_channel_dict['T3'], global_channel_dict['T4'],
+                                                                     #global_channel_dict['F7'], global_channel_dict['F8'], 
+                                                                     #global_channel_dict['Fp1'], global_channel_dict['Fp2'],
+                                                                     #global_channel_dict['Cz']] ,show=False)
     
             # Save each figure to an image and send them to the client
             plot_urls = []
-            for fig in figs:
-                img = BytesIO()
-                fig.savefig(img, format='png')
-                img.seek(0)
-                plot_url = base64.b64encode(img.getvalue()).decode()
-                #
-                #
-                #print (f'this is plot URL: {plot_url}')
-                plot_urls.append(plot_url)
+            for chann in ['T3','T4','F7','F8','Fp1','Fp2','Cz']:
+                figs = global_ica.plot_properties(global_raw_ica, picks=[global_channel_dict[chann]] ,show=False)
+                for fig in figs:
+                
+                    img = BytesIO()
+                    fig.savefig(img, format='png')
+                    img.seek(0)
+                    plot_url = base64.b64encode(img.getvalue()).decode()
+                    #
+                    #
+                    #print (f'this is plot URL: {plot_url}')
+                    plot_urls.append(plot_url)
                 
 
             openai_res = global_ica_components_openai
@@ -2386,39 +2399,122 @@ def handle_slider_update(data):
             openai_res_med = global_theta_beta_ratio_openai_med
             openai_res_med = re.sub(r'[*#]', '', openai_res_med)
         elif plot_type == 'brain_mapping':
-            spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
-            psds, freqs = spectrum.get_data(return_freqs=True)
-            theta_power = np.mean(psds[:, (freqs >= bands['theta'][0]) & (freqs <= bands['theta'][1])], axis=1)
-            beta_power = np.mean(psds[:, (freqs >= bands['beta-1'][0]) & (freqs <= bands['beta-1'][1])], axis=1)
-            theta_beta_ratio = theta_power / beta_power
+            #spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+            #psds, freqs = spectrum.get_data(return_freqs=True)
+            #theta_power = np.mean(psds[:, (freqs >= bands['theta'][0]) & (freqs <= bands['theta'][1])], axis=1)
+            #beta_power = np.mean(psds[:, (freqs >= bands['beta-1'][0]) & (freqs <= bands['beta-1'][1])], axis=1)
+            #theta_beta_ratio = theta_power / beta_power
 
-            fig, ax = plt.subplots()
+            #fig, ax = plt.subplots()
 
             # Set background color to white
+            #fig.patch.set_facecolor('white')
+            #ax.set_facecolor('white')
+
+            # Plot empty topomap with standard 10-20 locations, without shading
+            #mne.viz.plot_topomap(np.zeros_like(theta_beta_ratio), global_raw_ica.info, axes=ax, show=False, contours=0, cmap=None)
+
+            # Add circles to mark increased and decreased activity similar to image 2
+            #increased_activity_channels = np.where(theta_beta_ratio > np.mean(theta_beta_ratio) + np.std(theta_beta_ratio))[0]
+            #decreased_activity_channels = np.where(theta_beta_ratio < np.mean(theta_beta_ratio) - np.std(theta_beta_ratio))[0]
+
+            ## Draw circles for decreased activity (Red) and increased activity (Green)
+            #for ch_idx in increased_activity_channels:
+                #loc = global_raw_ica.info['chs'][ch_idx]['loc'][:2]
+                #ax.plot(loc[0], loc[1], 'o', markerfacecolor='green', markeredgecolor='green', markersize=15)
+                #ax.annotate(global_raw_ica.ch_names[ch_idx], xy=loc, xytext=(10, 10), textcoords='offset points', color='green', fontsize=10, fontweight='bold')
+    
+            #for ch_idx in decreased_activity_channels:
+                #loc = global_raw_ica.info['chs'][ch_idx]['loc'][:2]
+                #ax.plot(loc[0], loc[1], 'o', markerfacecolor='red', markeredgecolor='red', markersize=15)
+                #ax.annotate(global_raw_ica.ch_names[ch_idx], xy=loc, xytext=(10, 10), textcoords='offset points', color='red', fontsize=10, fontweight='bold')
+
+            # Remove any unnecessary elements
+            #ax.axis('off')
+            #ax.set_title('Theta/Beta Ratio Topographic Map', color='black')
+                
+            # Define standard 10-20 system positions for some common electrodes
+            positions_10_20 = {
+                'Fp1': (-0.4, 0.9), 'Fp2': (0.4, 0.9),
+                'F3': (-0.6, 0.5), 'F4': (0.6, 0.5),
+                'F7': (-0.9, 0.3), 'F8': (0.9, 0.3),
+                'Fz': (0.0, 0.6),
+                'C3': (-0.6, 0.0), 'C4': (0.6, 0.0),
+                'Cz': (0.0, 0.0),
+                'T3': (-0.9, 0.0), 'T4': (0.9, 0.0),
+                'T5': (-0.9, -0.4), 'T6': (0.9, -0.4),
+                'P3': (-0.6, -0.5), 'P4': (0.6, -0.5),
+                'Pz': (0.0, -0.5),
+                'O1': (-0.4, -0.8), 'O2': (0.4, -0.8)
+            }
+            # Adjusted PSD computation parameters
+            spectrum = global_raw_ica.compute_psd(method='welch', tmin=10, tmax=500, fmin=3.5, fmax=21, n_fft=2000)
+            psds, freqs = spectrum.get_data(return_freqs=True)
+
+            # Recalculate mean power for each band
+            theta_power = np.mean(psds[:, (freqs >= bands['theta'][0]) & (freqs <= bands['theta'][1])], axis=1)
+            beta_power = np.mean(psds[:, (freqs >= bands['beta-1'][0]) & (freqs <= bands['beta-1'][1])], axis=1)
+
+            # Compute Theta/Beta ratio
+            theta_beta_ratio = theta_power / beta_power
+
+            # Normalize or standardize the ratio
+            theta_beta_ratio_norm = (theta_beta_ratio - np.mean(theta_beta_ratio)) / np.std(theta_beta_ratio)
+
+            # Adjust thresholds for increased/decreased activity
+            threshold_high = np.percentile(theta_beta_ratio, 72)  # Adjust to 60th percentile
+            threshold_low = np.percentile(theta_beta_ratio, 28)   # Adjust to 40th percentile
+
+            # Identify channels with increased and decreased activity
+            increased_activity_channels = np.where(theta_beta_ratio > threshold_high)[0]
+            decreased_activity_channels = np.where(theta_beta_ratio < threshold_low)[0]
+
+            # Define the increased and decreased activity channels
+            increased_channels = [key for key, value in global_channel_dict.items() if value in increased_activity_channels]
+            decreased_channels = [key for key, value in global_channel_dict.items() if value in decreased_activity_channels]
+
+            # Plot Topographic Map
+            fig, ax = plt.subplots(figsize=(6, 6))
             fig.patch.set_facecolor('white')
             ax.set_facecolor('white')
 
-            # Plot empty topomap with standard 10-20 locations, without shading
-            mne.viz.plot_topomap(np.zeros_like(theta_beta_ratio), global_raw_ica.info, axes=ax, show=False, contours=0, cmap=None)
+            # Plot head outline
+            head_circle = plt.Circle((0, 0), 1, color='black', fill=False, linestyle='--')
+            ax.add_artist(head_circle)
 
-            # Add circles to mark increased and decreased activity similar to image 2
-            increased_activity_channels = np.where(theta_beta_ratio > np.mean(theta_beta_ratio) + np.std(theta_beta_ratio))[0]
-            decreased_activity_channels = np.where(theta_beta_ratio < np.mean(theta_beta_ratio) - np.std(theta_beta_ratio))[0]
+            # Plot ears
+            left_ear = plt.Polygon([[-1, 0.1], [-1.1, 0], [-1, -0.1]], closed=True, fill=False, color='black')
+            right_ear = plt.Polygon([[1, 0.1], [1.1, 0], [1, -0.1]], closed=True, fill=False, color='black')
+            ax.add_artist(left_ear)
+            ax.add_artist(right_ear)
 
-            # Draw circles for decreased activity (Red) and increased activity (Green)
-            for ch_idx in increased_activity_channels:
-                loc = global_raw_ica.info['chs'][ch_idx]['loc'][:2]
-                ax.plot(loc[0], loc[1], 'o', markerfacecolor='green', markeredgecolor='green', markersize=15)
-                ax.annotate(global_raw_ica.ch_names[ch_idx], xy=loc, xytext=(10, 10), textcoords='offset points', color='green', fontsize=10, fontweight='bold')
-    
-            for ch_idx in decreased_activity_channels:
-                loc = global_raw_ica.info['chs'][ch_idx]['loc'][:2]
-                ax.plot(loc[0], loc[1], 'o', markerfacecolor='red', markeredgecolor='red', markersize=15)
-                ax.annotate(global_raw_ica.ch_names[ch_idx], xy=loc, xytext=(10, 10), textcoords='offset points', color='red', fontsize=10, fontweight='bold')
+            # Plot nose
+            nose = plt.Polygon([[0, 1.1], [-0.1, 1], [0.1, 1]], closed=True, fill=False, color='black')
+            ax.add_artist(nose)
 
-            # Remove any unnecessary elements
+            # Plot all channels
+            for ch_name, (x, y) in positions_10_20.items():
+                ax.plot(x, y, 'o', markerfacecolor='white', markeredgecolor='black', markersize=20)
+                ax.text(x, y, ch_name, ha='center', va='center', fontsize=10, fontweight='bold')
+
+            # Highlight increased activity in green
+            for ch in increased_channels:
+                if ch in positions_10_20:
+                    loc = positions_10_20[ch]
+                    ax.plot(loc[0], loc[1], 'o', markerfacecolor='green', markeredgecolor='green', markersize=20)
+                    ax.text(loc[0], loc[1], ch, ha='center', va='center', color='white', fontsize=10, fontweight='bold')
+
+            # Highlight decreased activity in red
+            for ch in decreased_channels:
+                if ch in positions_10_20:
+                    loc = positions_10_20[ch]
+                    ax.plot(loc[0], loc[1], 'o', markerfacecolor='red', markeredgecolor='red', markersize=20)
+                    ax.text(loc[0], loc[1], ch, ha='center', va='center', color='white', fontsize=10, fontweight='bold')
+
+            # Final touches
+            ax.axis('equal')
             ax.axis('off')
-            ax.set_title('Theta/Beta Ratio Topographic Map', color='black')
+            ax.set_title('Brain Mapping (Theta-Beta Ratio)', color='black')
             
             openai_res = global_brain_mapping_openai
             openai_res = re.sub(r'[*#]', '', openai_res)
@@ -2744,4 +2840,4 @@ def handle_slider_update(data):
         
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port= 5000)#, use_reloader=False)
+    socketio.run(app, debug=False, host='0.0.0.0', port= 5000)#, use_reloader=False)
