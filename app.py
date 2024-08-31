@@ -706,7 +706,8 @@ def main_epi_medical_gpt_call(analysis, summary, participant_name,age,gender,kno
             {"role": "user", "content": f"""Given the following summary of EEG data focused on {analysis}: {summary}, 
                             please analyze the data and provide a detailed report with conclusions as this report is
                             for neurologists, neuroscientists and brain EEG experts, specifically focusing 
-                            on the {analysis}. The report should have neuroscience terms, explanations. 
+                            on the {analysis}. if you found any issue by analysing EEG/QEEG please raise and mention with the type 
+                            of issue or diseases. The report should have neuroscience terms, explanations. 
                             Please found issues by their medical names. if possible try to reference any related studies or research work.
                             The participant is a {age}-year-old {gender}, 
                             having the following known issues: {known_issues}. 
@@ -720,7 +721,9 @@ def main_epi_medical_gpt_call(analysis, summary, participant_name,age,gender,kno
 
                             The Introduction should be detailed and concrete and directly related to the analysis, 
                             without including information about EEG or how it works, 
-                            since the experts already understands that. 
+                            since the experts already understands that. if you found any issue by analysing 
+                            EEG/QEEG please raise and mention with the type 
+                            of issue or diseases. 
 
                             Do not include sentences like 'It is important to further investigate 
                             these results with a healthcare provider...' 
@@ -731,14 +734,17 @@ def main_epi_medical_gpt_call(analysis, summary, participant_name,age,gender,kno
                             In the Findings section, provide explanations for technical terms such as 
                             EEG channels, which part of the brain their position is or frequency bands (if relevant) in detailed way. 
                             Explain their relevance to the analysis clearly and in a way 
-                            suitable for a neurologists, neuroscientists and brain EEG experts. 
+                            suitable for a neurologists, neuroscientists and brain EEG experts and also mention if you found any issue by 
+                            analysing EEG/QEEG please raise and mention with the type 
+                            of issue or diseases.
 
                             Ensure the language remains formal, clear, detailed, and written in British English. 
                             Do not include signing-off remarks, greetings, or introductory explanations about EEG.
                             Make sure to bring up anything alarming in the data in the Conclusion or any 
                             possible diagnosis, without any sugar coating. Remember to keep it detailed and proper explained
                             throughout as your audiences are neurologists, neuroscientists and brain EEG experts. The report should have neuroscience terms, explanations. 
-                            Please found issues by their medical names. if possible try to reference any related studies or research work.
+                            Please found issues by their medical names and also please mention if you found any issue by analysing EEG/QEEG please
+                            raise and mention with the type of issue or diseases.. if possible try to reference any related studies or research work.
                             """}
         ]
     )
