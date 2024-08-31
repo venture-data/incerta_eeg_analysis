@@ -627,7 +627,8 @@ def main_gpt_call(analysis, summary, bands,age,gender,known_issues,medications):
                         The Introduction should be concise and directly related to the analysis, 
                         without including information about EEG or how it works, 
                         since the participant already understands that, if you found any issue by analysing EEG/QEEG please raise and 
-                        mention with the type of issue or diseases. please include in introduction part that what is this section of 
+                        mention with the type of issue or diseases, mention the issue or type of issue and diseases in a public and in most common names.
+                        please include in introduction part that what is this section of 
                         report and why we are checking it based on the analysis: {analysis} (do not use any synonyms for the analysis, should be the exact name), 
                         so the participnat know what he or she is reading in that section.  
 
