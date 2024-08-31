@@ -614,7 +614,8 @@ def main_gpt_call(analysis, summary, participant_name,age,gender,known_issues,me
           band interpretation."""},
         {"role": "user", "content": f"""Given the following summary of EEG data focused on {analysis}: {summary}, 
                         please analyze the data and provide a short report with conclusions, specifically focusing 
-                        on the {analysis}. The participant is a {age}-year-old {gender}, 
+                        on the {analysis}. if you found any issue by analysing EEG/QEEG please raise and mention with the type of issue or diseases.
+                        The participant is a {age}-year-old {gender}, 
                         having the following known issues: {known_issues}. 
                         The participant is taking medications: {medications}. 
                         
@@ -625,7 +626,8 @@ def main_gpt_call(analysis, summary, participant_name,age,gender,known_issues,me
 
                         The Introduction should be concise and directly related to the analysis, 
                         without including information about EEG or how it works, 
-                        since the participant already understands that. 
+                        since the participant already understands that, if you found any issue by analysing EEG/QEEG please raise and 
+                        mention with the type of issue or diseases.. 
 
                         Do not include sentences like 'It is important to further investigate 
                         these results with a healthcare provider...' 
@@ -635,13 +637,15 @@ def main_gpt_call(analysis, summary, participant_name,age,gender,known_issues,me
 
                         In the Findings section, provide explanations for technical terms such as 
                         EEG channels, which part of the brain their position is or frequency bands (if relevant) in simple terms. 
+                        if you found any issue by analysing EEG/QEEG please raise and mention with the type of issue or diseases.
                         Explain their relevance to the analysis clearly and in a way 
                         suitable for a primary school-going child aged {age} years. 
 
                         Ensure the language remains formal, clear, concise, and written in British English. 
                         Do not include signing-off remarks, greetings, or introductory explanations about EEG.
                         Make sure to bring up anything alarming in the data in the Conclusion or any 
-                        possible diagnosis, without any sugar coating. Remember to keep it short and concise throughout. 
+                        possible diagnosis and also if you found any issue by analysing EEG/QEEG please raise and 
+                        mention with the type of issue or diseases, without any sugar coating. Remember to keep it short and concise throughout. 
                         """}
         ]
     )
@@ -655,7 +659,8 @@ def main_medical_gpt_call(analysis, summary, participant_name,age,gender,known_i
             {"role": "user", "content": f"""Given the following summary of EEG data focused on {analysis}: {summary}, 
                             please analyze the data and provide a detailed report with conclusions as this report is
                             for neurologists, neuroscientists and brain EEG experts, specifically focusing 
-                            on the {analysis}. The participant is a {age}-year-old {gender}, 
+                            on the {analysis}.if you found any issue by analysing EEG/QEEG please raise and mention with the type 
+                            of issue or diseases. The participant is a {age}-year-old {gender}, 
                             having the following known issues: {known_issues}. 
                             The participant is taking medications: {medications}. 
                             
@@ -666,7 +671,8 @@ def main_medical_gpt_call(analysis, summary, participant_name,age,gender,known_i
 
                             The Introduction should be detailed and concrete and directly related to the analysis, 
                             without including information about EEG or how it works, 
-                            since the experts already understands that. 
+                            since the experts already understands that. if you found any issue by analysing EEG/QEEG please raise 
+                            and mention with the type of issue or diseases.
 
                             Do not include sentences like 'It is important to further investigate 
                             these results with a healthcare provider...' 
@@ -677,13 +683,15 @@ def main_medical_gpt_call(analysis, summary, participant_name,age,gender,known_i
                             In the Findings section, provide explanations for technical terms such as 
                             EEG channels, which part of the brain their position is or frequency bands (if relevant) in detailed way. 
                             Explain their relevance to the analysis clearly and in a way 
-                            suitable for a neurologists, neuroscientists and brain EEG experts. 
+                            suitable for a neurologists, neuroscientists and brain EEG experts and also mention if you found any issue by analysing 
+                            EEG/QEEG please raise and mention with the type of issue or diseases.. 
 
                             Ensure the language remains formal, clear, detailed, and written in British English. 
                             Do not include signing-off remarks, greetings, or introductory explanations about EEG.
                             Make sure to bring up anything alarming in the data in the Conclusion or any 
                             possible diagnosis, without any sugar coating. Remember to keep it detailed and proper explained
-                            throughout as your audiences are neurologists, neuroscientists and brain EEG experts. 
+                            throughout as your audiences are neurologists, neuroscientists and brain EEG experts and mention if you found any issue
+                            by analysing EEG/QEEG please raise and mention with the type of issue or diseases.
                             """}
         ]
     )
