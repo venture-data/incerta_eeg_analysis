@@ -1969,454 +1969,454 @@ def upload_file():
     global_channel_dict
 
     if request.method == 'POST':
-    name = request.form.get('name')
-    dob = request.form.get('dob')
-    age = request.form.get('age')
-    gender = request.form.get('gender')
-    known_issues = request.form.get('known_issues')
-    medications = request.form.get('medications')
-    # Handle file upload
-    if 'file' in request.files:
-        try:
-            f = request.files['file']
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], f.filename)
-            f.save(filepath)
-            
-            # Load the EEG data using MNE
-            raw = mne.io.read_raw_edf(filepath, preload=True)
-            
-
-            # Apply preprocessing
-            
-            # Apply preprocessing
-            raw.drop_channels(channels_to_drop)
-            raw.rename_channels(mapping)
-            raw.set_montage(montage)
-            raw.filter(0.3, 70., fir_design='firwin')
-            raw.set_eeg_reference(ref_channels='average')
-            
-            # Set the EOG channels (Fp1 and Fp2) for detecting eye movement artifacts
-            #eog_channels = ['Fp1', 'Fp2']
-            
-
-            # Perform ICA for artifact correction
-            ica = mne.preprocessing.ICA(n_components=19, random_state=97, max_iter=800)
-            ica.fit(raw)
-            #eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name=eog_channels)
-            #ica.exclude = eog_indices
-            # Get channel names and their indices
-            channel_names = raw.info['ch_names']  # List of channel names
-            channel_dict = {name: idx for idx, name in enumerate(channel_names)}  # Create a dictionary with channel names and their indices
-            
-            global_channel_dict = channel_dict
-            raw_ica = ica.apply(raw.copy())
-            #creating channel dictionary
-            #raw_ica_channel_names = raw_ica.info['ch_names']
-            # Store channel names and indexes in a dictionary
-            #channel_index_dict = {name: index for index, name in enumerate(raw_ica_channel_names)}
-
-            # Store the processed data globally
-            global_raw = raw
-            global_raw_ica = raw_ica
-            global_ica = ica
-
-            #raw openai
-            raw_eeg_features_json = extract_detailed_eeg_features(global_raw)
-            raw_response = main_gpt_call("Raw EEG feature data", raw_eeg_features_json, bands, 
-                                         age,gender,known_issues,medications)
-            global_raw_openai = raw_response
-            
-            raw_response_med = main_medical_gpt_call("Raw EEG feature data", raw_eeg_features_json, bands, 
-                                         age,gender,known_issues,medications)
-            global_raw_openai_med = raw_response_med
-            #raw ica openai
-            raw_ica_eeg_features_json = extract_detailed_eeg_features(global_raw_ica)
-            raw_ica_response = main_gpt_call("ICA-cleaned EEG feature data", raw_ica_eeg_features_json,
-                                             bands, age, gender, known_issues,medications)
-            global_raw_ica_openai = raw_ica_response
-            
-            raw_ica_response_med = main_medical_gpt_call("ICA-cleaned EEG feature data", raw_ica_eeg_features_json,
-                                             bands, age, gender, known_issues,medications)
-            global_raw_ica_openai_med = raw_ica_response_med
-            
-            #ica component openai
-            summary_ica_components = generate_raw_summary(global_raw,global_ica,channel_dict)
-            response_ica_components = main_gpt_call("ICA component and property analysis", summary_ica_components,
-                                             bands, age, gender, known_issues,medications)
-            global_ica_components_openai = response_ica_components
-            
-            response_ica_components_med = main_medical_gpt_call("ICA component and property analysis", summary_ica_components,
-                                             bands, age, gender, known_issues,medications)
-            global_ica_components_openai_med = response_ica_components_med
-            #band wise openai
-            dic_bands_summary = {}
-            for band in bands.keys():
-                print(band)
-                low, high = bands[band]
-                band_summary = generate_delta_band_summary_per_channel_full_duration(global_raw_ica.copy(),low,high)
-                dic_bands_summary[band] = band_summary
-                band_response = client.chat.completions.create(
-                model="chatgpt-4o-latest",
-                messages=[
-                        {"role": "system", "content": "You are an expert in neuroscience, specializing in EEG analysis and frequency band interpretation."},
-                        {"role": "user", "content": f"""Given the following summary of EEG data focused on the 
-                         {band} band: {band_summary}, 
-                         please analyze the data and provide a short report with conclusions, 
-                         specifically focusing on the {band} band. The participant is a {age}-year-old {gender},
-                         having following known issues {known_issues}. The participant is taking medications: {medications}. 
-
-                        Write the report in a way that addresses the participant directly, 
-                        as if speaking to them. 
-                        The report should be structured into three sections (do not add any other headings or titles): 
-                        Introduction, Findings, and Conclusion. 
-                        
-                        The Introduction should be concise and directly related to the analysis, 
-                        without including information about EEG or how it works, 
-                        since the participant already understands that. 
-                        
-                        Do not include sentences like 'It is important to further investigate 
-                        these results with a healthcare provider...' 
-                        or any other similar suggestions about seeking additional medical advice.
-                        Do not use phrases like 'you have done a fantastic job...' or any other sentences that praise 
-                        the participant, to avoid sounding AI-generated. 
-                        
-                        In the Findings section, provide explanations for technical terms such as 
-                        EEG channels, which part of the brain their position is or frequency bands (if relevant) in simple terms. 
-                        Explain their relevance to the analysis clearly and in a way 
-                        suitable for a primary school-going child aged {age} years. 
-                        
-                        Ensure the language remains formal, clear, concise, and written in British English. 
-                        Do not include signing-off remarks, greetings, or introductory explanations about EEG.
-                        Make sure to bring up anything alarming in the data in the Conclusion or any 
-                        possible diagnosis, without any sugar coating. Remember to keep it short and concise throughout. 
-                        """}
-                    ]
-                    )
-                global_bands_openai[band] = band_response.choices[0].message.content
+        name = request.form.get('name')
+        dob = request.form.get('dob')
+        age = request.form.get('age')
+        gender = request.form.get('gender')
+        known_issues = request.form.get('known_issues')
+        medications = request.form.get('medications')
+        # Handle file upload
+        if 'file' in request.files:
+            try:
+                f = request.files['file']
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], f.filename)
+                f.save(filepath)
                 
-
-                band_response_med = client.chat.completions.create(
-                model="chatgpt-4o-latest",
-                messages=[
-                        {"role": "system", "content": "You are an expert in neuroscience, specializing in EEG analysis and frequency band interpretation."},
-                        {"role": "user", "content": f"""Given the following summary of EEG data focused on the 
-                         {band} band: {band_summary}, 
-                         please analyze the data and provide a detailed report with conclusions as this report is
-                         for neurologists, neuroscientists and brain EEG experts, 
-                         specifically focusing on the {band} band. if you found any issue by analysing EEG/QEEG please raise and mention with the type 
-                        of issue or diseases. The participant is a {age}-year-old {gender},
-                         having following known issues {known_issues}. The participant is taking medications: {medications}. 
-
-                         Write the report in a way that it should be detailed enough, basically for neurologists, neuroscientists 
-                         and brain EEG experts. so you can free to add related termanologies. 
-                         The report should be structured into three sections (do not add any other headings or titles): 
-                         Introduction, Findings, and Conclusion. 
- 
-                         The Introduction should be detailed and concrete and directly related to the analysis, 
-                         without including information about EEG or how it works, 
-                         since the experts already understands that. 
-                          
-                         Do not include sentences like 'It is important to further investigate 
-                         these results with a healthcare provider...' 
-                         or any other similar suggestions about seeking additional medical advice.
-                         Do not use phrases like 'you have done a fantastic job...' or any other sentences that praise 
-                         the participant, to avoid sounding AI-generated. 
- 
-                         In the Findings section, provide explanations for technical terms such as 
-                         EEG channels, which part of the brain their position is or frequency bands (if relevant) in detailed way. 
-                         Explain their relevance to the analysis clearly and in a way 
-                         suitable for a neurologists, neuroscientists and brain EEG experts and also please mention if you found any issue by 
-                         analysing EEG/QEEG please raise and mention with the type 
-                         of issue or diseases.. 
-
-                         Ensure the language remains formal, clear, detailed, and written in British English. 
-                         Do not include signing-off remarks, greetings, or introductory explanations about EEG.
-                         Make sure to bring up anything alarming in the data in the Conclusion or any 
-                         possible diagnosis, without any sugar coating. Remember to keep it detailed and proper explained
-                         throughout as your audiences are neurologists, neuroscientists and brain EEG experts and do mention if you found any issue by
-                         analysing EEG/QEEG please raise and mention with the type 
-                         of issue or diseases. 
-                         """}
-                    ]
-                    )
-                global_bands_openai_med[band] = band_response_med.choices[0].message.content
-            #rel power topo openai
-            relative_power_topomaps_summary = generate_detailed_relative_power_summary(raw_ica, 
-                                                                                        bands, channel_groups)
-            rel_pwr_topo_response = main_gpt_call("Relative Power spectra topomaps analysis", relative_power_topomaps_summary,
-                                             bands, age, gender, known_issues,medications)
-            global_relative_topo_openai = rel_pwr_topo_response
-            
-            rel_pwr_topo_response_med = main_medical_gpt_call("Relative Power spectra topomaps analysis", relative_power_topomaps_summary,
-                                             bands, age, gender, known_issues,medications)
-            global_relative_topo_openai_med = rel_pwr_topo_response_med
-            
-            #abs power topo openai
-            detailed_absolute_power_summary = generate_detailed_absolute_power_summary(raw, bands, channel_groups)
-            abs_pwr_topo_response = main_gpt_call("Absolute Power spectra topomaps analysis", detailed_absolute_power_summary,
-                                             bands, age, gender, known_issues,medications)
-            global_abs_topo_openai = abs_pwr_topo_response
-            
-            abs_pwr_topo_response_med = main_medical_gpt_call("Absolute Power spectra topomaps analysis", detailed_absolute_power_summary,
-                                             bands, age, gender, known_issues,medications)
-            global_abs_topo_openai_med = abs_pwr_topo_response_med
-            
-            #rel spectra openai
-            relative_spectra_summary = generate_detailed_relative_spectra_summary(raw_ica, bands)
-            rel_spectra_response = main_gpt_call("Relative Power Spectra Analysis (area graphs)", relative_spectra_summary,
-                                             bands, age, gender, known_issues,medications)
-
-            global_rel_spectra_openai = rel_spectra_response
-            
-            rel_spectra_response_med = main_medical_gpt_call("Relative Power Spectra Analysis (area graphs)", relative_spectra_summary,
-                                             bands, age, gender, known_issues,medications)
-
-            global_rel_spectra_openai_med = rel_spectra_response_med
-            #abs spectra opwnai
-            abs_spectra_summary = generate_detailed_absolute_spectra_summary(raw_ica, bands)
-            abs_spectra_response = main_gpt_call("Absolute Power spectra analysis (area graphs)", abs_spectra_summary,
-                                             bands, age, gender, known_issues,medications)
-
-            global_abs_spectra_openai = abs_spectra_response
-            
-            abs_spectra_response_med = main_medical_gpt_call("Absolute Power spectra analysis (area graphs)", abs_spectra_summary,
-                                             bands, age, gender, known_issues,medications)
-
-            global_abs_spectra_openai_med = abs_spectra_response_med
-            #theta beta ratio openai
-            theta_beta_summary = generate_detailed_theta_beta_ratio_summary(raw_ica, bands)
-            theta_beta_response = main_gpt_call("Theta/Beta ratio topomap analysis", theta_beta_summary,
-                                             bands, age, gender, known_issues,medications)
-
-            global_theta_beta_ratio_openai = theta_beta_response
-            
-            theta_beta_response_med = main_medical_gpt_call("Theta/Beta ratio topomap analysis", theta_beta_summary,
-                                             bands, age, gender, known_issues,medications)
-
-            global_theta_beta_ratio_openai_med = theta_beta_response_med
-            # qeeg and rehab report
-            qeeg_report_analysis = main_qeeg_rehab("Comprehensive qEEG Analysis and Rehabilitation Guide", 
-                                                   raw_ica_eeg_features_json,raw_ica_eeg_features_json,theta_beta_summary,
-                                             dic_bands_summary,summary_ica_components,relative_spectra_summary,
-                                             abs_spectra_summary,name,bands, age, gender, known_issues,medications)
-
-            global_qeeg_report = qeeg_report_analysis
-            #brain mapping openai
-            brain_mapping_summary = generate_detailed_brain_mapping_summary(raw_ica, bands)
-            brain_mapping_response = main_gpt_call("Brain mapping topomap analysis with increased and decreased activity channels"
-                                                   , brain_mapping_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_brain_mapping_openai = brain_mapping_response
-            
-            brain_mapping_response_med = main_medical_gpt_call("Brain mapping topomap analysis with increased and decreased activity channels"
-                                                   , brain_mapping_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_brain_mapping_openai_med = brain_mapping_response_med
-            #occi alpha peak openai
-            occi_alpha_peak_summary = generate_detailed_occipital_alpha_peak_summary(raw_ica, alpha_band=(7.5, 14))
-            occi_alpha_peak_response = main_gpt_call("EEG data focused on occipital alpha peaks"
-                                                   , occi_alpha_peak_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_occipital_alpha_peak_openai = occi_alpha_peak_response
-            
-            occi_alpha_peak_response_med = main_medical_gpt_call("EEG data focused on occipital alpha peaks"
-                                                   , occi_alpha_peak_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_occipital_alpha_peak_openai_med = occi_alpha_peak_response_med
-            
-            #chewing openai
-            chewing_artifect_summary = generate_detailed_chewing_artifact_summary_full_duration(raw_ica, 
-                                                                                                ['T3', 'T4', 'F7', 'F8'], 
-                                                                                                detect_chewing_artifacts, 
-                                                                                                5)
-            chewing_artifect_response = main_gpt_call("EEG data focused on chewing artifact detection"
-                                                   , chewing_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_chewing_artifect_openai = chewing_artifect_response
-            
-            chewing_artifect_response_med = main_medical_gpt_call("EEG data focused on chewing artifact detection"
-                                                   , chewing_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_chewing_artifect_openai_med = chewing_artifect_response_med
-            
-            #ecg openai
-            ecg_artifect_summary = generate_detailed_ecg_artifact_summary_full_duration(raw_ica, 
-                                                                                                ['T3', 'T4', 'Cz'], 
-                                                                                                detect_ecg_artifacts, 
-                                                                                                5)
-            ecg_artifect_response = main_gpt_call("EEG data focused on ECG artifact detection"
-                                                   , ecg_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_ecg_artifect_openai = ecg_artifect_response
-            
-            ecg_artifect_response_med = main_medical_gpt_call("EEG data focused on ECG artifact detection"
-                                                   , ecg_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_ecg_artifect_openai_med = ecg_artifect_response_med
-            #rectus openai
-            rectus_artifect_summary = generate_detailed_rectus_artifact_summary_full_duration(raw_ica, 
-                                                                                                ['Fp1', 'Fp2'], 
-                                                                                                detect_rectus_artifacts, 
-                                                                                                5)
-            rectus_artifect_response = main_gpt_call("EEG data focused on rectus artifact detection"
-                                                   , rectus_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_rectus_artifect_openai = rectus_artifect_response
-            
-            rectus_artifect_response_med = main_medical_gpt_call("EEG data focused on rectus artifact detection"
-                                                   , rectus_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_rectus_artifect_openai_med = rectus_artifect_response_med
-            #roving eye openai
-            roving_artifect_summary = generate_detailed_roving_eye_artifact_summary_full_duration(raw_ica, 
-                                                                                                ['Fp1', 'Fp2'], 
-                                                                                                detect_roving_eye_artifacts, 
-                                                                                                5)
-            roving_artifect_response = main_gpt_call("EEG data focused on roving eye artifact detection"
-                                                   , roving_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_roving_eye_artifect_openai = roving_artifect_response
-            
-            roving_artifect_response_med = main_medical_gpt_call("EEG data focused on roving eye artifact detection"
-                                                   , roving_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_roving_eye_artifect_openai_med = roving_artifect_response_med
-            #muscle artifect openai
-            muscle_artifect_summary = generate_detailed_muscle_tension_artifact_summary_full_duration(raw_ica, 
-                                                                                                ['T3', 'T4', 'F7', 'F8'], 
-                                                                                                detect_muscle_tension_artifacts, 
-                                                                                                5)
-            muscle_artifect_response = main_gpt_call("EEG data focused on muscle tension artifact detection"
-                                                   , muscle_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_muscle_tension_artifect_openai = muscle_artifect_response
-            
-            muscle_artifect_response_med = main_medical_gpt_call("EEG data focused on muscle tension artifact detection"
-                                                   , muscle_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_muscle_tension_artifect_openai_med = muscle_artifect_response_med
-            #blink artifect openai
-            blink_artifect_summary = generate_detailed_blink_artifact_summary_full_duration(raw_ica, 
-                                                                                                ['Fp1', 'Fp2'], 
-                                                                                                detect_blink_artifacts, 
-                                                                                                5)
-            blink_artifect_response = main_gpt_call("EEG data focused on blink artifact detection"
-                                                   , blink_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_blink_artifect_openai = blink_artifect_response
-            
-            blink_artifect_response_med = main_medical_gpt_call("EEG data focused on blink artifact detection"
-                                                   , blink_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_blink_artifect_openai_med = blink_artifect_response_med
-            #rectus spike artifect openai
-            rspike_artifect_summary = generate_detailed_rectus_spike_artifact_summary_full_duration(raw_ica, 
-                                                                                                ['Fp1', 'Fp2'], 
-                                                                                                detect_rectus_spikes_artifacts, 
-                                                                                                5)
-            rspike_artifect_response = main_gpt_call("EEG data focused on rectus spikes artifact detection"
-                                                   , rspike_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_rectus_spike_artifect_openai = rspike_artifect_response
-            
-            rspike_artifect_response_med = main_medical_gpt_call("EEG data focused on rectus spikes artifact detection"
-                                                   , rspike_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_rectus_spike_artifect_openai_med = rspike_artifect_response_med
-            #pdr artifect openai
-            pdr_artifect_summary = generate_detailed_pdr_artifact_summary_full_duration(raw_ica, 
-                                                                                                ['O1', 'O2'], 
-                                                                                                detect_pdr_artifacts, 
-                                                                                                5)
-            pdr_artifect_response = main_gpt_call("EEG data focused on PDR artifact detection"
-                                                   , pdr_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_pdr_openai = pdr_artifect_response
-            
-            pdr_artifect_response_med = main_medical_gpt_call("EEG data focused on PDR artifact detection"
-                                                   , pdr_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_pdr_openai_med = pdr_artifect_response_med
-            #impedance artifect openai
-            impedance_artifect_summary = generate_detailed_impedance_artifact_summary_full_duration(raw_ica, 
-                                                                                                detect_impedance_artifacts, 
-                                                                                                5)
-            impedance_artifect_response = main_gpt_call("EEG data focused on impedance artifact detection"
-                                                   , impedance_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_impedance_openai = impedance_artifect_response
-            
-            impedance_artifect_response_med = main_medical_gpt_call("EEG data focused on impedance artifact detection"
-                                                   , impedance_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_impedance_openai_med = impedance_artifect_response_med
-            #epileptic artifect openai
-            epileptic_artifect_summary = generate_detailed_epileptic_pattern_summary_full_duration(raw_ica, 
-                                                                                                detect_epileptic_patterns, 
-                                                                                                5)
-            epileptic_artifect_response = main_gpt_call("EEG data focused on epileptic patterns artifact detection"
-                                                   , epileptic_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_epileptic_openai = epileptic_artifect_response
-            
-            epileptic_artifect_response_med = main_medical_gpt_call("EEG data focused on epileptic patterns artifact detection"
-                                                   , epileptic_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_epileptic_openai_med = epileptic_artifect_response_med
-            # tms report
-            tms_response = main_tms_gpt_call("TMS analysis", raw_ica_eeg_features_json,theta_beta_summary,
-                                             epileptic_artifect_summary,bands, age, gender, known_issues,medications)
-
-            global_tms = tms_response
-            #freq binz openai
-            freq_bins_artifect_summary = generate_frequency_bin_summary(raw_ica, frequency_bins)
-            freq_bins_artifect_response = main_gpt_call("EEG different frequency bin analysis"
-                                                   , freq_bins_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_frq_bins_openai = freq_bins_artifect_response
-            
-            freq_bins_artifect_response_med = main_medical_gpt_call("EEG different frequency bin analysis"
-                                                   , freq_bins_artifect_summary,
-                                                    bands, age, gender, known_issues,medications)
-
-            global_frq_bins_openai_med = freq_bins_artifect_response_med
-            # Determine the maximum time for the EEG data
-            max_time = int(raw.times[-1])
-
-            return render_template('upload_with_topomap_dropdown.html', max_time=max_time)
-
-        except Exception as e:
-            print(f"Error processing file: {e}")
-            return "Error processing file", 500
-
-# If the request method is GET, render the upload page
-return render_template('upload_with_topomap_dropdown.html', max_time=0)
-
+                # Load the EEG data using MNE
+                raw = mne.io.read_raw_edf(filepath, preload=True)
+                
+    
+                # Apply preprocessing
+                
+                # Apply preprocessing
+                raw.drop_channels(channels_to_drop)
+                raw.rename_channels(mapping)
+                raw.set_montage(montage)
+                raw.filter(0.3, 70., fir_design='firwin')
+                raw.set_eeg_reference(ref_channels='average')
+                
+                # Set the EOG channels (Fp1 and Fp2) for detecting eye movement artifacts
+                #eog_channels = ['Fp1', 'Fp2']
+                
+    
+                # Perform ICA for artifact correction
+                ica = mne.preprocessing.ICA(n_components=19, random_state=97, max_iter=800)
+                ica.fit(raw)
+                #eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name=eog_channels)
+                #ica.exclude = eog_indices
+                # Get channel names and their indices
+                channel_names = raw.info['ch_names']  # List of channel names
+                channel_dict = {name: idx for idx, name in enumerate(channel_names)}  # Create a dictionary with channel names and their indices
+                
+                global_channel_dict = channel_dict
+                raw_ica = ica.apply(raw.copy())
+                #creating channel dictionary
+                #raw_ica_channel_names = raw_ica.info['ch_names']
+                # Store channel names and indexes in a dictionary
+                #channel_index_dict = {name: index for index, name in enumerate(raw_ica_channel_names)}
+    
+                # Store the processed data globally
+                global_raw = raw
+                global_raw_ica = raw_ica
+                global_ica = ica
+    
+                #raw openai
+                raw_eeg_features_json = extract_detailed_eeg_features(global_raw)
+                raw_response = main_gpt_call("Raw EEG feature data", raw_eeg_features_json, bands, 
+                                             age,gender,known_issues,medications)
+                global_raw_openai = raw_response
+                
+                raw_response_med = main_medical_gpt_call("Raw EEG feature data", raw_eeg_features_json, bands, 
+                                             age,gender,known_issues,medications)
+                global_raw_openai_med = raw_response_med
+                #raw ica openai
+                raw_ica_eeg_features_json = extract_detailed_eeg_features(global_raw_ica)
+                raw_ica_response = main_gpt_call("ICA-cleaned EEG feature data", raw_ica_eeg_features_json,
+                                                 bands, age, gender, known_issues,medications)
+                global_raw_ica_openai = raw_ica_response
+                
+                raw_ica_response_med = main_medical_gpt_call("ICA-cleaned EEG feature data", raw_ica_eeg_features_json,
+                                                 bands, age, gender, known_issues,medications)
+                global_raw_ica_openai_med = raw_ica_response_med
+                
+                #ica component openai
+                summary_ica_components = generate_raw_summary(global_raw,global_ica,channel_dict)
+                response_ica_components = main_gpt_call("ICA component and property analysis", summary_ica_components,
+                                                 bands, age, gender, known_issues,medications)
+                global_ica_components_openai = response_ica_components
+                
+                response_ica_components_med = main_medical_gpt_call("ICA component and property analysis", summary_ica_components,
+                                                 bands, age, gender, known_issues,medications)
+                global_ica_components_openai_med = response_ica_components_med
+                #band wise openai
+                dic_bands_summary = {}
+                for band in bands.keys():
+                    print(band)
+                    low, high = bands[band]
+                    band_summary = generate_delta_band_summary_per_channel_full_duration(global_raw_ica.copy(),low,high)
+                    dic_bands_summary[band] = band_summary
+                    band_response = client.chat.completions.create(
+                    model="chatgpt-4o-latest",
+                    messages=[
+                            {"role": "system", "content": "You are an expert in neuroscience, specializing in EEG analysis and frequency band interpretation."},
+                            {"role": "user", "content": f"""Given the following summary of EEG data focused on the 
+                             {band} band: {band_summary}, 
+                             please analyze the data and provide a short report with conclusions, 
+                             specifically focusing on the {band} band. The participant is a {age}-year-old {gender},
+                             having following known issues {known_issues}. The participant is taking medications: {medications}. 
+    
+                            Write the report in a way that addresses the participant directly, 
+                            as if speaking to them. 
+                            The report should be structured into three sections (do not add any other headings or titles): 
+                            Introduction, Findings, and Conclusion. 
+                            
+                            The Introduction should be concise and directly related to the analysis, 
+                            without including information about EEG or how it works, 
+                            since the participant already understands that. 
+                            
+                            Do not include sentences like 'It is important to further investigate 
+                            these results with a healthcare provider...' 
+                            or any other similar suggestions about seeking additional medical advice.
+                            Do not use phrases like 'you have done a fantastic job...' or any other sentences that praise 
+                            the participant, to avoid sounding AI-generated. 
+                            
+                            In the Findings section, provide explanations for technical terms such as 
+                            EEG channels, which part of the brain their position is or frequency bands (if relevant) in simple terms. 
+                            Explain their relevance to the analysis clearly and in a way 
+                            suitable for a primary school-going child aged {age} years. 
+                            
+                            Ensure the language remains formal, clear, concise, and written in British English. 
+                            Do not include signing-off remarks, greetings, or introductory explanations about EEG.
+                            Make sure to bring up anything alarming in the data in the Conclusion or any 
+                            possible diagnosis, without any sugar coating. Remember to keep it short and concise throughout. 
+                            """}
+                        ]
+                        )
+                    global_bands_openai[band] = band_response.choices[0].message.content
+                    
+    
+                    band_response_med = client.chat.completions.create(
+                    model="chatgpt-4o-latest",
+                    messages=[
+                            {"role": "system", "content": "You are an expert in neuroscience, specializing in EEG analysis and frequency band interpretation."},
+                            {"role": "user", "content": f"""Given the following summary of EEG data focused on the 
+                             {band} band: {band_summary}, 
+                             please analyze the data and provide a detailed report with conclusions as this report is
+                             for neurologists, neuroscientists and brain EEG experts, 
+                             specifically focusing on the {band} band. if you found any issue by analysing EEG/QEEG please raise and mention with the type 
+                            of issue or diseases. The participant is a {age}-year-old {gender},
+                             having following known issues {known_issues}. The participant is taking medications: {medications}. 
+    
+                             Write the report in a way that it should be detailed enough, basically for neurologists, neuroscientists 
+                             and brain EEG experts. so you can free to add related termanologies. 
+                             The report should be structured into three sections (do not add any other headings or titles): 
+                             Introduction, Findings, and Conclusion. 
+     
+                             The Introduction should be detailed and concrete and directly related to the analysis, 
+                             without including information about EEG or how it works, 
+                             since the experts already understands that. 
+                              
+                             Do not include sentences like 'It is important to further investigate 
+                             these results with a healthcare provider...' 
+                             or any other similar suggestions about seeking additional medical advice.
+                             Do not use phrases like 'you have done a fantastic job...' or any other sentences that praise 
+                             the participant, to avoid sounding AI-generated. 
+     
+                             In the Findings section, provide explanations for technical terms such as 
+                             EEG channels, which part of the brain their position is or frequency bands (if relevant) in detailed way. 
+                             Explain their relevance to the analysis clearly and in a way 
+                             suitable for a neurologists, neuroscientists and brain EEG experts and also please mention if you found any issue by 
+                             analysing EEG/QEEG please raise and mention with the type 
+                             of issue or diseases.. 
+    
+                             Ensure the language remains formal, clear, detailed, and written in British English. 
+                             Do not include signing-off remarks, greetings, or introductory explanations about EEG.
+                             Make sure to bring up anything alarming in the data in the Conclusion or any 
+                             possible diagnosis, without any sugar coating. Remember to keep it detailed and proper explained
+                             throughout as your audiences are neurologists, neuroscientists and brain EEG experts and do mention if you found any issue by
+                             analysing EEG/QEEG please raise and mention with the type 
+                             of issue or diseases. 
+                             """}
+                        ]
+                        )
+                    global_bands_openai_med[band] = band_response_med.choices[0].message.content
+                #rel power topo openai
+                relative_power_topomaps_summary = generate_detailed_relative_power_summary(raw_ica, 
+                                                                                            bands, channel_groups)
+                rel_pwr_topo_response = main_gpt_call("Relative Power spectra topomaps analysis", relative_power_topomaps_summary,
+                                                 bands, age, gender, known_issues,medications)
+                global_relative_topo_openai = rel_pwr_topo_response
+                
+                rel_pwr_topo_response_med = main_medical_gpt_call("Relative Power spectra topomaps analysis", relative_power_topomaps_summary,
+                                                 bands, age, gender, known_issues,medications)
+                global_relative_topo_openai_med = rel_pwr_topo_response_med
+                
+                #abs power topo openai
+                detailed_absolute_power_summary = generate_detailed_absolute_power_summary(raw, bands, channel_groups)
+                abs_pwr_topo_response = main_gpt_call("Absolute Power spectra topomaps analysis", detailed_absolute_power_summary,
+                                                 bands, age, gender, known_issues,medications)
+                global_abs_topo_openai = abs_pwr_topo_response
+                
+                abs_pwr_topo_response_med = main_medical_gpt_call("Absolute Power spectra topomaps analysis", detailed_absolute_power_summary,
+                                                 bands, age, gender, known_issues,medications)
+                global_abs_topo_openai_med = abs_pwr_topo_response_med
+                
+                #rel spectra openai
+                relative_spectra_summary = generate_detailed_relative_spectra_summary(raw_ica, bands)
+                rel_spectra_response = main_gpt_call("Relative Power Spectra Analysis (area graphs)", relative_spectra_summary,
+                                                 bands, age, gender, known_issues,medications)
+    
+                global_rel_spectra_openai = rel_spectra_response
+                
+                rel_spectra_response_med = main_medical_gpt_call("Relative Power Spectra Analysis (area graphs)", relative_spectra_summary,
+                                                 bands, age, gender, known_issues,medications)
+    
+                global_rel_spectra_openai_med = rel_spectra_response_med
+                #abs spectra opwnai
+                abs_spectra_summary = generate_detailed_absolute_spectra_summary(raw_ica, bands)
+                abs_spectra_response = main_gpt_call("Absolute Power spectra analysis (area graphs)", abs_spectra_summary,
+                                                 bands, age, gender, known_issues,medications)
+    
+                global_abs_spectra_openai = abs_spectra_response
+                
+                abs_spectra_response_med = main_medical_gpt_call("Absolute Power spectra analysis (area graphs)", abs_spectra_summary,
+                                                 bands, age, gender, known_issues,medications)
+    
+                global_abs_spectra_openai_med = abs_spectra_response_med
+                #theta beta ratio openai
+                theta_beta_summary = generate_detailed_theta_beta_ratio_summary(raw_ica, bands)
+                theta_beta_response = main_gpt_call("Theta/Beta ratio topomap analysis", theta_beta_summary,
+                                                 bands, age, gender, known_issues,medications)
+    
+                global_theta_beta_ratio_openai = theta_beta_response
+                
+                theta_beta_response_med = main_medical_gpt_call("Theta/Beta ratio topomap analysis", theta_beta_summary,
+                                                 bands, age, gender, known_issues,medications)
+    
+                global_theta_beta_ratio_openai_med = theta_beta_response_med
+                # qeeg and rehab report
+                qeeg_report_analysis = main_qeeg_rehab("Comprehensive qEEG Analysis and Rehabilitation Guide", 
+                                                       raw_ica_eeg_features_json,raw_ica_eeg_features_json,theta_beta_summary,
+                                                 dic_bands_summary,summary_ica_components,relative_spectra_summary,
+                                                 abs_spectra_summary,name,bands, age, gender, known_issues,medications)
+    
+                global_qeeg_report = qeeg_report_analysis
+                #brain mapping openai
+                brain_mapping_summary = generate_detailed_brain_mapping_summary(raw_ica, bands)
+                brain_mapping_response = main_gpt_call("Brain mapping topomap analysis with increased and decreased activity channels"
+                                                       , brain_mapping_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_brain_mapping_openai = brain_mapping_response
+                
+                brain_mapping_response_med = main_medical_gpt_call("Brain mapping topomap analysis with increased and decreased activity channels"
+                                                       , brain_mapping_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_brain_mapping_openai_med = brain_mapping_response_med
+                #occi alpha peak openai
+                occi_alpha_peak_summary = generate_detailed_occipital_alpha_peak_summary(raw_ica, alpha_band=(7.5, 14))
+                occi_alpha_peak_response = main_gpt_call("EEG data focused on occipital alpha peaks"
+                                                       , occi_alpha_peak_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_occipital_alpha_peak_openai = occi_alpha_peak_response
+                
+                occi_alpha_peak_response_med = main_medical_gpt_call("EEG data focused on occipital alpha peaks"
+                                                       , occi_alpha_peak_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_occipital_alpha_peak_openai_med = occi_alpha_peak_response_med
+                
+                #chewing openai
+                chewing_artifect_summary = generate_detailed_chewing_artifact_summary_full_duration(raw_ica, 
+                                                                                                    ['T3', 'T4', 'F7', 'F8'], 
+                                                                                                    detect_chewing_artifacts, 
+                                                                                                    5)
+                chewing_artifect_response = main_gpt_call("EEG data focused on chewing artifact detection"
+                                                       , chewing_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_chewing_artifect_openai = chewing_artifect_response
+                
+                chewing_artifect_response_med = main_medical_gpt_call("EEG data focused on chewing artifact detection"
+                                                       , chewing_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_chewing_artifect_openai_med = chewing_artifect_response_med
+                
+                #ecg openai
+                ecg_artifect_summary = generate_detailed_ecg_artifact_summary_full_duration(raw_ica, 
+                                                                                                    ['T3', 'T4', 'Cz'], 
+                                                                                                    detect_ecg_artifacts, 
+                                                                                                    5)
+                ecg_artifect_response = main_gpt_call("EEG data focused on ECG artifact detection"
+                                                       , ecg_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_ecg_artifect_openai = ecg_artifect_response
+                
+                ecg_artifect_response_med = main_medical_gpt_call("EEG data focused on ECG artifact detection"
+                                                       , ecg_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_ecg_artifect_openai_med = ecg_artifect_response_med
+                #rectus openai
+                rectus_artifect_summary = generate_detailed_rectus_artifact_summary_full_duration(raw_ica, 
+                                                                                                    ['Fp1', 'Fp2'], 
+                                                                                                    detect_rectus_artifacts, 
+                                                                                                    5)
+                rectus_artifect_response = main_gpt_call("EEG data focused on rectus artifact detection"
+                                                       , rectus_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_rectus_artifect_openai = rectus_artifect_response
+                
+                rectus_artifect_response_med = main_medical_gpt_call("EEG data focused on rectus artifact detection"
+                                                       , rectus_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_rectus_artifect_openai_med = rectus_artifect_response_med
+                #roving eye openai
+                roving_artifect_summary = generate_detailed_roving_eye_artifact_summary_full_duration(raw_ica, 
+                                                                                                    ['Fp1', 'Fp2'], 
+                                                                                                    detect_roving_eye_artifacts, 
+                                                                                                    5)
+                roving_artifect_response = main_gpt_call("EEG data focused on roving eye artifact detection"
+                                                       , roving_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_roving_eye_artifect_openai = roving_artifect_response
+                
+                roving_artifect_response_med = main_medical_gpt_call("EEG data focused on roving eye artifact detection"
+                                                       , roving_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_roving_eye_artifect_openai_med = roving_artifect_response_med
+                #muscle artifect openai
+                muscle_artifect_summary = generate_detailed_muscle_tension_artifact_summary_full_duration(raw_ica, 
+                                                                                                    ['T3', 'T4', 'F7', 'F8'], 
+                                                                                                    detect_muscle_tension_artifacts, 
+                                                                                                    5)
+                muscle_artifect_response = main_gpt_call("EEG data focused on muscle tension artifact detection"
+                                                       , muscle_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_muscle_tension_artifect_openai = muscle_artifect_response
+                
+                muscle_artifect_response_med = main_medical_gpt_call("EEG data focused on muscle tension artifact detection"
+                                                       , muscle_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_muscle_tension_artifect_openai_med = muscle_artifect_response_med
+                #blink artifect openai
+                blink_artifect_summary = generate_detailed_blink_artifact_summary_full_duration(raw_ica, 
+                                                                                                    ['Fp1', 'Fp2'], 
+                                                                                                    detect_blink_artifacts, 
+                                                                                                    5)
+                blink_artifect_response = main_gpt_call("EEG data focused on blink artifact detection"
+                                                       , blink_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_blink_artifect_openai = blink_artifect_response
+                
+                blink_artifect_response_med = main_medical_gpt_call("EEG data focused on blink artifact detection"
+                                                       , blink_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_blink_artifect_openai_med = blink_artifect_response_med
+                #rectus spike artifect openai
+                rspike_artifect_summary = generate_detailed_rectus_spike_artifact_summary_full_duration(raw_ica, 
+                                                                                                    ['Fp1', 'Fp2'], 
+                                                                                                    detect_rectus_spikes_artifacts, 
+                                                                                                    5)
+                rspike_artifect_response = main_gpt_call("EEG data focused on rectus spikes artifact detection"
+                                                       , rspike_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_rectus_spike_artifect_openai = rspike_artifect_response
+                
+                rspike_artifect_response_med = main_medical_gpt_call("EEG data focused on rectus spikes artifact detection"
+                                                       , rspike_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_rectus_spike_artifect_openai_med = rspike_artifect_response_med
+                #pdr artifect openai
+                pdr_artifect_summary = generate_detailed_pdr_artifact_summary_full_duration(raw_ica, 
+                                                                                                    ['O1', 'O2'], 
+                                                                                                    detect_pdr_artifacts, 
+                                                                                                    5)
+                pdr_artifect_response = main_gpt_call("EEG data focused on PDR artifact detection"
+                                                       , pdr_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_pdr_openai = pdr_artifect_response
+                
+                pdr_artifect_response_med = main_medical_gpt_call("EEG data focused on PDR artifact detection"
+                                                       , pdr_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_pdr_openai_med = pdr_artifect_response_med
+                #impedance artifect openai
+                impedance_artifect_summary = generate_detailed_impedance_artifact_summary_full_duration(raw_ica, 
+                                                                                                    detect_impedance_artifacts, 
+                                                                                                    5)
+                impedance_artifect_response = main_gpt_call("EEG data focused on impedance artifact detection"
+                                                       , impedance_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_impedance_openai = impedance_artifect_response
+                
+                impedance_artifect_response_med = main_medical_gpt_call("EEG data focused on impedance artifact detection"
+                                                       , impedance_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_impedance_openai_med = impedance_artifect_response_med
+                #epileptic artifect openai
+                epileptic_artifect_summary = generate_detailed_epileptic_pattern_summary_full_duration(raw_ica, 
+                                                                                                    detect_epileptic_patterns, 
+                                                                                                    5)
+                epileptic_artifect_response = main_gpt_call("EEG data focused on epileptic patterns artifact detection"
+                                                       , epileptic_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_epileptic_openai = epileptic_artifect_response
+                
+                epileptic_artifect_response_med = main_medical_gpt_call("EEG data focused on epileptic patterns artifact detection"
+                                                       , epileptic_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_epileptic_openai_med = epileptic_artifect_response_med
+                # tms report
+                tms_response = main_tms_gpt_call("TMS analysis", raw_ica_eeg_features_json,theta_beta_summary,
+                                                 epileptic_artifect_summary,bands, age, gender, known_issues,medications)
+    
+                global_tms = tms_response
+                #freq binz openai
+                freq_bins_artifect_summary = generate_frequency_bin_summary(raw_ica, frequency_bins)
+                freq_bins_artifect_response = main_gpt_call("EEG different frequency bin analysis"
+                                                       , freq_bins_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_frq_bins_openai = freq_bins_artifect_response
+                
+                freq_bins_artifect_response_med = main_medical_gpt_call("EEG different frequency bin analysis"
+                                                       , freq_bins_artifect_summary,
+                                                        bands, age, gender, known_issues,medications)
+    
+                global_frq_bins_openai_med = freq_bins_artifect_response_med
+                # Determine the maximum time for the EEG data
+                max_time = int(raw.times[-1])
+    
+                return render_template('upload_with_topomap_dropdown.html', max_time=max_time)
+    
+            except Exception as e:
+                print(f"Error processing file: {e}")
+                return "Error processing file", 500
+    
+    # If the request method is GET, render the upload page
+    return render_template('upload_with_topomap_dropdown.html', max_time=0)
+    
 
 
 @socketio.on('slider_update')
