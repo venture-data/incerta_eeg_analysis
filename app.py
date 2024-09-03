@@ -810,7 +810,7 @@ def main_tms_gpt_call(analysis,cleaned_ica_summary, theta_beta_summary, epilepti
                             - Week-by-week focus areas (2 weeks e.g week 1-2, week 4-6 etc): Clearly define which areas of the brain will be targeted 
                             each week (e.g., left dorsolateral prefrontal cortex (F3), anterior cingulate cortex 
                             (Fz), etc.) and explain the reason for targeting those areas based on the EEG findings: 
-                            epileptic artefacts summary: {epileptic_summary} 
+                            epileptic artefacts summary (mention type of epilepcy if there is epilepcy symptoms): {epileptic_summary} 
                             and theta-beta ration summary: {theta_beta_summary}.
                             - Protocol specifics: Mention the frequency of TMS used (e.g., low-frequency 1 Hz, 
                             high-frequency 10 Hz), the duration of each session, and the expected impact on neural 
