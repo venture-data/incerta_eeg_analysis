@@ -25,46 +25,65 @@
       <!-- Left Panel -->
       <div class="col-md-3 bg-dark text-white" style="height: 100vh; overflow-y: auto;">
         <h1>EEG Analysis</h1>
-        <form method="POST" action="/" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="file">Upload EEG File (.edf)</label>
-                <input type="file" class="form-control-file" name="file" required>
+        <!-- Alert section for showing flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="alert-container">
+              {% for category, message in messages %}
+                <div class="alert alert-{{ category }} mt-3">
+                  {{ message }}
+                </div>
+              {% endfor %}
             </div>
+          {% endif %}
+        {% endwith %}
+            <form method="POST" action="/" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="file">Upload EEG File (.edf)</label>
+                    <input type="file" class="form-control-file" name="file" required>
+                </div>
+                <div class="form-group">
+                    <label for="report_type">Select Report Type</label>
+                    <select class="form-control" id="report_type" name="report_type" required>
+                        <option value="patient">Patient Report</option>
+                        <option value="medical">Medical Personnel Report</option>
+                    </select>
+                </div>
 
-            <!-- Additional Input Fields for OpenAI Prompt -->
-            <div class="form-group">
-                <label for="name">Name</label>
-                <input type="text" class="form-control" id="name" name="name" required>
-            </div>
-            <div class="form-group">
-                <label for="known_issues">Known Issues</label>
-                <input type="text" class="form-control" id="known_issues" name="known_issues" required>
-            </div>
-            <div class="form-group">
-                <label for="medications">Medications</label>
-                <input type="text" class="form-control" id="medications" name="medications" required>
-            </div>
+                <!-- Additional Input Fields for OpenAI Prompt -->
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" class="form-control" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="known_issues">Known Issues</label>
+                    <input type="text" class="form-control" id="known_issues" name="known_issues" required>
+                </div>
+                <div class="form-group">
+                    <label for="medications">Medications</label>
+                    <input type="text" class="form-control" id="medications" name="medications" required>
+                </div>
 
-            <div class="form-group">
-                <label for="dob">Date of Birth</label>
-                <input type="date" class="form-control" id="dob" name="dob" required onchange="calculateAge()">
-            </div>
+                <div class="form-group">
+                    <label for="dob">Date of Birth</label>
+                    <input type="date" class="form-control" id="dob" name="dob" required onchange="calculateAge()">
+                </div>
 
-            <div class="form-group">
-                <label for="age">Age</label>
-                <input type="number" class="form-control" id="age" name="age" readonly>
-            </div>
+                <div class="form-group">
+                    <label for="age">Age</label>
+                    <input type="number" class="form-control" id="age" name="age" readonly>
+                </div>
 
-            <div class="form-group">
-                <label for="gender">Gender</label>
-                <select class="form-control" id="gender" name="gender" required>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                </select>
-            </div>
+                <div class="form-group">
+                    <label for="gender">Gender</label>
+                    <select class="form-control" id="gender" name="gender" required>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                </div>
 
-            <input type="submit" class="btn btn-primary" value="Upload">
-        </form>
+                <input type="submit" class="btn btn-primary" value="Upload">
+            </form>
         {% if max_time > 0 %}
         <form>
           <div class="form-group mt-4">
@@ -72,8 +91,8 @@
             <select name="plot_type" id="plot_type" class="form-control" onchange="updatePlotType()">
               <option value="raw">Raw EEG</option>
               <option value="cleaned">ICA Cleaned EEG</option>
-              <option value="tms">TMS Treatment</option>
-	            <option value="qeeg_report">qEEG Report Analysis</option>
+	          <option value="tms">TMS Treatment</option>
+	          <option value="qeeg_report">qEEG Report Analysis</option>
               <option value="ica_properties">ICA Components</option>
               <option value="delta">Delta Band (1.5 - 4 Hz)</option>
               <option value="theta">Theta Band (4 - 7.5 Hz)</option>
