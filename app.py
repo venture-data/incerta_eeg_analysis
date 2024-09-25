@@ -2615,10 +2615,10 @@ def handle_slider_update(data):
             low, high = bands[plot_type]
             band_filtered = global_raw_ica.copy().filter(low, high, fir_design='firwin')
             fig = band_filtered.plot(start=start_time, duration=5, n_channels=19, show=False)
-            if global_bands_openai != None:
+            if global_bands_openai:
                 openai_res = global_bands_openai[plot_type]
                 openai_res = re.sub(r'[*#]', '', openai_res)
-            if global_bands_openai_med != None:
+            if global_bands_openai_med:
                 openai_res_med = global_bands_openai_med[plot_type]
                 openai_res_med = re.sub(r'[*#]', '', openai_res_med)
         elif plot_type == "topomaps_relative":
