@@ -739,7 +739,8 @@ def main_medical_gpt_call(analysis, summary, bands,age,gender,known_issues,medic
                             Explain their relevance to the analysis clearly and in a way 
                             suitable for a neurologists, neuroscientists and brain EEG experts and also mention if you found any issue by 
                             analysing EEG/QEEG please raise and mention with the type 
-                            of issue or diseases.
+                            of issue or diseases. In Findings if you find any band wave in any channel then please mention with the band wave strength
+                            and the channel name.
 
                             Ensure the language remains formal, clear, detailed, and written in British English. 
                             Do not include signing-off remarks, greetings, or introductory explanations about EEG.
@@ -752,6 +753,7 @@ def main_medical_gpt_call(analysis, summary, bands,age,gender,known_issues,medic
         ]
     )
     return response.choices[0].message.content
+
 
 def main_tms_gpt_call(analysis,cleaned_ica_summary, theta_beta_summary, epileptic_summary,bands,age,gender,known_issues,medications):
     
@@ -1946,7 +1948,6 @@ with open('/root/apikey.txt', 'r') as file:
 # OpenAI API Key setup
 client = OpenAI(api_key=openai_api_key)# Route for file upload and main dashboard
 @app.route('/', methods=['GET', 'POST'])
-
 def upload_file():
     global global_raw, global_raw_ica, global_ica, global_raw_openai, \
     global_raw_ica_openai, global_ica_components_openai, name, dob, age, \
@@ -2007,14 +2008,14 @@ def upload_file():
                     raw.set_eeg_reference(ref_channels='average')
                 
                     # Set the EOG channels (Fp1 and Fp2) for detecting eye movement artifacts
-                    #eog_channels = ['Fp1', 'Fp2']
+                    eog_channels = ['Fp1', 'Fp2','T3', 'T4', 'F7', 'F8']
                 
 
                     # Perform ICA for artifact correction
                     ica = mne.preprocessing.ICA(n_components=19, random_state=97, max_iter=800)
                     ica.fit(raw)
-                    #eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name=eog_channels)
-                    #ica.exclude = eog_indices
+                    eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name=eog_channels)
+                    ica.exclude = eog_indices
                     # Get channel names and their indices
                     channel_names = raw.info['ch_names']  # List of channel names
                     channel_dict = {name: idx for idx, name in enumerate(channel_names)}  # Create a dictionary with channel names and their indices
@@ -2057,7 +2058,7 @@ def upload_file():
                     
 
                     #occi alpha peak openai
-                    occi_alpha_peak_summary = generate_detailed_occipital_alpha_peak_summary(raw_ica, alpha_band=(7.5, 14))
+                    occi_alpha_peak_summary = generate_detailed_occipital_alpha_peak_summary(raw_ica, alpha_band=(7, 14))
                     
                     #chewing openai
                     chewing_artifect_summary = generate_detailed_chewing_artifact_summary_full_duration(raw_ica, 
@@ -2117,11 +2118,11 @@ def upload_file():
                                                                                                         detect_epileptic_patterns, 
                                                                                                         5)
                     
-                    # tms report
-                    tms_response = main_tms_gpt_call("TMS analysis", raw_ica_eeg_features_json,theta_beta_summary,
-                                                     epileptic_artifect_summary,bands, age, gender, known_issues,medications)
+                    # # tms report
+                    # tms_response = main_tms_gpt_call("TMS analysis", raw_ica_eeg_features_json,theta_beta_summary,
+                    #                                  epileptic_artifect_summary,bands, age, gender, known_issues,medications)
 
-                    global_tms = tms_response
+                    # global_tms = tms_response
                     #freq binz openai
                     freq_bins_artifect_summary = generate_frequency_bin_summary(raw_ica, frequency_bins)
 
@@ -2187,7 +2188,7 @@ def upload_file():
                                 ]
                                 )
                             global_bands_openai[band] = band_response.choices[0].message.content
-                        # qeeg and rehab report
+                        #qeeg and rehab report
                         qeeg_report_analysis = main_qeeg_rehab("Comprehensive qEEG Analysis and Rehabilitation Guide", 
                                                                raw_ica_eeg_features_json,raw_ica_eeg_features_json,theta_beta_summary,
                                                          dic_bands_summary,summary_ica_components,relative_spectra_summary,
@@ -2227,7 +2228,7 @@ def upload_file():
                         global_brain_mapping_openai = brain_mapping_response
                         
                         #occi alpha peak openai
-                        occi_alpha_peak_response = main_gpt_call("EEG data focused on occipital alpha peaks"
+                        occi_alpha_peak_response = main_gpt_call("""EEG data focused on occipital alpha peaks."""
                                                                , occi_alpha_peak_summary,
                                                                 bands, age, gender, known_issues,medications)
 
@@ -2367,7 +2368,7 @@ def upload_file():
                                      Explain their relevance to the analysis clearly and in a way 
                                      suitable for a neurologists, neuroscientists and brain EEG experts and also please mention if you found any issue by 
                                      analysing EEG/QEEG please raise and mention with the type 
-                                     of issue or diseases.. 
+                                     of issue or diseases. 
 
                                      Ensure the language remains formal, clear, detailed, and written in British English. 
                                      Do not include signing-off remarks, greetings, or introductory explanations about EEG.
@@ -2380,7 +2381,7 @@ def upload_file():
                                 ]
                                 )
                             global_bands_openai_med[band] = band_response_med.choices[0].message.content
-                        # qeeg and rehab report
+                        #qeeg and rehab report
                         qeeg_report_analysis = main_qeeg_rehab("Comprehensive qEEG Analysis and Rehabilitation Guide", 
                                                                raw_ica_eeg_features_json,raw_ica_eeg_features_json,theta_beta_summary,
                                                          dic_bands_summary,summary_ica_components,relative_spectra_summary,
@@ -2429,7 +2430,18 @@ def upload_file():
                     
                         #occi alpha peak openai
                 
-                        occi_alpha_peak_response_med = main_medical_gpt_call("EEG data focused on occipital alpha peaks"
+                        occi_alpha_peak_response_med = main_medical_gpt_call("""EEG data focused on occipital alpha peaks: Occipital Alpha 
+                                                                 waves between 7-14, if this does not appear, it shows that 
+                                                                 there is no autism as a biomarker for us, but there are 
+                                                                 functions that do not work. At the same time, when this 
+                                                                 peak is not present, it indicates that the functions that 
+                                                                 open will be used better and functions such as speaking, 
+                                                                 expression and sentence formation will be acquired faster.
+                                                                 
+                                                                 If it did not appear while writing about that section, 
+                                                                 let's state this, if it did, let's try to express that 7 
+                                                                 is the beginning, 10-intermediate level and 12 and 
+                                                                 above is the severe autism biomarker."""
                                                                , occi_alpha_peak_summary,
                                                                 bands, age, gender, known_issues,medications)
 
@@ -2538,6 +2550,7 @@ def upload_file():
     return render_template('upload_with_topomap_dropdown.html', max_time=0)
 
 
+
 @socketio.on('slider_update')
 def handle_slider_update(data):
     global global_raw, global_raw_ica
@@ -2569,13 +2582,13 @@ def handle_slider_update(data):
                 openai_res_med = global_raw_ica_openai_med
                 openai_res_med = re.sub(r'[*#]', '', openai_res_med)
                 print(global_raw_ica_openai_med)
-        elif plot_type == "tms":
-            fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
-            if global_tms != None:
-                openai_res = global_tms
-                openai_res = re.sub(r'[*#]', '', openai_res)
+        # elif plot_type == "tms":
+        #     fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
+        #     if global_tms != None:
+        #         openai_res = global_tms
+        #         openai_res = re.sub(r'[*#]', '', openai_res)
             
-                print(openai_res)  
+        #         print(openai_res)  
         elif plot_type == "qeeg_report":
             fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
             if global_qeeg_report != None:
@@ -2612,6 +2625,7 @@ def handle_slider_update(data):
                 openai_res_med = global_ica_components_openai_med
                 openai_res_med = re.sub(r'[*#]', '', openai_res_med)
         elif plot_type in ["delta", "theta", "alpha", "beta-1", "beta-2", "gamma"]:
+            print(plot_type)
             low, high = bands[plot_type]
             band_filtered = global_raw_ica.copy().filter(low, high, fir_design='firwin')
             fig = band_filtered.plot(start=start_time, duration=5, n_channels=19, show=False)
@@ -2729,6 +2743,9 @@ def handle_slider_update(data):
             fig, ax = plt.subplots(figsize=(8, 6))
             plot_topomap(theta_beta_ratio, global_raw_ica.info, axes=ax, show=False, cmap=custom_cmap)
             ax.set_title('Theta/Beta Ratio')
+            # Manually set the color limits on the axis
+            for img in ax.get_images():
+                img.set_clim(0, 5)
             plt.colorbar(ax.images[0], ax=ax, orientation='horizontal', fraction=0.05, pad=0.07)
             if global_theta_beta_ratio_openai != None:
                 openai_res = global_theta_beta_ratio_openai
@@ -3177,7 +3194,7 @@ def handle_slider_update(data):
     except Exception as e:
         print(f"Error generating plot: {e}")
         emit('update_plot', {'plot_url': None, 'raw_report': None, 'raw_medical_report': None})  # Send a fallback response in case of error
-        
+                
         
 
 if __name__ == '__main__':
