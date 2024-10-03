@@ -22,7 +22,7 @@ import json
 from scipy.integrate import simpson  # For band power calculation
 
 
-def detect_rectus_artifacts(raw_ica, start_time, duration=5):
+def detect_rectus_artifacts(raw_ica, start_time, duration=4):
     """
     Detect rectus artifacts (related to eye movements) in EEG data.
 
@@ -61,7 +61,7 @@ def detect_rectus_artifacts(raw_ica, start_time, duration=5):
             rectus_segments.append((start_time_artifact, end_time_artifact))
     
     return rectus_segments
-def detect_ecg_artifacts(raw_ica, start_time, duration=5):
+def detect_ecg_artifacts(raw_ica, start_time, duration=4):
     """
     Detect ECG/cardiac artifacts in EEG data.
 
@@ -98,7 +98,7 @@ def detect_ecg_artifacts(raw_ica, start_time, duration=5):
             ecg_segments.append((peak_time, peak_time + 0.1))  # Mark a small window around each peak
     
     return ecg_segments
-def detect_chewing_artifacts(raw_ica, start_time, duration=5):
+def detect_chewing_artifacts(raw_ica, start_time, duration=4):
     """
     Detect chewing artifacts in EEG data.
 
@@ -141,7 +141,7 @@ def detect_chewing_artifacts(raw_ica, start_time, duration=5):
             chewing_segments.append((start_time_artifact, end_time_artifact))
     
     return chewing_segments
-def detect_roving_eye_artifacts(raw_ica, start_time, duration=5):
+def detect_roving_eye_artifacts(raw_ica, start_time, duration=4):
     """
     Detect roving eye artifacts (related to slow lateral eye movements) in EEG data.
 
@@ -180,7 +180,7 @@ def detect_roving_eye_artifacts(raw_ica, start_time, duration=5):
             roving_segments.append((start_time_artifact, end_time_artifact))
 
     return roving_segments
-def detect_muscle_tension_artifacts(raw_ica, start_time, duration=5):
+def detect_muscle_tension_artifacts(raw_ica, start_time, duration=4):
     """
     Detect muscle tension artifacts in EEG data.
 
@@ -219,7 +219,7 @@ def detect_muscle_tension_artifacts(raw_ica, start_time, duration=5):
             muscle_segments.append((start_time_artifact, end_time_artifact))
 
     return muscle_segments
-def detect_blink_artifacts(raw_ica, start_time, duration=5):
+def detect_blink_artifacts(raw_ica, start_time, duration=4):
     """
     Detect blink artifacts in EEG data.
 
@@ -258,7 +258,7 @@ def detect_blink_artifacts(raw_ica, start_time, duration=5):
             blink_segments.append((start_time_artifact, end_time_artifact))
 
     return blink_segments
-def detect_rectus_spikes_artifacts(raw_ica, start_time, duration=5):
+def detect_rectus_spikes_artifacts(raw_ica, start_time, duration=4):
     """
     Detect rectus spike artifacts in EEG data.
 
@@ -297,7 +297,7 @@ def detect_rectus_spikes_artifacts(raw_ica, start_time, duration=5):
             rectus_spike_segments.append((start_time_artifact, end_time_artifact))
 
     return rectus_spike_segments
-def detect_pdr_artifacts(raw_ica, start_time, duration=5):
+def detect_pdr_artifacts(raw_ica, start_time, duration=4):
     """
     Detect PDR (Posterior Dominant Rhythm) artifacts in EEG data.
 
@@ -336,7 +336,7 @@ def detect_pdr_artifacts(raw_ica, start_time, duration=5):
             pdr_segments.append((start_time_artifact, end_time_artifact))
 
     return pdr_segments
-def detect_impedance_artifacts(raw_ica, start_time, duration=5):
+def detect_impedance_artifacts(raw_ica, start_time, duration=4):
     """
     Detect impedance artifacts in EEG data, typically caused by poor electrode contact.
 
@@ -380,7 +380,7 @@ def detect_impedance_artifacts(raw_ica, start_time, duration=5):
             impedance_segments.append((start_time_artifact, end_time_artifact))
     
     return impedance_segments
-def detect_epileptic_patterns(raw_ica, start_time, duration=5):
+def detect_epileptic_patterns(raw_ica, start_time, duration=4):
     """
     Detect epileptic patterns (spikes, sharp waves, etc.) in EEG data.
 
@@ -2001,12 +2001,20 @@ def upload_file():
                     # Apply preprocessing
                 
                     # Apply preprocessing
+                    picks = mne.pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False)
+                    raw.pick(picks)
+                    raw.set_eeg_reference("average")
+                    channels_to_drop = ['Bio1-2', 'Bio3-4', 'ECG', 'Bio4', 'VSyn', 'ASyn', 'LABEL', 'EEG Fpz','A1','A2','EEG Oz']
                     raw.drop_channels(channels_to_drop)
                     raw.rename_channels(mapping)
                     raw.set_montage(montage)
-                    raw.filter(0.3, 70., fir_design='firwin')
-                    raw.set_eeg_reference(ref_channels='average')
+                    raw.resample(250.)
                 
+                    raw.filter(l_freq=1., h_freq=100.)
+                    raw_uncleaned = raw.copy()
+                    raw.notch_filter(freqs=[16.667, 50]); # bandstop the train and power grid
+                    
+                    global_raw = raw_uncleaned
                     # Set the EOG channels (Fp1 and Fp2) for detecting eye movement artifacts
                     eog_channels = ['Fp1', 'Fp2','T3', 'T4', 'F7', 'F8']
                 
@@ -2028,7 +2036,6 @@ def upload_file():
                     #channel_index_dict = {name: index for index, name in enumerate(raw_ica_channel_names)}
 
                     # Store the processed data globally
-                    global_raw = raw
                     global_raw_ica = raw_ica
                     global_ica = ica
                     
@@ -2058,7 +2065,7 @@ def upload_file():
                     
 
                     #occi alpha peak openai
-                    occi_alpha_peak_summary = generate_detailed_occipital_alpha_peak_summary(raw_ica, alpha_band=(7, 14))
+                    occi_alpha_peak_summary = generate_detailed_occipital_alpha_peak_summary(raw_ica, alpha_band=(7.5, 14))
                     
                     #chewing openai
                     chewing_artifect_summary = generate_detailed_chewing_artifact_summary_full_duration(raw_ica, 
@@ -2563,7 +2570,7 @@ def handle_slider_update(data):
         openai_res_med = None
 
         if plot_type == 'raw' and global_raw:
-            fig = global_raw.plot(start=start_time, duration=5, n_channels=19, show=False)
+            fig = global_raw.plot(start=start_time, duration=4, n_channels=19, show=False)
             if global_raw_openai != None:
                 openai_res = global_raw_openai
                 openai_res = re.sub(r'[*#]', '', openai_res)
@@ -2573,7 +2580,7 @@ def handle_slider_update(data):
                 openai_res_med = re.sub(r'[*#]', '', openai_res_med)
                 print(global_raw_openai_med)
         elif plot_type == 'cleaned' and global_raw_ica:
-            fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
             if global_raw_ica_openai != None:
                 openai_res = global_raw_ica_openai
                 openai_res = re.sub(r'[*#]', '', openai_res)
@@ -2583,14 +2590,14 @@ def handle_slider_update(data):
                 openai_res_med = re.sub(r'[*#]', '', openai_res_med)
                 print(global_raw_ica_openai_med)
         # elif plot_type == "tms":
-        #     fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
+        #     fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
         #     if global_tms != None:
         #         openai_res = global_tms
         #         openai_res = re.sub(r'[*#]', '', openai_res)
             
         #         print(openai_res)  
         elif plot_type == "qeeg_report":
-            fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
             if global_qeeg_report != None:
                 openai_res = global_qeeg_report
                 openai_res = re.sub(r'[*#]', '', openai_res)
@@ -2628,7 +2635,7 @@ def handle_slider_update(data):
             print(plot_type)
             low, high = bands[plot_type]
             band_filtered = global_raw_ica.copy().filter(low, high, fir_design='firwin')
-            fig = band_filtered.plot(start=start_time, duration=5, n_channels=19, show=False)
+            fig = band_filtered.plot(start=start_time, duration=4, n_channels=19, show=False)
             if global_bands_openai:
                 openai_res = global_bands_openai[plot_type]
                 openai_res = re.sub(r'[*#]', '', openai_res)
@@ -2910,10 +2917,10 @@ def handle_slider_update(data):
         elif plot_type == "chewing_artifact_detection":
             # Chewing artifact detection logic
             chewing_channels = ['T3', 'T4','T5','T6']  # Channels focused on detecting rectus artifacts
-            chewing_segments = detect_chewing_artifacts(global_raw_ica, start_time, duration=5)
+            chewing_segments = detect_chewing_artifacts(global_raw_ica, start_time, duration=4)
 
             # Plot EEG data
-            fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
             plt.close(fig)  # Close the interactive plot to prevent blocking
 
             # Get the current axes and highlight detected segments
@@ -2938,10 +2945,10 @@ def handle_slider_update(data):
         elif plot_type == "ecg_artifact_detection":
             # ECG artifact detection logic
             ecg_channels = ['T3', 'T4', 'Cz']  # Channels focused on detecting rectus artifacts
-            ecg_segments = detect_ecg_artifacts(global_raw_ica, start_time, duration=5)
+            ecg_segments = detect_ecg_artifacts(global_raw_ica, start_time, duration=4)
 
             # Plot EEG data
-            fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
             plt.close(fig)  # Close the interactive plot to prevent blocking
 
             # Get the current axes and highlight detected segments
@@ -2964,10 +2971,10 @@ def handle_slider_update(data):
                 openai_res_med = re.sub(r'[*#]', '', openai_res_med)
         elif plot_type == "rectus_artifact_detection":
             # Rectus artifact detection logic
-            #rectus_segments = detect_rectus_artifacts(global_raw, start_time, duration=5)
+            #rectus_segments = detect_rectus_artifacts(global_raw, start_time, duration=4)
 
             # Plot EEG data
-            #fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
+            #fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
             #plt.close(fig)  # Close the interactive plot to prevent blocking
 
             # Get the current axes and highlight detected segments
@@ -2977,10 +2984,10 @@ def handle_slider_update(data):
 
             #ax.legend()
             rectus_channels = ['O1', 'O2']  # Channels focused on detecting rectus artifacts
-            rectus_segments = detect_rectus_artifacts(global_raw_ica, start_time, duration=5)
+            rectus_segments = detect_rectus_artifacts(global_raw_ica, start_time, duration=4)
 
             # Plot all channels
-            fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
             plt.close(fig)  # Close the interactive plot to prevent blocking
 
             # Get the current axes and highlight detected segments only on rectus channels
@@ -3000,10 +3007,10 @@ def handle_slider_update(data):
         elif plot_type == "roving_eye_artifact_detection":
             roving_channels = ['O1', 'O2']  # Channels focused on detecting rectus artifacts
             # Roving eye artifact detection logic
-            roving_segments = detect_roving_eye_artifacts(global_raw_ica, start_time, duration=5)
+            roving_segments = detect_roving_eye_artifacts(global_raw_ica, start_time, duration=4)
 
             # Plot EEG data
-            fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
             plt.close(fig)  # Close the interactive plot to prevent blocking
 
             # Get the current axes and highlight detected segments
@@ -3027,10 +3034,10 @@ def handle_slider_update(data):
         elif plot_type == "muscle_tension_artifact_detection":
             # Muscle tension artifact detection logic
             muscle_channels = ['T3', 'T4','T5','T6']  # Channels focused on detecting rectus artifacts
-            muscle_segments = detect_muscle_tension_artifacts(global_raw_ica, start_time, duration=5)
+            muscle_segments = detect_muscle_tension_artifacts(global_raw_ica, start_time, duration=4)
 
             # Plot EEG data
-            fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
             plt.close(fig)  # Close the interactive plot to prevent blocking
 
             # Get the current axes and highlight detected segments
@@ -3053,10 +3060,10 @@ def handle_slider_update(data):
         elif plot_type == "blink_artifact_detection":
             # Blink artifact detection logic
             blink_channels = ['O1', 'O2']  # Channels focused on detecting rectus artifacts
-            blink_segments = detect_blink_artifacts(global_raw_ica, start_time, duration=5)
+            blink_segments = detect_blink_artifacts(global_raw_ica, start_time, duration=4)
 
             # Plot EEG data
-            fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
             plt.close(fig)  # Close the interactive plot to prevent blocking
 
             # Get the current axes and highlight detected segments
@@ -3080,10 +3087,10 @@ def handle_slider_update(data):
             # Rectus spike artifact detection logic
             rectus_spike_channels = ['O1', 'O2']  # Channels focused on detecting rectus artifacts
             
-            rectus_spike_segments = detect_rectus_spikes_artifacts(global_raw_ica, start_time, duration=5)
+            rectus_spike_segments = detect_rectus_spikes_artifacts(global_raw_ica, start_time, duration=4)
 
             # Plot EEG data
-            fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
             plt.close(fig)  # Close the interactive plot to prevent blocking
 
             # Get the current axes and highlight detected segments
@@ -3105,10 +3112,10 @@ def handle_slider_update(data):
         elif plot_type == "pdr_artifact_detection":
             pdr_channels = ['Fp1', 'Fp2']  # Channels focused on detecting rectus artifacts
             
-            pdr_segments = detect_pdr_artifacts(global_raw_ica, start_time, duration=5)
+            pdr_segments = detect_pdr_artifacts(global_raw_ica, start_time, duration=4)
 
             # Plot EEG data
-            fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
             plt.close(fig)  # Close the interactive plot to prevent blocking
 
             # Get the current axes and highlight detected segments
@@ -3128,10 +3135,10 @@ def handle_slider_update(data):
                 openai_res_med = re.sub(r'[*#]', '', openai_res_med)
         elif plot_type == "impedance_artifact_detection":
             # Impedance artifact detection logic
-            impedance_segments = detect_impedance_artifacts(global_raw_ica, start_time, duration=5)
+            impedance_segments = detect_impedance_artifacts(global_raw_ica, start_time, duration=4)
 
             # Plot EEG data
-            fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
             plt.close(fig)  # Close the interactive plot to prevent blocking
 
             # Get the current axes and highlight detected segments
@@ -3145,10 +3152,10 @@ def handle_slider_update(data):
                 openai_res_med = global_impedance_openai_med
                 openai_res_med = re.sub(r'[*#]', '', openai_res_med)
         elif plot_type == "epileptic_pattern_detection":
-            epileptic_segments = detect_epileptic_patterns(global_raw_ica, start_time, duration=5)
+            epileptic_segments = detect_epileptic_patterns(global_raw_ica, start_time, duration=4)
 
             # Plot EEG data
-            fig = global_raw_ica.plot(start=start_time, duration=5, n_channels=19, show=False)
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
             plt.close(fig)  # Close the interactive plot to prevent blocking
 
             # Highlight detected epileptic patterns
