@@ -2060,512 +2060,512 @@ def upload_file():
                     global_raw_ica = raw_ica
                     global_ica = ica
                     
-                    # #raw openai
-                    # raw_eeg_features_json = extract_detailed_eeg_features(global_raw)
-                    # #raw ica openai
-                    # raw_ica_eeg_features_json = extract_detailed_eeg_features(global_raw_ica)
-                    # #ica component openai
-                    # summary_ica_components = generate_raw_summary(global_raw,global_ica,channel_dict)
-                    # #rel power topo openai
-                    # relative_power_topomaps_summary = generate_detailed_relative_power_summary(raw_ica, 
-                    #                                                                                 bands, channel_groups)
-                    # #abs power topo openai
-                    # detailed_absolute_power_summary = generate_detailed_absolute_power_summary(raw, bands, channel_groups)
-                    # #rel spectra openai
-                    # relative_spectra_summary = generate_detailed_relative_spectra_summary(raw_ica, bands)
+                    #raw openai
+                    raw_eeg_features_json = extract_detailed_eeg_features(global_raw)
+                    #raw ica openai
+                    raw_ica_eeg_features_json = extract_detailed_eeg_features(global_raw_ica)
+                    #ica component openai
+                    summary_ica_components = generate_raw_summary(global_raw,global_ica,channel_dict)
+                    #rel power topo openai
+                    relative_power_topomaps_summary = generate_detailed_relative_power_summary(raw_ica, 
+                                                                                                    bands, channel_groups)
+                    #abs power topo openai
+                    detailed_absolute_power_summary = generate_detailed_absolute_power_summary(raw, bands, channel_groups)
+                    #rel spectra openai
+                    relative_spectra_summary = generate_detailed_relative_spectra_summary(raw_ica, bands)
                     
-                    # #abs spectra opwnai
-                    # abs_spectra_summary = generate_detailed_absolute_spectra_summary(raw_ica, bands)
-                    # #theta beta ratio openai
-                    # theta_beta_summary = generate_detailed_theta_beta_ratio_summary(raw_ica, bands)
-                    
-
-                    
-                    # #brain mapping openai
-                    # brain_mapping_summary = generate_detailed_brain_mapping_summary(raw_ica, bands)
+                    #abs spectra opwnai
+                    abs_spectra_summary = generate_detailed_absolute_spectra_summary(raw_ica, bands)
+                    #theta beta ratio openai
+                    theta_beta_summary = generate_detailed_theta_beta_ratio_summary(raw_ica, bands)
                     
 
-                    # #occi alpha peak openai
-                    # occi_alpha_peak_summary = generate_detailed_occipital_alpha_peak_summary(raw_ica, alpha_band=(7.5, 14))
                     
-                    # #chewing openai
-                    # chewing_artifect_summary = generate_detailed_chewing_artifact_summary_full_duration(raw_ica, 
-                    #                                                                                     ['T3', 'T4', 'F7', 'F8'], 
-                    #                                                                                     detect_chewing_artifacts, 
-                    #                                                                                     5)
-                    # #ecg openai
-                    # ecg_artifect_summary = generate_detailed_ecg_artifact_summary_full_duration(raw_ica, 
-                    #                                                                                     ['T3', 'T4', 'Cz'], 
-                    #                                                                                     detect_ecg_artifacts, 
-                    #                                                                                     5)
-
-                    # #rectus openai
-                    # rectus_artifect_summary = generate_detailed_rectus_artifact_summary_full_duration(raw_ica, 
-                    #                                                                                     ['Fp1', 'Fp2'], 
-                    #                                                                                     detect_rectus_artifacts, 
-                    #                                                                                     5)
+                    #brain mapping openai
+                    brain_mapping_summary = generate_detailed_brain_mapping_summary(raw_ica, bands)
                     
 
-                    # #roving eye openai
-                    # roving_artifect_summary = generate_detailed_roving_eye_artifact_summary_full_duration(raw_ica, 
-                    #                                                                                     ['Fp1', 'Fp2'], 
-                    #                                                                                     detect_roving_eye_artifacts, 
-                    #                                                                                     5)
+                    #occi alpha peak openai
+                    occi_alpha_peak_summary = generate_detailed_occipital_alpha_peak_summary(raw_ica, alpha_band=(7.5, 14))
                     
-                    # #muscle artifect openai
-                    # muscle_artifect_summary = generate_detailed_muscle_tension_artifact_summary_full_duration(raw_ica, 
-                    #                                                                                     ['T3', 'T4', 'F7', 'F8'], 
-                    #                                                                                     detect_muscle_tension_artifacts, 
-                    #                                                                                     5)
-                    
-                    # #blink artifect openai
-                    # blink_artifect_summary = generate_detailed_blink_artifact_summary_full_duration(raw_ica, 
-                    #                                                                                     ['Fp1', 'Fp2'], 
-                    #                                                                                     detect_blink_artifacts, 
-                    #                                                                                     5)
-                    
-                    # #rectus spike artifect openai
-                    # rspike_artifect_summary = generate_detailed_rectus_spike_artifact_summary_full_duration(raw_ica, 
-                    #                                                                                     ['Fp1', 'Fp2'], 
-                    #                                                                                     detect_rectus_spikes_artifacts, 
-                    #                                                                                     5)
+                    #chewing openai
+                    chewing_artifect_summary = generate_detailed_chewing_artifact_summary_full_duration(raw_ica, 
+                                                                                                        ['T3', 'T4', 'F7', 'F8'], 
+                                                                                                        detect_chewing_artifacts, 
+                                                                                                        5)
+                    #ecg openai
+                    ecg_artifect_summary = generate_detailed_ecg_artifact_summary_full_duration(raw_ica, 
+                                                                                                        ['T3', 'T4', 'Cz'], 
+                                                                                                        detect_ecg_artifacts, 
+                                                                                                        5)
+
+                    #rectus openai
+                    rectus_artifect_summary = generate_detailed_rectus_artifact_summary_full_duration(raw_ica, 
+                                                                                                        ['Fp1', 'Fp2'], 
+                                                                                                        detect_rectus_artifacts, 
+                                                                                                        5)
                     
 
-                    # #pdr artifect openai
-                    # pdr_artifect_summary = generate_detailed_pdr_artifact_summary_full_duration(raw_ica, 
-                    #                                                                                     ['O1', 'O2'], 
-                    #                                                                                     detect_pdr_artifacts, 
-                    #                                                                                     5)
+                    #roving eye openai
+                    roving_artifect_summary = generate_detailed_roving_eye_artifact_summary_full_duration(raw_ica, 
+                                                                                                        ['Fp1', 'Fp2'], 
+                                                                                                        detect_roving_eye_artifacts, 
+                                                                                                        5)
                     
-                    # #impedance artifect openai
-                    # impedance_artifect_summary = generate_detailed_impedance_artifact_summary_full_duration(raw_ica, 
-                    #                                                                                     detect_impedance_artifacts, 
-                    #                                                                                     5)
-                    # #epileptic artifect openai
-                    # epileptic_artifect_summary = generate_detailed_epileptic_pattern_summary_full_duration(raw_ica, 
-                    #                                                                                     detect_epileptic_patterns, 
-                    #                                                                                     5)
+                    #muscle artifect openai
+                    muscle_artifect_summary = generate_detailed_muscle_tension_artifact_summary_full_duration(raw_ica, 
+                                                                                                        ['T3', 'T4', 'F7', 'F8'], 
+                                                                                                        detect_muscle_tension_artifacts, 
+                                                                                                        5)
                     
-                    # # # tms report
-                    # # tms_response = main_tms_gpt_call("TMS analysis", raw_ica_eeg_features_json,theta_beta_summary,
-                    # #                                  epileptic_artifect_summary,bands, age, gender, known_issues,medications)
+                    #blink artifect openai
+                    blink_artifect_summary = generate_detailed_blink_artifact_summary_full_duration(raw_ica, 
+                                                                                                        ['Fp1', 'Fp2'], 
+                                                                                                        detect_blink_artifacts, 
+                                                                                                        5)
+                    
+                    #rectus spike artifect openai
+                    rspike_artifect_summary = generate_detailed_rectus_spike_artifact_summary_full_duration(raw_ica, 
+                                                                                                        ['Fp1', 'Fp2'], 
+                                                                                                        detect_rectus_spikes_artifacts, 
+                                                                                                        5)
+                    
 
-                    # # global_tms = tms_response
-                    # #freq binz openai
-                    # freq_bins_artifect_summary = generate_frequency_bin_summary(raw_ica, frequency_bins)
+                    #pdr artifect openai
+                    pdr_artifect_summary = generate_detailed_pdr_artifact_summary_full_duration(raw_ica, 
+                                                                                                        ['O1', 'O2'], 
+                                                                                                        detect_pdr_artifacts, 
+                                                                                                        5)
+                    
+                    #impedance artifect openai
+                    impedance_artifect_summary = generate_detailed_impedance_artifact_summary_full_duration(raw_ica, 
+                                                                                                        detect_impedance_artifacts, 
+                                                                                                        5)
+                    #epileptic artifect openai
+                    epileptic_artifect_summary = generate_detailed_epileptic_pattern_summary_full_duration(raw_ica, 
+                                                                                                        detect_epileptic_patterns, 
+                                                                                                        5)
+                    
+                    # # tms report
+                    # tms_response = main_tms_gpt_call("TMS analysis", raw_ica_eeg_features_json,theta_beta_summary,
+                    #                                  epileptic_artifect_summary,bands, age, gender, known_issues,medications)
+
+                    # global_tms = tms_response
+                    #freq binz openai
+                    freq_bins_artifect_summary = generate_frequency_bin_summary(raw_ica, frequency_bins)
 
                     if type_report == 'patient':
                         
-                        # #raw openai
-                        # raw_response = main_gpt_call("Raw EEG feature data", raw_eeg_features_json, bands, 
-                        #                              age,gender,known_issues,medications)
-                        # global_raw_openai = raw_response
+                        #raw openai
+                        raw_response = main_gpt_call("Raw EEG feature data", raw_eeg_features_json, bands, 
+                                                     age,gender,known_issues,medications)
+                        global_raw_openai = raw_response
                         
-                        # #raw ica openai
-                        # raw_ica_response = main_gpt_call("ICA-cleaned EEG feature data", raw_ica_eeg_features_json,
-                        #                                  bands, age, gender, known_issues,medications)
-                        # global_raw_ica_openai = raw_ica_response
+                        #raw ica openai
+                        raw_ica_response = main_gpt_call("ICA-cleaned EEG feature data", raw_ica_eeg_features_json,
+                                                         bands, age, gender, known_issues,medications)
+                        global_raw_ica_openai = raw_ica_response
                         
-                        # #ica component openai
-                        # response_ica_components = main_gpt_call("ICA component and property analysis", summary_ica_components,
-                        #                              bands, age, gender, known_issues,medications)
-                        # global_ica_components_openai = response_ica_components
+                        #ica component openai
+                        response_ica_components = main_gpt_call("ICA component and property analysis", summary_ica_components,
+                                                     bands, age, gender, known_issues,medications)
+                        global_ica_components_openai = response_ica_components
                         
-                        # #band wise openai
-                        # dic_bands_summary = {}
-                        # for band in bands.keys():
-                        #     print(band)
-                        #     low, high = bands[band]
-                        #     band_summary = generate_delta_band_summary_per_channel_full_duration(global_raw_ica.copy(),low,high)
-                        #     dic_bands_summary[band] = band_summary
-                        #     band_response = client.chat.completions.create(
-                        #     model="chatgpt-4o-latest",
-                        #     messages=[
-                        #             {"role": "system", "content": "You are an expert in neuroscience, specializing in EEG analysis and frequency band interpretation."},
-                        #             {"role": "user", "content": f"""Given the following summary of EEG data focused on the 
-                        #              {band} band: {band_summary}, 
-                        #              please analyze the data and provide a short report with conclusions, 
-                        #              specifically focusing on the {band} band. The participant is a {age}-year-old {gender},
-                        #              having following known issues {known_issues}. The participant is taking medications: {medications}. 
+                        #band wise openai
+                        dic_bands_summary = {}
+                        for band in bands.keys():
+                            print(band)
+                            low, high = bands[band]
+                            band_summary = generate_delta_band_summary_per_channel_full_duration(global_raw_ica.copy(),low,high)
+                            dic_bands_summary[band] = band_summary
+                            band_response = client.chat.completions.create(
+                            model="chatgpt-4o-latest",
+                            messages=[
+                                    {"role": "system", "content": "You are an expert in neuroscience, specializing in EEG analysis and frequency band interpretation."},
+                                    {"role": "user", "content": f"""Given the following summary of EEG data focused on the 
+                                     {band} band: {band_summary}, 
+                                     please analyze the data and provide a short report with conclusions, 
+                                     specifically focusing on the {band} band. The participant is a {age}-year-old {gender},
+                                     having following known issues {known_issues}. The participant is taking medications: {medications}. 
 
-                        #             Write the report in a way that addresses the participant directly, 
-                        #             as if speaking to them. 
-                        #             The report should be structured into three sections (do not add any other headings or titles): 
-                        #             Introduction, Findings, and Conclusion. 
+                                    Write the report in a way that addresses the participant directly, 
+                                    as if speaking to them. 
+                                    The report should be structured into three sections (do not add any other headings or titles): 
+                                    Introduction, Findings, and Conclusion. 
                             
-                        #             The Introduction should be concise and directly related to the analysis, 
-                        #             without including information about EEG or how it works, 
-                        #             since the participant already understands that. 
+                                    The Introduction should be concise and directly related to the analysis, 
+                                    without including information about EEG or how it works, 
+                                    since the participant already understands that. 
                             
-                        #             Do not include sentences like 'It is important to further investigate 
-                        #             these results with a healthcare provider...' 
-                        #             or any other similar suggestions about seeking additional medical advice.
-                        #             Do not use phrases like 'you have done a fantastic job...' or any other sentences that praise 
-                        #             the participant, to avoid sounding AI-generated. 
+                                    Do not include sentences like 'It is important to further investigate 
+                                    these results with a healthcare provider...' 
+                                    or any other similar suggestions about seeking additional medical advice.
+                                    Do not use phrases like 'you have done a fantastic job...' or any other sentences that praise 
+                                    the participant, to avoid sounding AI-generated. 
                             
-                        #             In the Findings section, provide explanations for technical terms such as 
-                        #             EEG channels, which part of the brain their position is or frequency bands (if relevant) in simple terms. 
-                        #             Explain their relevance to the analysis clearly and in a way 
-                        #             suitable for a primary school-going child aged {age} years. 
+                                    In the Findings section, provide explanations for technical terms such as 
+                                    EEG channels, which part of the brain their position is or frequency bands (if relevant) in simple terms. 
+                                    Explain their relevance to the analysis clearly and in a way 
+                                    suitable for a primary school-going child aged {age} years. 
                             
-                        #             Ensure the language remains formal, clear, concise, and written in British English. 
-                        #             Do not include signing-off remarks, greetings, or introductory explanations about EEG.
-                        #             Make sure to bring up anything alarming in the data in the Conclusion or any 
-                        #             possible diagnosis, without any sugar coating. Remember to keep it short and concise throughout. 
-                        #             """}
-                        #         ]
-                        #         )
-                        #     global_bands_openai[band] = band_response.choices[0].message.content
-                        # #qeeg and rehab report
-                        # qeeg_report_analysis = main_qeeg_rehab("Comprehensive qEEG Analysis and Rehabilitation Guide", 
-                        #                                        raw_ica_eeg_features_json,raw_ica_eeg_features_json,theta_beta_summary,
-                        #                                  dic_bands_summary,summary_ica_components,relative_spectra_summary,
-                        #                                  abs_spectra_summary,name,bands, age, gender, known_issues,medications)
+                                    Ensure the language remains formal, clear, concise, and written in British English. 
+                                    Do not include signing-off remarks, greetings, or introductory explanations about EEG.
+                                    Make sure to bring up anything alarming in the data in the Conclusion or any 
+                                    possible diagnosis, without any sugar coating. Remember to keep it short and concise throughout. 
+                                    """}
+                                ]
+                                )
+                            global_bands_openai[band] = band_response.choices[0].message.content
+                        #qeeg and rehab report
+                        qeeg_report_analysis = main_qeeg_rehab("Comprehensive qEEG Analysis and Rehabilitation Guide", 
+                                                               raw_ica_eeg_features_json,raw_ica_eeg_features_json,theta_beta_summary,
+                                                         dic_bands_summary,summary_ica_components,relative_spectra_summary,
+                                                         abs_spectra_summary,name,bands, age, gender, known_issues,medications)
 
-                        # global_qeeg_report = qeeg_report_analysis
-                        # #rel power topo openai
-                        # rel_pwr_topo_response = main_gpt_call("Relative Power spectra topomaps analysis", relative_power_topomaps_summary,
-                        #                                  bands, age, gender, known_issues,medications)
-                        # global_relative_topo_openai = rel_pwr_topo_response 
-                        # #abs power topo openai
-                        # abs_pwr_topo_response = main_gpt_call("Absolute Power spectra topomaps analysis", detailed_absolute_power_summary,
-                        #                              bands, age, gender, known_issues,medications)
-                        # global_abs_topo_openai = abs_pwr_topo_response
-                        # #rel spectra openai
-                        # rel_spectra_response = main_gpt_call("Relative Power Spectra Analysis (area graphs)", relative_spectra_summary,
-                        #                                  bands, age, gender, known_issues,medications)
+                        global_qeeg_report = qeeg_report_analysis
+                        #rel power topo openai
+                        rel_pwr_topo_response = main_gpt_call("Relative Power spectra topomaps analysis", relative_power_topomaps_summary,
+                                                         bands, age, gender, known_issues,medications)
+                        global_relative_topo_openai = rel_pwr_topo_response 
+                        #abs power topo openai
+                        abs_pwr_topo_response = main_gpt_call("Absolute Power spectra topomaps analysis", detailed_absolute_power_summary,
+                                                     bands, age, gender, known_issues,medications)
+                        global_abs_topo_openai = abs_pwr_topo_response
+                        #rel spectra openai
+                        rel_spectra_response = main_gpt_call("Relative Power Spectra Analysis (area graphs)", relative_spectra_summary,
+                                                         bands, age, gender, known_issues,medications)
 
-                        # global_rel_spectra_openai = rel_spectra_response
-                        # #abs spectra opwnai
-                        # abs_spectra_response = main_gpt_call("Absolute Power spectra analysis (area graphs)", abs_spectra_summary,
-                        #                                  bands, age, gender, known_issues,medications)
+                        global_rel_spectra_openai = rel_spectra_response
+                        #abs spectra opwnai
+                        abs_spectra_response = main_gpt_call("Absolute Power spectra analysis (area graphs)", abs_spectra_summary,
+                                                         bands, age, gender, known_issues,medications)
 
-                        # global_abs_spectra_openai = abs_spectra_response
+                        global_abs_spectra_openai = abs_spectra_response
                         
-                        # #theta beta ratio openai
-                        # theta_beta_response = main_gpt_call("Theta/Beta ratio topomap analysis", theta_beta_summary,
-                        #                                  bands, age, gender, known_issues,medications)
+                        #theta beta ratio openai
+                        theta_beta_response = main_gpt_call("Theta/Beta ratio topomap analysis", theta_beta_summary,
+                                                         bands, age, gender, known_issues,medications)
 
-                        # global_theta_beta_ratio_openai = theta_beta_response
+                        global_theta_beta_ratio_openai = theta_beta_response
                         
-                        # #brain mapping openai
-                        # brain_mapping_response = main_gpt_call("Brain mapping topomap analysis with increased and decreased activity channels"
-                        #                                        , brain_mapping_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        #brain mapping openai
+                        brain_mapping_response = main_gpt_call("Brain mapping topomap analysis with increased and decreased activity channels"
+                                                               , brain_mapping_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_brain_mapping_openai = brain_mapping_response
+                        global_brain_mapping_openai = brain_mapping_response
                         
-                        # #occi alpha peak openai
-                        # occi_alpha_peak_response = main_gpt_call("""EEG data focused on occipital alpha peaks."""
-                        #                                        , occi_alpha_peak_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        #occi alpha peak openai
+                        occi_alpha_peak_response = main_gpt_call("""EEG data focused on occipital alpha peaks."""
+                                                               , occi_alpha_peak_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_occipital_alpha_peak_openai = occi_alpha_peak_response
+                        global_occipital_alpha_peak_openai = occi_alpha_peak_response
                         
-                        # #chewing openai
-                        # chewing_artifect_response = main_gpt_call("EEG data focused on chewing artifact detection"
-                        #                                        , chewing_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        #chewing openai
+                        chewing_artifect_response = main_gpt_call("EEG data focused on chewing artifact detection"
+                                                               , chewing_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_chewing_artifect_openai = chewing_artifect_response
+                        global_chewing_artifect_openai = chewing_artifect_response
                          
-                        # #ecg openai
-                        # ecg_artifect_response = main_gpt_call("EEG data focused on ECG artifact detection"
-                        #                                        , ecg_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        #ecg openai
+                        ecg_artifect_response = main_gpt_call("EEG data focused on ECG artifact detection"
+                                                               , ecg_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_ecg_artifect_openai = ecg_artifect_response
+                        global_ecg_artifect_openai = ecg_artifect_response
                         
-                        # #rectus openai
-                        # rectus_artifect_response = main_gpt_call("EEG data focused on rectus artifact detection"
-                        #                                        , rectus_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        #rectus openai
+                        rectus_artifect_response = main_gpt_call("EEG data focused on rectus artifact detection"
+                                                               , rectus_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_rectus_artifect_openai = rectus_artifect_response
+                        global_rectus_artifect_openai = rectus_artifect_response
                         
-                        # #roving eye openai
-                        # roving_artifect_response = main_gpt_call("EEG data focused on roving eye artifact detection"
-                        #                                        , roving_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        #roving eye openai
+                        roving_artifect_response = main_gpt_call("EEG data focused on roving eye artifact detection"
+                                                               , roving_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_roving_eye_artifect_openai = roving_artifect_response
+                        global_roving_eye_artifect_openai = roving_artifect_response
                         
-                        # #muscle artifect openai
-                        # muscle_artifect_response = main_gpt_call("EEG data focused on muscle tension artifact detection"
-                        #                                        , muscle_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        #muscle artifect openai
+                        muscle_artifect_response = main_gpt_call("EEG data focused on muscle tension artifact detection"
+                                                               , muscle_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_muscle_tension_artifect_openai = muscle_artifect_response
+                        global_muscle_tension_artifect_openai = muscle_artifect_response
                         
-                        # #blink artifect openai
-                        # blink_artifect_response = main_gpt_call("EEG data focused on blink artifact detection"
-                        #                                        , blink_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        #blink artifect openai
+                        blink_artifect_response = main_gpt_call("EEG data focused on blink artifact detection"
+                                                               , blink_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_blink_artifect_openai = blink_artifect_response
+                        global_blink_artifect_openai = blink_artifect_response
                         
-                        # #rectus spike artifect openai
-                        # rspike_artifect_response = main_gpt_call("EEG data focused on rectus spikes artifact detection"
-                        #                                        , rspike_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        #rectus spike artifect openai
+                        rspike_artifect_response = main_gpt_call("EEG data focused on rectus spikes artifact detection"
+                                                               , rspike_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_rectus_spike_artifect_openai = rspike_artifect_response
-                        # #pdr artifect openai
-                        # pdr_artifect_response = main_gpt_call("EEG data focused on PDR artifact detection"
-                        #                                        , pdr_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        global_rectus_spike_artifect_openai = rspike_artifect_response
+                        #pdr artifect openai
+                        pdr_artifect_response = main_gpt_call("EEG data focused on PDR artifact detection"
+                                                               , pdr_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_pdr_openai = pdr_artifect_response
+                        global_pdr_openai = pdr_artifect_response
                         
-                        # #impedance artifect openai
-                        # impedance_artifect_response = main_gpt_call("EEG data focused on impedance artifact detection"
-                        #                                        , impedance_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        #impedance artifect openai
+                        impedance_artifect_response = main_gpt_call("EEG data focused on impedance artifact detection"
+                                                               , impedance_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_impedance_openai = impedance_artifect_response
+                        global_impedance_openai = impedance_artifect_response
                         
-                        # #epileptic artifect openai
-                        # epileptic_artifect_response = main_gpt_call("EEG data focused on epileptic patterns artifact detection"
-                        #                                        , epileptic_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        #epileptic artifect openai
+                        epileptic_artifect_response = main_gpt_call("EEG data focused on epileptic patterns artifact detection"
+                                                               , epileptic_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_epileptic_openai = epileptic_artifect_response
+                        global_epileptic_openai = epileptic_artifect_response
                         
-                        # #freq binz openai
-                        # freq_bins_artifect_response = main_gpt_call("EEG different frequency bin analysis"
-                        #                                        , freq_bins_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        #freq binz openai
+                        freq_bins_artifect_response = main_gpt_call("EEG different frequency bin analysis"
+                                                               , freq_bins_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_frq_bins_openai = freq_bins_artifect_response
+                        global_frq_bins_openai = freq_bins_artifect_response
                         # Determine the maximum time for the EEG data
                         max_time = int(raw.times[-1])
                         #flash('File successfully uploaded and processed.', 'success')
                         return render_template('upload_with_topomap_dropdown.html', max_time=max_time)
                     else:
-                        # #raw openai
-                        # raw_response_med = main_medical_gpt_call("Raw EEG feature data", raw_eeg_features_json, bands, 
-                        #                              age,gender,known_issues,medications)
-                        # global_raw_openai_med = raw_response_med
+                        #raw openai
+                        raw_response_med = main_medical_gpt_call("Raw EEG feature data", raw_eeg_features_json, bands, 
+                                                     age,gender,known_issues,medications)
+                        global_raw_openai_med = raw_response_med
                     
-                        # #raw ica openai                
-                        # raw_ica_response_med = main_medical_gpt_call("ICA-cleaned EEG feature data", raw_ica_eeg_features_json,
-                        #                                  bands, age, gender, known_issues,medications)
-                        # global_raw_ica_openai_med = raw_ica_response_med
+                        #raw ica openai                
+                        raw_ica_response_med = main_medical_gpt_call("ICA-cleaned EEG feature data", raw_ica_eeg_features_json,
+                                                         bands, age, gender, known_issues,medications)
+                        global_raw_ica_openai_med = raw_ica_response_med
                     
-                        # #ica component openai
-                        # response_ica_components_med = main_medical_gpt_call("ICA component and property analysis", summary_ica_components,
-                        #                                  bands, age, gender, known_issues,medications)
-                        # global_ica_components_openai_med = response_ica_components_med
+                        #ica component openai
+                        response_ica_components_med = main_medical_gpt_call("ICA component and property analysis", summary_ica_components,
+                                                         bands, age, gender, known_issues,medications)
+                        global_ica_components_openai_med = response_ica_components_med
                         
-                        # #band wise openai
-                        # dic_bands_summary = {}
-                        # for band in bands.keys():
-                        #     print(band)
-                        #     low, high = bands[band]
-                        #     band_summary = generate_delta_band_summary_per_channel_full_duration(global_raw_ica.copy(),low,high)
-                        #     dic_bands_summary[band] = band_summary
-                        #     band_response_med = client.chat.completions.create(
-                        #     model="chatgpt-4o-latest",
-                        #     messages=[
-                        #             {"role": "system", "content": "You are an expert in neuroscience, specializing in EEG analysis and frequency band interpretation."},
-                        #             {"role": "user", "content": f"""Given the following summary of EEG data focused on the 
-                        #              {band} band: {band_summary}, 
-                        #              please analyze the data and provide a detailed report with conclusions as this report is
-                        #              for neurologists, neuroscientists and brain EEG experts, 
-                        #              specifically focusing on the {band} band. if you found any issue by analysing EEG/QEEG please raise and mention with the type 
-                        #             of issue or diseases. The participant is a {age}-year-old {gender},
-                        #              having following known issues {known_issues}. The participant is taking medications: {medications}. 
+                        #band wise openai
+                        dic_bands_summary = {}
+                        for band in bands.keys():
+                            print(band)
+                            low, high = bands[band]
+                            band_summary = generate_delta_band_summary_per_channel_full_duration(global_raw_ica.copy(),low,high)
+                            dic_bands_summary[band] = band_summary
+                            band_response_med = client.chat.completions.create(
+                            model="chatgpt-4o-latest",
+                            messages=[
+                                    {"role": "system", "content": "You are an expert in neuroscience, specializing in EEG analysis and frequency band interpretation."},
+                                    {"role": "user", "content": f"""Given the following summary of EEG data focused on the 
+                                     {band} band: {band_summary}, 
+                                     please analyze the data and provide a detailed report with conclusions as this report is
+                                     for neurologists, neuroscientists and brain EEG experts, 
+                                     specifically focusing on the {band} band. if you found any issue by analysing EEG/QEEG please raise and mention with the type 
+                                    of issue or diseases. The participant is a {age}-year-old {gender},
+                                     having following known issues {known_issues}. The participant is taking medications: {medications}. 
 
-                        #              Write the report in a way that it should be detailed enough, basically for neurologists, neuroscientists 
-                        #              and brain EEG experts. so you can free to add related termanologies. 
-                        #              The report should be structured into three sections (do not add any other headings or titles): 
-                        #              Introduction, Findings, and Conclusion. 
+                                     Write the report in a way that it should be detailed enough, basically for neurologists, neuroscientists 
+                                     and brain EEG experts. so you can free to add related termanologies. 
+                                     The report should be structured into three sections (do not add any other headings or titles): 
+                                     Introduction, Findings, and Conclusion. 
  
-                        #              The Introduction should be detailed and concrete and directly related to the analysis, 
-                        #              without including information about EEG or how it works, 
-                        #              since the experts already understands that. 
+                                     The Introduction should be detailed and concrete and directly related to the analysis, 
+                                     without including information about EEG or how it works, 
+                                     since the experts already understands that. 
                               
-                        #              Do not include sentences like 'It is important to further investigate 
-                        #              these results with a healthcare provider...' 
-                        #              or any other similar suggestions about seeking additional medical advice.
-                        #              Do not use phrases like 'you have done a fantastic job...' or any other sentences that praise 
-                        #              the participant, to avoid sounding AI-generated. 
+                                     Do not include sentences like 'It is important to further investigate 
+                                     these results with a healthcare provider...' 
+                                     or any other similar suggestions about seeking additional medical advice.
+                                     Do not use phrases like 'you have done a fantastic job...' or any other sentences that praise 
+                                     the participant, to avoid sounding AI-generated. 
  
-                        #              In the Findings section, provide explanations for technical terms such as 
-                        #              EEG channels, which part of the brain their position is or frequency bands (if relevant) in detailed way. 
-                        #              Explain their relevance to the analysis clearly and in a way 
-                        #              suitable for a neurologists, neuroscientists and brain EEG experts and also please mention if you found any issue by 
-                        #              analysing EEG/QEEG please raise and mention with the type 
-                        #              of issue or diseases. 
+                                     In the Findings section, provide explanations for technical terms such as 
+                                     EEG channels, which part of the brain their position is or frequency bands (if relevant) in detailed way. 
+                                     Explain their relevance to the analysis clearly and in a way 
+                                     suitable for a neurologists, neuroscientists and brain EEG experts and also please mention if you found any issue by 
+                                     analysing EEG/QEEG please raise and mention with the type 
+                                     of issue or diseases. 
 
-                        #              Ensure the language remains formal, clear, detailed, and written in British English. 
-                        #              Do not include signing-off remarks, greetings, or introductory explanations about EEG.
-                        #              Make sure to bring up anything alarming in the data in the Conclusion or any 
-                        #              possible diagnosis, without any sugar coating. Remember to keep it detailed and proper explained
-                        #              throughout as your audiences are neurologists, neuroscientists and brain EEG experts and do mention if you found any issue by
-                        #              analysing EEG/QEEG please raise and mention with the type 
-                        #              of issue or diseases. 
-                        #              """}
-                        #         ]
-                        #         )
-                        #     global_bands_openai_med[band] = band_response_med.choices[0].message.content
-                        # #qeeg and rehab report
-                        # qeeg_report_analysis = main_qeeg_rehab("Comprehensive qEEG Analysis and Rehabilitation Guide", 
-                        #                                        raw_ica_eeg_features_json,raw_ica_eeg_features_json,theta_beta_summary,
-                        #                                  dic_bands_summary,summary_ica_components,relative_spectra_summary,
-                        #                                  abs_spectra_summary,name,bands, age, gender, known_issues,medications)
+                                     Ensure the language remains formal, clear, detailed, and written in British English. 
+                                     Do not include signing-off remarks, greetings, or introductory explanations about EEG.
+                                     Make sure to bring up anything alarming in the data in the Conclusion or any 
+                                     possible diagnosis, without any sugar coating. Remember to keep it detailed and proper explained
+                                     throughout as your audiences are neurologists, neuroscientists and brain EEG experts and do mention if you found any issue by
+                                     analysing EEG/QEEG please raise and mention with the type 
+                                     of issue or diseases. 
+                                     """}
+                                ]
+                                )
+                            global_bands_openai_med[band] = band_response_med.choices[0].message.content
+                        #qeeg and rehab report
+                        qeeg_report_analysis = main_qeeg_rehab("Comprehensive qEEG Analysis and Rehabilitation Guide", 
+                                                               raw_ica_eeg_features_json,raw_ica_eeg_features_json,theta_beta_summary,
+                                                         dic_bands_summary,summary_ica_components,relative_spectra_summary,
+                                                         abs_spectra_summary,name,bands, age, gender, known_issues,medications)
 
-                        # global_qeeg_report = qeeg_report_analysis
-                        # #rel power topo openai
-                        # rel_pwr_topo_response_med = main_medical_gpt_call("Relative Power spectra topomaps analysis", relative_power_topomaps_summary,
-                        #                                  bands, age, gender, known_issues,medications)
-                        # global_relative_topo_openai_med = rel_pwr_topo_response_med
+                        global_qeeg_report = qeeg_report_analysis
+                        #rel power topo openai
+                        rel_pwr_topo_response_med = main_medical_gpt_call("Relative Power spectra topomaps analysis", relative_power_topomaps_summary,
+                                                         bands, age, gender, known_issues,medications)
+                        global_relative_topo_openai_med = rel_pwr_topo_response_med
                 
                     
                     
-                        # #abs power topo openai
-                        # abs_pwr_topo_response_med = main_medical_gpt_call("Absolute Power spectra topomaps analysis", detailed_absolute_power_summary,
-                        #                                  bands, age, gender, known_issues,medications)
-                        # global_abs_topo_openai_med = abs_pwr_topo_response_med
+                        #abs power topo openai
+                        abs_pwr_topo_response_med = main_medical_gpt_call("Absolute Power spectra topomaps analysis", detailed_absolute_power_summary,
+                                                         bands, age, gender, known_issues,medications)
+                        global_abs_topo_openai_med = abs_pwr_topo_response_med
                 
-                        # #rel spectra openai
-                        # rel_spectra_response_med = main_medical_gpt_call("Relative Power Spectra Analysis (area graphs)", relative_spectra_summary,
-                        #                                  bands, age, gender, known_issues,medications)
+                        #rel spectra openai
+                        rel_spectra_response_med = main_medical_gpt_call("Relative Power Spectra Analysis (area graphs)", relative_spectra_summary,
+                                                         bands, age, gender, known_issues,medications)
 
-                        # global_rel_spectra_openai_med = rel_spectra_response_med
+                        global_rel_spectra_openai_med = rel_spectra_response_med
                     
-                        # #abs spectra opwnai
-                        # abs_spectra_response_med = main_medical_gpt_call("Absolute Power spectra analysis (area graphs)", abs_spectra_summary,
-                        #                                  bands, age, gender, known_issues,medications)
+                        #abs spectra opwnai
+                        abs_spectra_response_med = main_medical_gpt_call("Absolute Power spectra analysis (area graphs)", abs_spectra_summary,
+                                                         bands, age, gender, known_issues,medications)
 
-                        # global_abs_spectra_openai_med = abs_spectra_response_med
+                        global_abs_spectra_openai_med = abs_spectra_response_med
                     
-                        # #theta beta ratio openai
+                        #theta beta ratio openai
                 
-                        # theta_beta_response_med = main_medical_gpt_call("Theta/Beta ratio topomap analysis", theta_beta_summary,
-                        #                                  bands, age, gender, known_issues,medications)
+                        theta_beta_response_med = main_medical_gpt_call("Theta/Beta ratio topomap analysis", theta_beta_summary,
+                                                         bands, age, gender, known_issues,medications)
 
-                        # global_theta_beta_ratio_openai_med = theta_beta_response_med
+                        global_theta_beta_ratio_openai_med = theta_beta_response_med
 
                     
-                        # #brain mapping openai
+                        #brain mapping openai
                 
-                        # brain_mapping_response_med = main_medical_gpt_call("Brain mapping topomap analysis with increased and decreased activity channels"
-                        #                                        , brain_mapping_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        brain_mapping_response_med = main_medical_gpt_call("Brain mapping topomap analysis with increased and decreased activity channels"
+                                                               , brain_mapping_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_brain_mapping_openai_med = brain_mapping_response_med
+                        global_brain_mapping_openai_med = brain_mapping_response_med
                     
-                        # #occi alpha peak openai
+                        #occi alpha peak openai
                 
-                        # occi_alpha_peak_response_med = main_medical_gpt_call("""EEG data focused on occipital alpha peaks: Occipital Alpha 
-                        #                                          waves between 7-14, if this does not appear, it shows that 
-                        #                                          there is no autism as a biomarker for us, but there are 
-                        #                                          functions that do not work. At the same time, when this 
-                        #                                          peak is not present, it indicates that the functions that 
-                        #                                          open will be used better and functions such as speaking, 
-                        #                                          expression and sentence formation will be acquired faster.
+                        occi_alpha_peak_response_med = main_medical_gpt_call("""EEG data focused on occipital alpha peaks: Occipital Alpha 
+                                                                 waves between 7-14, if this does not appear, it shows that 
+                                                                 there is no autism as a biomarker for us, but there are 
+                                                                 functions that do not work. At the same time, when this 
+                                                                 peak is not present, it indicates that the functions that 
+                                                                 open will be used better and functions such as speaking, 
+                                                                 expression and sentence formation will be acquired faster.
                                                                  
-                        #                                          If it did not appear while writing about that section, 
-                        #                                          let's state this, if it did, let's try to express that 7 
-                        #                                          is the beginning, 10-intermediate level and 12 and 
-                        #                                          above is the severe autism biomarker."""
-                        #                                        , occi_alpha_peak_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                                                                 If it did not appear while writing about that section, 
+                                                                 let's state this, if it did, let's try to express that 7 
+                                                                 is the beginning, 10-intermediate level and 12 and 
+                                                                 above is the severe autism biomarker."""
+                                                               , occi_alpha_peak_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_occipital_alpha_peak_openai_med = occi_alpha_peak_response_med
+                        global_occipital_alpha_peak_openai_med = occi_alpha_peak_response_med
                 
                     
-                        # #chewing openai
+                        #chewing openai
                 
-                        # chewing_artifect_response_med = main_medical_gpt_call("EEG data focused on chewing artifact detection"
-                        #                                        , chewing_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        chewing_artifect_response_med = main_medical_gpt_call("EEG data focused on chewing artifact detection"
+                                                               , chewing_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_chewing_artifect_openai_med = chewing_artifect_response_med
+                        global_chewing_artifect_openai_med = chewing_artifect_response_med
                 
                    
-                        # #ecg openai
+                        #ecg openai
                 
-                        # ecg_artifect_response_med = main_medical_gpt_call("EEG data focused on ECG artifact detection"
-                        #                                        , ecg_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        ecg_artifect_response_med = main_medical_gpt_call("EEG data focused on ECG artifact detection"
+                                                               , ecg_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_ecg_artifect_openai_med = ecg_artifect_response_med
+                        global_ecg_artifect_openai_med = ecg_artifect_response_med
                     
-                        # #rectus openai
+                        #rectus openai
                 
-                        # rectus_artifect_response_med = main_medical_gpt_call("EEG data focused on rectus artifact detection"
-                        #                                        , rectus_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        rectus_artifect_response_med = main_medical_gpt_call("EEG data focused on rectus artifact detection"
+                                                               , rectus_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_rectus_artifect_openai_med = rectus_artifect_response_med
+                        global_rectus_artifect_openai_med = rectus_artifect_response_med
                     
-                        # #roving eye openai
+                        #roving eye openai
                 
-                        # roving_artifect_response_med = main_medical_gpt_call("EEG data focused on roving eye artifact detection"
-                        #                                        , roving_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        roving_artifect_response_med = main_medical_gpt_call("EEG data focused on roving eye artifact detection"
+                                                               , roving_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_roving_eye_artifect_openai_med = roving_artifect_response_med
+                        global_roving_eye_artifect_openai_med = roving_artifect_response_med
                     
-                        # #muscle artifect openai
+                        #muscle artifect openai
                 
-                        # muscle_artifect_response_med = main_medical_gpt_call("EEG data focused on muscle tension artifact detection"
-                        #                                        , muscle_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        muscle_artifect_response_med = main_medical_gpt_call("EEG data focused on muscle tension artifact detection"
+                                                               , muscle_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_muscle_tension_artifect_openai_med = muscle_artifect_response_med
+                        global_muscle_tension_artifect_openai_med = muscle_artifect_response_med
                     
-                        # #blink artifect openai
+                        #blink artifect openai
                 
-                        # blink_artifect_response_med = main_medical_gpt_call("EEG data focused on blink artifact detection"
-                        #                                        , blink_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        blink_artifect_response_med = main_medical_gpt_call("EEG data focused on blink artifact detection"
+                                                               , blink_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_blink_artifect_openai_med = blink_artifect_response_med
+                        global_blink_artifect_openai_med = blink_artifect_response_med
                     
-                        # #rectus spike artifect openai
+                        #rectus spike artifect openai
                 
-                        # rspike_artifect_response_med = main_medical_gpt_call("EEG data focused on rectus spikes artifact detection"
-                        #                                        , rspike_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        rspike_artifect_response_med = main_medical_gpt_call("EEG data focused on rectus spikes artifact detection"
+                                                               , rspike_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_rectus_spike_artifect_openai_med = rspike_artifect_response_med
+                        global_rectus_spike_artifect_openai_med = rspike_artifect_response_med
                     
-                        # #pdr artifect openai
+                        #pdr artifect openai
                 
-                        # pdr_artifect_response_med = main_medical_gpt_call("EEG data focused on PDR artifact detection"
-                        #                                        , pdr_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        pdr_artifect_response_med = main_medical_gpt_call("EEG data focused on PDR artifact detection"
+                                                               , pdr_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_pdr_openai_med = pdr_artifect_response_med
+                        global_pdr_openai_med = pdr_artifect_response_med
                     
-                        # #impedance artifect openai
+                        #impedance artifect openai
                 
-                        # impedance_artifect_response_med = main_medical_gpt_call("EEG data focused on impedance artifact detection"
-                        #                                        , impedance_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        impedance_artifect_response_med = main_medical_gpt_call("EEG data focused on impedance artifact detection"
+                                                               , impedance_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_impedance_openai_med = impedance_artifect_response_med
+                        global_impedance_openai_med = impedance_artifect_response_med
                     
-                        # #epileptic artifect openai
+                        #epileptic artifect openai
                 
-                        # epileptic_artifect_response_med = main_medical_gpt_call("EEG data focused on epileptic patterns artifact detection"
-                        #                                        , epileptic_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        epileptic_artifect_response_med = main_medical_gpt_call("EEG data focused on epileptic patterns artifact detection"
+                                                               , epileptic_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_epileptic_openai_med = epileptic_artifect_response_med
+                        global_epileptic_openai_med = epileptic_artifect_response_med
                     
                     
-                        # #freq binz openai
+                        #freq binz openai
                 
-                        # freq_bins_artifect_response_med = main_medical_gpt_call("EEG different frequency bin analysis"
-                        #                                        , freq_bins_artifect_summary,
-                        #                                         bands, age, gender, known_issues,medications)
+                        freq_bins_artifect_response_med = main_medical_gpt_call("EEG different frequency bin analysis"
+                                                               , freq_bins_artifect_summary,
+                                                                bands, age, gender, known_issues,medications)
 
-                        # global_frq_bins_openai_med = freq_bins_artifect_response_med
-                        # # Determine the maximum time for the EEG data
+                        global_frq_bins_openai_med = freq_bins_artifect_response_med
+                        # Determine the maximum time for the EEG data
                         max_time = int(raw.times[-1])
                         #flash('File successfully uploaded and processed.', 'success')
                         return render_template('upload_with_topomap_dropdown.html', max_time=max_time)
@@ -2610,597 +2610,597 @@ def handle_slider_update(data):
                 openai_res_med = global_raw_ica_openai_med
                 openai_res_med = re.sub(r'[*#]', '', openai_res_med)
                 print(global_raw_ica_openai_med)
-        # # elif plot_type == "tms":
-        # #     fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
-        # #     if global_tms != None:
-        # #         openai_res = global_tms
-        # #         openai_res = re.sub(r'[*#]', '', openai_res)
-            
-        # #         print(openai_res)  
-        # elif plot_type == "qeeg_report":
+        # elif plot_type == "tms":
         #     fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
-        #     if global_qeeg_report != None:
-        #         openai_res = global_qeeg_report
+        #     if global_tms != None:
+        #         openai_res = global_tms
         #         openai_res = re.sub(r'[*#]', '', openai_res)
             
         #         print(openai_res)  
-        # elif plot_type == "ica_properties":
-        #     #figs = global_ica.plot_properties(global_raw_ica, picks=[global_channel_dict['T3'], global_channel_dict['T4'],
-        #                                                              #global_channel_dict['F7'], global_channel_dict['F8'], 
-        #                                                              #global_channel_dict['Fp1'], global_channel_dict['Fp2'],
-        #                                                              #global_channel_dict['Cz']] ,show=False)
+        elif plot_type == "qeeg_report":
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
+            if global_qeeg_report != None:
+                openai_res = global_qeeg_report
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            
+                print(openai_res)  
+        elif plot_type == "ica_properties":
+            #figs = global_ica.plot_properties(global_raw_ica, picks=[global_channel_dict['T3'], global_channel_dict['T4'],
+                                                                     #global_channel_dict['F7'], global_channel_dict['F8'], 
+                                                                     #global_channel_dict['Fp1'], global_channel_dict['Fp2'],
+                                                                     #global_channel_dict['Cz']] ,show=False)
     
-        #     # Save each figure to an image and send them to the client
-        #     plot_urls = []
-        #     for chann in ['T3','T4','F7','F8','Fp1','Fp2','Cz']:
-        #         figs = global_ica.plot_properties(global_raw_ica, picks=[global_channel_dict[chann]] ,show=False)
-        #         for fig in figs:
+            # Save each figure to an image and send them to the client
+            plot_urls = []
+            for chann in ['T3','T4','F7','F8','Fp1','Fp2','Cz']:
+                figs = global_ica.plot_properties(global_raw_ica, picks=[global_channel_dict[chann]] ,show=False)
+                for fig in figs:
                 
-        #             img = BytesIO()
-        #             fig.savefig(img, format='png')
-        #             img.seek(0)
-        #             plot_url = base64.b64encode(img.getvalue()).decode()
-        #             #
-        #             #
-        #             #print (f'this is plot URL: {plot_url}')
-        #             plot_urls.append(plot_url)
+                    img = BytesIO()
+                    fig.savefig(img, format='png')
+                    img.seek(0)
+                    plot_url = base64.b64encode(img.getvalue()).decode()
+                    #
+                    #
+                    #print (f'this is plot URL: {plot_url}')
+                    plot_urls.append(plot_url)
                 
-        #     if global_ica_components_openai != None:
-        #         openai_res = global_ica_components_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #         print(global_ica_components_openai)
-        #     if global_ica_components_openai_med != None:
-        #         openai_res_med = global_ica_components_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type in ["delta", "theta", "alpha", "beta-1", "beta-2", "gamma"]:
-        #     print(plot_type)
-        #     low, high = bands[plot_type]
-        #     band_filtered = global_raw_ica.copy().filter(low, high, fir_design='firwin')
-        #     fig = band_filtered.plot(start=start_time, duration=4, n_channels=19, show=False)
-        #     if global_bands_openai:
-        #         openai_res = global_bands_openai[plot_type]
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_bands_openai_med:
-        #         openai_res_med = global_bands_openai_med[plot_type]
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type == "topomaps_relative":
-        #     # Compute PSD and relative power for topomaps
-        #     spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
-        #     psds, freqs = spectrum.get_data(return_freqs=True)
-        #     band_powers = {}
-        #     for band, (fmin, fmax) in bands.items():
-        #         freq_mask = (freqs >= fmin) & (freqs <= fmax)
-        #         band_powers[band] = np.mean(psds[:, freq_mask], axis=1)
-        #     total_power = np.sum(list(band_powers.values()), axis=0)
-        #     relative_powers = {band: (power / total_power) * 100 for band, power in band_powers.items()}
+            if global_ica_components_openai != None:
+                openai_res = global_ica_components_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+                print(global_ica_components_openai)
+            if global_ica_components_openai_med != None:
+                openai_res_med = global_ica_components_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type in ["delta", "theta", "alpha", "beta-1", "beta-2", "gamma"]:
+            print(plot_type)
+            low, high = bands[plot_type]
+            band_filtered = global_raw_ica.copy().filter(low, high, fir_design='firwin')
+            fig = band_filtered.plot(start=start_time, duration=4, n_channels=19, show=False)
+            if global_bands_openai:
+                openai_res = global_bands_openai[plot_type]
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_bands_openai_med:
+                openai_res_med = global_bands_openai_med[plot_type]
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type == "topomaps_relative":
+            # Compute PSD and relative power for topomaps
+            spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+            psds, freqs = spectrum.get_data(return_freqs=True)
+            band_powers = {}
+            for band, (fmin, fmax) in bands.items():
+                freq_mask = (freqs >= fmin) & (freqs <= fmax)
+                band_powers[band] = np.mean(psds[:, freq_mask], axis=1)
+            total_power = np.sum(list(band_powers.values()), axis=0)
+            relative_powers = {band: (power / total_power) * 100 for band, power in band_powers.items()}
 
-        #     # Plot the topomaps for each band
-        #     fig, axes = plt.subplots(2, 3, figsize=(15, 10))
-        #     axes = axes.flatten()
-        #     for ax, (band, power) in zip(axes, relative_powers.items()):
-        #         plot_topomap(power, global_raw_ica.info, axes=ax, show=False, cmap=custom_cmap)
-        #         ax.set_title(f'{band.capitalize()} Band')
-        #     plt.suptitle('Relative Power Topomaps', fontsize=16)
-        #     plt.colorbar(axes[0].images[0], ax=axes, orientation='horizontal', fraction=0.05, pad=0.07)
-        #     if global_relative_topo_openai != None:
-        #         openai_res = global_relative_topo_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_relative_topo_openai_med != None:
-        #         openai_res_med = global_relative_topo_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type == "topomaps_absolute":
-        #     # Compute PSD and absolute power for topomaps
-        #     spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
-        #     psds, freqs = spectrum.get_data(return_freqs=True)
-        #     band_powers = {}
-        #     for band, (fmin, fmax) in bands.items():
-        #         freq_mask = (freqs >= fmin) & (freqs <= fmax)
-        #         band_powers[band] = np.mean(psds[:, freq_mask], axis=1)
+            # Plot the topomaps for each band
+            fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+            axes = axes.flatten()
+            for ax, (band, power) in zip(axes, relative_powers.items()):
+                plot_topomap(power, global_raw_ica.info, axes=ax, show=False, cmap=custom_cmap)
+                ax.set_title(f'{band.capitalize()} Band')
+            plt.suptitle('Relative Power Topomaps', fontsize=16)
+            plt.colorbar(axes[0].images[0], ax=axes, orientation='horizontal', fraction=0.05, pad=0.07)
+            if global_relative_topo_openai != None:
+                openai_res = global_relative_topo_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_relative_topo_openai_med != None:
+                openai_res_med = global_relative_topo_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type == "topomaps_absolute":
+            # Compute PSD and absolute power for topomaps
+            spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+            psds, freqs = spectrum.get_data(return_freqs=True)
+            band_powers = {}
+            for band, (fmin, fmax) in bands.items():
+                freq_mask = (freqs >= fmin) & (freqs <= fmax)
+                band_powers[band] = np.mean(psds[:, freq_mask], axis=1)
 
-        #     # Plot the topomaps for each band (absolute power)
-        #     fig, axes = plt.subplots(2, 3, figsize=(15, 10))
-        #     axes = axes.flatten()
-        #     for ax, (band, power) in zip(axes, band_powers.items()):
-        #         plot_topomap(power, global_raw_ica.info, axes=ax, show=False, cmap=custom_cmap)
-        #         ax.set_title(f'{band.capitalize()} Band')
-        #     plt.suptitle('Absolute Power Topomaps', fontsize=16)
-        #     plt.colorbar(axes[0].images[0], ax=axes, orientation='horizontal', fraction=0.05, pad=0.07)  
-        #     if global_abs_topo_openai != None:
-        #         openai_res = global_abs_topo_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_abs_topo_openai_med != None:
-        #         openai_res_med = global_abs_topo_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type == 'relative_spectra':
-        #     spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
-        #     psds, freqs = spectrum.get_data(return_freqs=True)
-        #     band_powers = {}
-        #     for band, (fmin, fmax) in bands.items():
-        #         freq_mask = (freqs >= fmin) & (freqs <= fmax)
-        #         band_powers[band] = np.mean(psds[:, freq_mask], axis=1)
-        #     total_power = np.sum(list(band_powers.values()), axis=0)
-        #     fig, axes = plt.subplots(len(global_raw_ica.ch_names)//3, 3, figsize=(15, 15), constrained_layout=True)
-        #     fig.suptitle('Relative power spectra (%P)', fontsize=16)
-        #     for idx, (ax, ch_name) in enumerate(zip(axes.flatten(), global_raw_ica.ch_names)):
-        #         ax.plot(freqs, psds[idx] / total_power[idx] * 100, color='black')
-        #         ax.set_title(ch_name)
-        #         for band, (fmin, fmax) in bands.items():
-        #             band_mask = (freqs >= fmin) & (freqs <= fmax)
-        #             ax.fill_between(freqs[band_mask], (psds[idx, band_mask] / total_power[idx]) * 100,
-        #                             color=band_colors[band], alpha=0.5)
-        #         ax.set_xlim([0.5, 50])
-        #         ax.set_xlabel('Frequency (Hz)')
-        #         ax.set_ylabel('Relative Power (%)')
-        #     if global_rel_spectra_openai != None:
-        #         openai_res = global_rel_spectra_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_rel_spectra_openai_med != None:
-        #         openai_res_med = global_rel_spectra_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type == 'absolute_spectra':
-        #     spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
-        #     psds, freqs = spectrum.get_data(return_freqs=True)
-        #     fig, axes = plt.subplots(len(global_raw_ica.ch_names)//3, 3, figsize=(15, 15), constrained_layout=True)
-        #     fig.suptitle('Absolute power spectra (P)', fontsize=16)
-        #     for idx, (ax, ch_name) in enumerate(zip(axes.flatten(), global_raw_ica.ch_names)):
-        #         ax.plot(freqs, psds[idx], color='black')
-        #         ax.set_title(ch_name)
-        #         for band, (fmin, fmax) in bands.items():
-        #             band_mask = (freqs >= fmin) & (freqs <= fmax)
-        #             ax.fill_between(freqs[band_mask], psds[idx, band_mask],
-        #                             color=band_colors[band], alpha=0.5)
-        #         ax.set_xlim([0.5, 50])
-        #         ax.set_ylim([0, np.max(psds[idx]) * 1.1])
-        #         ax.set_xlabel('Frequency (Hz)')
-        #         ax.set_ylabel('Absolute Power')
-        #     if global_abs_spectra_openai != None:
-        #         openai_res = global_abs_spectra_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_abs_spectra_openai_med != None:
-        #         openai_res_med = global_abs_spectra_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type == "theta_beta_ratio":
-        #     # Compute the Theta/Beta ratio
-        #     spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
-        #     psds, freqs = spectrum.get_data(return_freqs=True)
-        #     theta_power = np.mean(psds[:, (freqs >= bands['theta'][0]) & (freqs <= bands['theta'][1])], axis=1)
-        #     beta_power = np.mean(psds[:, (freqs >= bands['beta-1'][0]) & (freqs <= bands['beta-1'][1])], axis=1)
-        #     theta_beta_ratio = theta_power / beta_power
+            # Plot the topomaps for each band (absolute power)
+            fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+            axes = axes.flatten()
+            for ax, (band, power) in zip(axes, band_powers.items()):
+                plot_topomap(power, global_raw_ica.info, axes=ax, show=False, cmap=custom_cmap)
+                ax.set_title(f'{band.capitalize()} Band')
+            plt.suptitle('Absolute Power Topomaps', fontsize=16)
+            plt.colorbar(axes[0].images[0], ax=axes, orientation='horizontal', fraction=0.05, pad=0.07)  
+            if global_abs_topo_openai != None:
+                openai_res = global_abs_topo_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_abs_topo_openai_med != None:
+                openai_res_med = global_abs_topo_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type == 'relative_spectra':
+            spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+            psds, freqs = spectrum.get_data(return_freqs=True)
+            band_powers = {}
+            for band, (fmin, fmax) in bands.items():
+                freq_mask = (freqs >= fmin) & (freqs <= fmax)
+                band_powers[band] = np.mean(psds[:, freq_mask], axis=1)
+            total_power = np.sum(list(band_powers.values()), axis=0)
+            fig, axes = plt.subplots(len(global_raw_ica.ch_names)//3, 3, figsize=(15, 15), constrained_layout=True)
+            fig.suptitle('Relative power spectra (%P)', fontsize=16)
+            for idx, (ax, ch_name) in enumerate(zip(axes.flatten(), global_raw_ica.ch_names)):
+                ax.plot(freqs, psds[idx] / total_power[idx] * 100, color='black')
+                ax.set_title(ch_name)
+                for band, (fmin, fmax) in bands.items():
+                    band_mask = (freqs >= fmin) & (freqs <= fmax)
+                    ax.fill_between(freqs[band_mask], (psds[idx, band_mask] / total_power[idx]) * 100,
+                                    color=band_colors[band], alpha=0.5)
+                ax.set_xlim([0.5, 50])
+                ax.set_xlabel('Frequency (Hz)')
+                ax.set_ylabel('Relative Power (%)')
+            if global_rel_spectra_openai != None:
+                openai_res = global_rel_spectra_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_rel_spectra_openai_med != None:
+                openai_res_med = global_rel_spectra_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type == 'absolute_spectra':
+            spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+            psds, freqs = spectrum.get_data(return_freqs=True)
+            fig, axes = plt.subplots(len(global_raw_ica.ch_names)//3, 3, figsize=(15, 15), constrained_layout=True)
+            fig.suptitle('Absolute power spectra (P)', fontsize=16)
+            for idx, (ax, ch_name) in enumerate(zip(axes.flatten(), global_raw_ica.ch_names)):
+                ax.plot(freqs, psds[idx], color='black')
+                ax.set_title(ch_name)
+                for band, (fmin, fmax) in bands.items():
+                    band_mask = (freqs >= fmin) & (freqs <= fmax)
+                    ax.fill_between(freqs[band_mask], psds[idx, band_mask],
+                                    color=band_colors[band], alpha=0.5)
+                ax.set_xlim([0.5, 50])
+                ax.set_ylim([0, np.max(psds[idx]) * 1.1])
+                ax.set_xlabel('Frequency (Hz)')
+                ax.set_ylabel('Absolute Power')
+            if global_abs_spectra_openai != None:
+                openai_res = global_abs_spectra_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_abs_spectra_openai_med != None:
+                openai_res_med = global_abs_spectra_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type == "theta_beta_ratio":
+            # Compute the Theta/Beta ratio
+            spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+            psds, freqs = spectrum.get_data(return_freqs=True)
+            theta_power = np.mean(psds[:, (freqs >= bands['theta'][0]) & (freqs <= bands['theta'][1])], axis=1)
+            beta_power = np.mean(psds[:, (freqs >= bands['beta-1'][0]) & (freqs <= bands['beta-1'][1])], axis=1)
+            theta_beta_ratio = theta_power / beta_power
 
-        #     # Plot the Theta/Beta ratio using topomaps
-        #     fig, ax = plt.subplots(figsize=(8, 6))
-        #     plot_topomap(theta_beta_ratio, global_raw_ica.info, axes=ax, show=False, cmap=custom_cmap)
-        #     ax.set_title('Theta/Beta Ratio')
-        #     # Manually set the color limits on the axis
-        #     for img in ax.get_images():
-        #         img.set_clim(0, 5)
-        #     plt.colorbar(ax.images[0], ax=ax, orientation='horizontal', fraction=0.05, pad=0.07)
-        #     if global_theta_beta_ratio_openai != None:
-        #         openai_res = global_theta_beta_ratio_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_theta_beta_ratio_openai_med != None:
-        #         openai_res_med = global_theta_beta_ratio_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type == 'brain_mapping':
-        #     #spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
-        #     #psds, freqs = spectrum.get_data(return_freqs=True)
-        #     #theta_power = np.mean(psds[:, (freqs >= bands['theta'][0]) & (freqs <= bands['theta'][1])], axis=1)
-        #     #beta_power = np.mean(psds[:, (freqs >= bands['beta-1'][0]) & (freqs <= bands['beta-1'][1])], axis=1)
-        #     #theta_beta_ratio = theta_power / beta_power
+            # Plot the Theta/Beta ratio using topomaps
+            fig, ax = plt.subplots(figsize=(8, 6))
+            plot_topomap(theta_beta_ratio, global_raw_ica.info, axes=ax, show=False, cmap=custom_cmap)
+            ax.set_title('Theta/Beta Ratio')
+            # Manually set the color limits on the axis
+            for img in ax.get_images():
+                img.set_clim(0, 5)
+            plt.colorbar(ax.images[0], ax=ax, orientation='horizontal', fraction=0.05, pad=0.07)
+            if global_theta_beta_ratio_openai != None:
+                openai_res = global_theta_beta_ratio_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_theta_beta_ratio_openai_med != None:
+                openai_res_med = global_theta_beta_ratio_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type == 'brain_mapping':
+            #spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+            #psds, freqs = spectrum.get_data(return_freqs=True)
+            #theta_power = np.mean(psds[:, (freqs >= bands['theta'][0]) & (freqs <= bands['theta'][1])], axis=1)
+            #beta_power = np.mean(psds[:, (freqs >= bands['beta-1'][0]) & (freqs <= bands['beta-1'][1])], axis=1)
+            #theta_beta_ratio = theta_power / beta_power
 
-        #     #fig, ax = plt.subplots()
+            #fig, ax = plt.subplots()
 
-        #     # Set background color to white
-        #     #fig.patch.set_facecolor('white')
-        #     #ax.set_facecolor('white')
+            # Set background color to white
+            #fig.patch.set_facecolor('white')
+            #ax.set_facecolor('white')
 
-        #     # Plot empty topomap with standard 10-20 locations, without shading
-        #     #mne.viz.plot_topomap(np.zeros_like(theta_beta_ratio), global_raw_ica.info, axes=ax, show=False, contours=0, cmap=None)
+            # Plot empty topomap with standard 10-20 locations, without shading
+            #mne.viz.plot_topomap(np.zeros_like(theta_beta_ratio), global_raw_ica.info, axes=ax, show=False, contours=0, cmap=None)
 
-        #     # Add circles to mark increased and decreased activity similar to image 2
-        #     #increased_activity_channels = np.where(theta_beta_ratio > np.mean(theta_beta_ratio) + np.std(theta_beta_ratio))[0]
-        #     #decreased_activity_channels = np.where(theta_beta_ratio < np.mean(theta_beta_ratio) - np.std(theta_beta_ratio))[0]
+            # Add circles to mark increased and decreased activity similar to image 2
+            #increased_activity_channels = np.where(theta_beta_ratio > np.mean(theta_beta_ratio) + np.std(theta_beta_ratio))[0]
+            #decreased_activity_channels = np.where(theta_beta_ratio < np.mean(theta_beta_ratio) - np.std(theta_beta_ratio))[0]
 
-        #     ## Draw circles for decreased activity (Red) and increased activity (Green)
-        #     #for ch_idx in increased_activity_channels:
-        #         #loc = global_raw_ica.info['chs'][ch_idx]['loc'][:2]
-        #         #ax.plot(loc[0], loc[1], 'o', markerfacecolor='green', markeredgecolor='green', markersize=15)
-        #         #ax.annotate(global_raw_ica.ch_names[ch_idx], xy=loc, xytext=(10, 10), textcoords='offset points', color='green', fontsize=10, fontweight='bold')
+            ## Draw circles for decreased activity (Red) and increased activity (Green)
+            #for ch_idx in increased_activity_channels:
+                #loc = global_raw_ica.info['chs'][ch_idx]['loc'][:2]
+                #ax.plot(loc[0], loc[1], 'o', markerfacecolor='green', markeredgecolor='green', markersize=15)
+                #ax.annotate(global_raw_ica.ch_names[ch_idx], xy=loc, xytext=(10, 10), textcoords='offset points', color='green', fontsize=10, fontweight='bold')
     
-        #     #for ch_idx in decreased_activity_channels:
-        #         #loc = global_raw_ica.info['chs'][ch_idx]['loc'][:2]
-        #         #ax.plot(loc[0], loc[1], 'o', markerfacecolor='red', markeredgecolor='red', markersize=15)
-        #         #ax.annotate(global_raw_ica.ch_names[ch_idx], xy=loc, xytext=(10, 10), textcoords='offset points', color='red', fontsize=10, fontweight='bold')
+            #for ch_idx in decreased_activity_channels:
+                #loc = global_raw_ica.info['chs'][ch_idx]['loc'][:2]
+                #ax.plot(loc[0], loc[1], 'o', markerfacecolor='red', markeredgecolor='red', markersize=15)
+                #ax.annotate(global_raw_ica.ch_names[ch_idx], xy=loc, xytext=(10, 10), textcoords='offset points', color='red', fontsize=10, fontweight='bold')
 
-        #     # Remove any unnecessary elements
-        #     #ax.axis('off')
-        #     #ax.set_title('Theta/Beta Ratio Topographic Map', color='black')
+            # Remove any unnecessary elements
+            #ax.axis('off')
+            #ax.set_title('Theta/Beta Ratio Topographic Map', color='black')
                 
-        #     # Define standard 10-20 system positions for some common electrodes
-        #     positions_10_20 = {
-        #         'Fp1': (-0.4, 0.9), 'Fp2': (0.4, 0.9),
-        #         'F3': (-0.6, 0.5), 'F4': (0.6, 0.5),
-        #         'F7': (-0.9, 0.3), 'F8': (0.9, 0.3),
-        #         'Fz': (0.0, 0.6),
-        #         'C3': (-0.6, 0.0), 'C4': (0.6, 0.0),
-        #         'Cz': (0.0, 0.0),
-        #         'T3': (-0.9, 0.0), 'T4': (0.9, 0.0),
-        #         'T5': (-0.9, -0.4), 'T6': (0.9, -0.4),
-        #         'P3': (-0.6, -0.5), 'P4': (0.6, -0.5),
-        #         'Pz': (0.0, -0.5),
-        #         'O1': (-0.4, -0.8), 'O2': (0.4, -0.8)
-        #     }
-        #     # Adjusted PSD computation parameters
-        #     spectrum = global_raw_ica.compute_psd(method='welch', tmin=10, tmax=500, fmin=3.5, fmax=21, n_fft=2000)
-        #     psds, freqs = spectrum.get_data(return_freqs=True)
+            # Define standard 10-20 system positions for some common electrodes
+            positions_10_20 = {
+                'Fp1': (-0.4, 0.9), 'Fp2': (0.4, 0.9),
+                'F3': (-0.6, 0.5), 'F4': (0.6, 0.5),
+                'F7': (-0.9, 0.3), 'F8': (0.9, 0.3),
+                'Fz': (0.0, 0.6),
+                'C3': (-0.6, 0.0), 'C4': (0.6, 0.0),
+                'Cz': (0.0, 0.0),
+                'T3': (-0.9, 0.0), 'T4': (0.9, 0.0),
+                'T5': (-0.9, -0.4), 'T6': (0.9, -0.4),
+                'P3': (-0.6, -0.5), 'P4': (0.6, -0.5),
+                'Pz': (0.0, -0.5),
+                'O1': (-0.4, -0.8), 'O2': (0.4, -0.8)
+            }
+            # Adjusted PSD computation parameters
+            spectrum = global_raw_ica.compute_psd(method='welch', tmin=10, tmax=500, fmin=3.5, fmax=21, n_fft=2000)
+            psds, freqs = spectrum.get_data(return_freqs=True)
 
-        #     # Recalculate mean power for each band
-        #     theta_power = np.mean(psds[:, (freqs >= bands['theta'][0]) & (freqs <= bands['theta'][1])], axis=1)
-        #     beta_power = np.mean(psds[:, (freqs >= bands['beta-1'][0]) & (freqs <= bands['beta-1'][1])], axis=1)
+            # Recalculate mean power for each band
+            theta_power = np.mean(psds[:, (freqs >= bands['theta'][0]) & (freqs <= bands['theta'][1])], axis=1)
+            beta_power = np.mean(psds[:, (freqs >= bands['beta-1'][0]) & (freqs <= bands['beta-1'][1])], axis=1)
 
-        #     # Compute Theta/Beta ratio
-        #     theta_beta_ratio = theta_power / beta_power
+            # Compute Theta/Beta ratio
+            theta_beta_ratio = theta_power / beta_power
 
-        #     # Normalize or standardize the ratio
-        #     theta_beta_ratio_norm = (theta_beta_ratio - np.mean(theta_beta_ratio)) / np.std(theta_beta_ratio)
+            # Normalize or standardize the ratio
+            theta_beta_ratio_norm = (theta_beta_ratio - np.mean(theta_beta_ratio)) / np.std(theta_beta_ratio)
 
-        #     # Adjust thresholds for increased/decreased activity
-        #     threshold_high = np.percentile(theta_beta_ratio, 72)  # Adjust to 60th percentile
-        #     threshold_low = np.percentile(theta_beta_ratio, 28)   # Adjust to 40th percentile
+            # Adjust thresholds for increased/decreased activity
+            threshold_high = np.percentile(theta_beta_ratio, 72)  # Adjust to 60th percentile
+            threshold_low = np.percentile(theta_beta_ratio, 28)   # Adjust to 40th percentile
 
-        #     # Identify channels with increased and decreased activity
-        #     increased_activity_channels = np.where(theta_beta_ratio > threshold_high)[0]
-        #     decreased_activity_channels = np.where(theta_beta_ratio < threshold_low)[0]
+            # Identify channels with increased and decreased activity
+            increased_activity_channels = np.where(theta_beta_ratio > threshold_high)[0]
+            decreased_activity_channels = np.where(theta_beta_ratio < threshold_low)[0]
 
-        #     # Define the increased and decreased activity channels
-        #     increased_channels = [key for key, value in global_channel_dict.items() if value in increased_activity_channels]
-        #     decreased_channels = [key for key, value in global_channel_dict.items() if value in decreased_activity_channels]
+            # Define the increased and decreased activity channels
+            increased_channels = [key for key, value in global_channel_dict.items() if value in increased_activity_channels]
+            decreased_channels = [key for key, value in global_channel_dict.items() if value in decreased_activity_channels]
 
-        #     # Plot Topographic Map
-        #     fig, ax = plt.subplots(figsize=(6, 6))
-        #     fig.patch.set_facecolor('white')
-        #     ax.set_facecolor('white')
+            # Plot Topographic Map
+            fig, ax = plt.subplots(figsize=(6, 6))
+            fig.patch.set_facecolor('white')
+            ax.set_facecolor('white')
 
-        #     # Plot head outline
-        #     head_circle = plt.Circle((0, 0), 1, color='black', fill=False, linestyle='--')
-        #     ax.add_artist(head_circle)
+            # Plot head outline
+            head_circle = plt.Circle((0, 0), 1, color='black', fill=False, linestyle='--')
+            ax.add_artist(head_circle)
 
-        #     # Plot ears
-        #     left_ear = plt.Polygon([[-1, 0.1], [-1.1, 0], [-1, -0.1]], closed=True, fill=False, color='black')
-        #     right_ear = plt.Polygon([[1, 0.1], [1.1, 0], [1, -0.1]], closed=True, fill=False, color='black')
-        #     ax.add_artist(left_ear)
-        #     ax.add_artist(right_ear)
+            # Plot ears
+            left_ear = plt.Polygon([[-1, 0.1], [-1.1, 0], [-1, -0.1]], closed=True, fill=False, color='black')
+            right_ear = plt.Polygon([[1, 0.1], [1.1, 0], [1, -0.1]], closed=True, fill=False, color='black')
+            ax.add_artist(left_ear)
+            ax.add_artist(right_ear)
 
-        #     # Plot nose
-        #     nose = plt.Polygon([[0, 1.1], [-0.1, 1], [0.1, 1]], closed=True, fill=False, color='black')
-        #     ax.add_artist(nose)
+            # Plot nose
+            nose = plt.Polygon([[0, 1.1], [-0.1, 1], [0.1, 1]], closed=True, fill=False, color='black')
+            ax.add_artist(nose)
 
-        #     # Plot all channels
-        #     for ch_name, (x, y) in positions_10_20.items():
-        #         ax.plot(x, y, 'o', markerfacecolor='white', markeredgecolor='black', markersize=20)
-        #         ax.text(x, y, ch_name, ha='center', va='center', fontsize=10, fontweight='bold')
+            # Plot all channels
+            for ch_name, (x, y) in positions_10_20.items():
+                ax.plot(x, y, 'o', markerfacecolor='white', markeredgecolor='black', markersize=20)
+                ax.text(x, y, ch_name, ha='center', va='center', fontsize=10, fontweight='bold')
 
-        #     # Highlight increased activity in green
-        #     for ch in increased_channels:
-        #         if ch in positions_10_20:
-        #             loc = positions_10_20[ch]
-        #             ax.plot(loc[0], loc[1], 'o', markerfacecolor='green', markeredgecolor='green', markersize=20)
-        #             ax.text(loc[0], loc[1], ch, ha='center', va='center', color='white', fontsize=10, fontweight='bold')
+            # Highlight increased activity in green
+            for ch in increased_channels:
+                if ch in positions_10_20:
+                    loc = positions_10_20[ch]
+                    ax.plot(loc[0], loc[1], 'o', markerfacecolor='green', markeredgecolor='green', markersize=20)
+                    ax.text(loc[0], loc[1], ch, ha='center', va='center', color='white', fontsize=10, fontweight='bold')
 
-        #     # Highlight decreased activity in red
-        #     for ch in decreased_channels:
-        #         if ch in positions_10_20:
-        #             loc = positions_10_20[ch]
-        #             ax.plot(loc[0], loc[1], 'o', markerfacecolor='red', markeredgecolor='red', markersize=20)
-        #             ax.text(loc[0], loc[1], ch, ha='center', va='center', color='white', fontsize=10, fontweight='bold')
+            # Highlight decreased activity in red
+            for ch in decreased_channels:
+                if ch in positions_10_20:
+                    loc = positions_10_20[ch]
+                    ax.plot(loc[0], loc[1], 'o', markerfacecolor='red', markeredgecolor='red', markersize=20)
+                    ax.text(loc[0], loc[1], ch, ha='center', va='center', color='white', fontsize=10, fontweight='bold')
 
-        #     # Final touches
-        #     ax.axis('equal')
-        #     ax.axis('off')
-        #     ax.set_title('Brain Mapping (Theta-Beta Ratio)', color='black')
-        #     if global_brain_mapping_openai != None:
-        #         openai_res = global_brain_mapping_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_brain_mapping_openai_med != None:
-        #         openai_res_med = global_brain_mapping_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type == "occipital_alpha_peak":
-        #     # Compute the PSDs for Occipital channels
-        #     # Compute PSD and relative power for topomaps and spectra
-        #     spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
-        #     psds, freqs = spectrum.get_data(return_freqs=True)
-        #     occipital_channels = ['O1', 'O2']
-        #     alpha_band = (7.5, 14)
-        #     occipital_psds = psds[[global_raw_ica.ch_names.index(ch) for ch in occipital_channels], :]
-        #     alpha_mask = np.where((freqs >= alpha_band[0]) & (freqs <= alpha_band[1]))[0]
-        #     alpha_freqs = freqs[alpha_mask]
-        #     occipital_psds_alpha = occipital_psds[:, alpha_mask]
-        #     alpha_peaks = {}
-        #     for idx, ch_name in enumerate(occipital_channels):
-        #         alpha_psd = occipital_psds_alpha[idx]
-        #         peak_idx = np.argmax(alpha_psd)
-        #         alpha_peaks[ch_name] = alpha_freqs[peak_idx]
+            # Final touches
+            ax.axis('equal')
+            ax.axis('off')
+            ax.set_title('Brain Mapping (Theta-Beta Ratio)', color='black')
+            if global_brain_mapping_openai != None:
+                openai_res = global_brain_mapping_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_brain_mapping_openai_med != None:
+                openai_res_med = global_brain_mapping_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type == "occipital_alpha_peak":
+            # Compute the PSDs for Occipital channels
+            # Compute PSD and relative power for topomaps and spectra
+            spectrum = global_raw_ica.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+            psds, freqs = spectrum.get_data(return_freqs=True)
+            occipital_channels = ['O1', 'O2']
+            alpha_band = (7.5, 14)
+            occipital_psds = psds[[global_raw_ica.ch_names.index(ch) for ch in occipital_channels], :]
+            alpha_mask = np.where((freqs >= alpha_band[0]) & (freqs <= alpha_band[1]))[0]
+            alpha_freqs = freqs[alpha_mask]
+            occipital_psds_alpha = occipital_psds[:, alpha_mask]
+            alpha_peaks = {}
+            for idx, ch_name in enumerate(occipital_channels):
+                alpha_psd = occipital_psds_alpha[idx]
+                peak_idx = np.argmax(alpha_psd)
+                alpha_peaks[ch_name] = alpha_freqs[peak_idx]
 
-        #     fig, ax = plt.subplots()
-        #     for idx, ch_name in enumerate(alpha_peaks.keys()):
-        #         ax.plot(alpha_freqs, occipital_psds_alpha[idx], label=f'{ch_name} (Peak: {alpha_peaks[ch_name]:.2f} Hz)')
-        #     ax.set_title('Occipital Alpha Peak Analysis')
-        #     ax.set_xlabel('Frequency (Hz)')
-        #     ax.set_ylabel('Power')
-        #     ax.legend()
+            fig, ax = plt.subplots()
+            for idx, ch_name in enumerate(alpha_peaks.keys()):
+                ax.plot(alpha_freqs, occipital_psds_alpha[idx], label=f'{ch_name} (Peak: {alpha_peaks[ch_name]:.2f} Hz)')
+            ax.set_title('Occipital Alpha Peak Analysis')
+            ax.set_xlabel('Frequency (Hz)')
+            ax.set_ylabel('Power')
+            ax.legend()
             
-        #     if global_occipital_alpha_peak_openai != None:
-        #         openai_res = global_occipital_alpha_peak_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_occipital_alpha_peak_openai_med != None:
-        #         openai_res_med = global_occipital_alpha_peak_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type == "chewing_artifact_detection":
-        #     # Chewing artifact detection logic
-        #     chewing_channels = ['T3', 'T4','T5','T6']  # Channels focused on detecting rectus artifacts
-        #     chewing_segments = detect_chewing_artifacts(global_raw_ica, start_time, duration=4)
+            if global_occipital_alpha_peak_openai != None:
+                openai_res = global_occipital_alpha_peak_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_occipital_alpha_peak_openai_med != None:
+                openai_res_med = global_occipital_alpha_peak_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type == "chewing_artifact_detection":
+            # Chewing artifact detection logic
+            chewing_channels = ['T3', 'T4','T5','T6']  # Channels focused on detecting rectus artifacts
+            chewing_segments = detect_chewing_artifacts(global_raw_ica, start_time, duration=4)
 
-        #     # Plot EEG data
-        #     fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
-        #     plt.close(fig)  # Close the interactive plot to prevent blocking
+            # Plot EEG data
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
+            plt.close(fig)  # Close the interactive plot to prevent blocking
 
-        #     # Get the current axes and highlight detected segments
-        #     #ax = fig.axes[0]
-        #     #for segment in chewing_segments:
-        #     #    ax.axvspan(segment[0], segment[1], color='red', alpha=0.3, label='Chewing Artifact')
+            # Get the current axes and highlight detected segments
+            #ax = fig.axes[0]
+            #for segment in chewing_segments:
+            #    ax.axvspan(segment[0], segment[1], color='red', alpha=0.3, label='Chewing Artifact')
 
-        #     #ax.legend()
-        #     ax = fig.axes[0]
-        #     for segment in chewing_segments:
-        #         for ch in chewing_channels:
-        #             ch_index = global_raw_ica.ch_names.index(ch)
-        #             ax.axvspan(segment[0], segment[1], color='red', alpha=0.3, label=f'Chewing Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
+            #ax.legend()
+            ax = fig.axes[0]
+            for segment in chewing_segments:
+                for ch in chewing_channels:
+                    ch_index = global_raw_ica.ch_names.index(ch)
+                    ax.axvspan(segment[0], segment[1], color='red', alpha=0.3, label=f'Chewing Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
 
-        #     #ax.legend()
-        #     if global_chewing_artifect_openai != None:
-        #         openai_res = global_chewing_artifect_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_chewing_artifect_openai_med != None:
-        #         openai_res_med = global_chewing_artifect_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type == "ecg_artifact_detection":
-        #     # ECG artifact detection logic
-        #     ecg_channels = ['T3', 'T4', 'Cz']  # Channels focused on detecting rectus artifacts
-        #     ecg_segments = detect_ecg_artifacts(global_raw_ica, start_time, duration=4)
+            #ax.legend()
+            if global_chewing_artifect_openai != None:
+                openai_res = global_chewing_artifect_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_chewing_artifect_openai_med != None:
+                openai_res_med = global_chewing_artifect_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type == "ecg_artifact_detection":
+            # ECG artifact detection logic
+            ecg_channels = ['T3', 'T4', 'Cz']  # Channels focused on detecting rectus artifacts
+            ecg_segments = detect_ecg_artifacts(global_raw_ica, start_time, duration=4)
 
-        #     # Plot EEG data
-        #     fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
-        #     plt.close(fig)  # Close the interactive plot to prevent blocking
+            # Plot EEG data
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
+            plt.close(fig)  # Close the interactive plot to prevent blocking
 
-        #     # Get the current axes and highlight detected segments
-        #     #ax = fig.axes[0]
-        #     #for segment in ecg_segments:
-        #      #   ax.axvspan(segment[0], segment[1], color='blue', alpha=0.3, label='ECG Artifact')
+            # Get the current axes and highlight detected segments
+            #ax = fig.axes[0]
+            #for segment in ecg_segments:
+             #   ax.axvspan(segment[0], segment[1], color='blue', alpha=0.3, label='ECG Artifact')
 
-        #     #ax.legend()
-        #     # Get the current axes and highlight detected segments only on rectus channels
-        #     ax = fig.axes[0]
-        #     for segment in ecg_segments:
-        #         for ch in ecg_channels:
-        #             ch_index = global_raw_ica.ch_names.index(ch)
-        #             ax.axvspan(segment[0], segment[1], color='blue', alpha=0.3, label=f'ECG Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
-        #     if global_ecg_artifect_openai != None:
-        #         openai_res = global_ecg_artifect_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_ecg_artifect_openai_med != None:
-        #         openai_res_med = global_ecg_artifect_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type == "rectus_artifact_detection":
-        #     # Rectus artifact detection logic
-        #     #rectus_segments = detect_rectus_artifacts(global_raw, start_time, duration=4)
+            #ax.legend()
+            # Get the current axes and highlight detected segments only on rectus channels
+            ax = fig.axes[0]
+            for segment in ecg_segments:
+                for ch in ecg_channels:
+                    ch_index = global_raw_ica.ch_names.index(ch)
+                    ax.axvspan(segment[0], segment[1], color='blue', alpha=0.3, label=f'ECG Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
+            if global_ecg_artifect_openai != None:
+                openai_res = global_ecg_artifect_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_ecg_artifect_openai_med != None:
+                openai_res_med = global_ecg_artifect_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type == "rectus_artifact_detection":
+            # Rectus artifact detection logic
+            #rectus_segments = detect_rectus_artifacts(global_raw, start_time, duration=4)
 
-        #     # Plot EEG data
-        #     #fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
-        #     #plt.close(fig)  # Close the interactive plot to prevent blocking
+            # Plot EEG data
+            #fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
+            #plt.close(fig)  # Close the interactive plot to prevent blocking
 
-        #     # Get the current axes and highlight detected segments
-        #     #ax = fig.axes[0]
-        #     #for segment in rectus_segments:
-        #      #   ax.axvspan(segment[0], segment[1], color='orange', alpha=0.3, label='Rectus Artifact')
+            # Get the current axes and highlight detected segments
+            #ax = fig.axes[0]
+            #for segment in rectus_segments:
+             #   ax.axvspan(segment[0], segment[1], color='orange', alpha=0.3, label='Rectus Artifact')
 
-        #     #ax.legend()
-        #     rectus_channels = ['O1', 'O2']  # Channels focused on detecting rectus artifacts
-        #     rectus_segments = detect_rectus_artifacts(global_raw_ica, start_time, duration=4)
+            #ax.legend()
+            rectus_channels = ['O1', 'O2']  # Channels focused on detecting rectus artifacts
+            rectus_segments = detect_rectus_artifacts(global_raw_ica, start_time, duration=4)
 
-        #     # Plot all channels
-        #     fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
-        #     plt.close(fig)  # Close the interactive plot to prevent blocking
+            # Plot all channels
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
+            plt.close(fig)  # Close the interactive plot to prevent blocking
 
-        #     # Get the current axes and highlight detected segments only on rectus channels
-        #     ax = fig.axes[0]
-        #     for segment in rectus_segments:
-        #         for ch in rectus_channels:
-        #             ch_index = global_raw_ica.ch_names.index(ch)
-        #             ax.axvspan(segment[0], segment[1], color='orange', alpha=0.3, label=f'Rectus Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
+            # Get the current axes and highlight detected segments only on rectus channels
+            ax = fig.axes[0]
+            for segment in rectus_segments:
+                for ch in rectus_channels:
+                    ch_index = global_raw_ica.ch_names.index(ch)
+                    ax.axvspan(segment[0], segment[1], color='orange', alpha=0.3, label=f'Rectus Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
 
-        #     #ax.legend()
-        #     if global_rectus_artifect_openai != None:
-        #         openai_res = global_rectus_artifect_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res) 
-        #     if global_rectus_artifect_openai_med != None:
-        #         openai_res_med = global_rectus_artifect_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med) 
-        # elif plot_type == "roving_eye_artifact_detection":
-        #     roving_channels = ['O1', 'O2']  # Channels focused on detecting rectus artifacts
-        #     # Roving eye artifact detection logic
-        #     roving_segments = detect_roving_eye_artifacts(global_raw_ica, start_time, duration=4)
+            #ax.legend()
+            if global_rectus_artifect_openai != None:
+                openai_res = global_rectus_artifect_openai
+                openai_res = re.sub(r'[*#]', '', openai_res) 
+            if global_rectus_artifect_openai_med != None:
+                openai_res_med = global_rectus_artifect_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med) 
+        elif plot_type == "roving_eye_artifact_detection":
+            roving_channels = ['O1', 'O2']  # Channels focused on detecting rectus artifacts
+            # Roving eye artifact detection logic
+            roving_segments = detect_roving_eye_artifacts(global_raw_ica, start_time, duration=4)
 
-        #     # Plot EEG data
-        #     fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
-        #     plt.close(fig)  # Close the interactive plot to prevent blocking
+            # Plot EEG data
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
+            plt.close(fig)  # Close the interactive plot to prevent blocking
 
-        #     # Get the current axes and highlight detected segments
-        #     #ax = fig.axes[0]
-        #     #for segment in roving_segments:
-        #     #    ax.axvspan(segment[0], segment[1], color='purple', alpha=0.3, label='Roving Eye Artifact')
+            # Get the current axes and highlight detected segments
+            #ax = fig.axes[0]
+            #for segment in roving_segments:
+            #    ax.axvspan(segment[0], segment[1], color='purple', alpha=0.3, label='Roving Eye Artifact')
 
-        #     #ax.legend()  
-        #     # Get the current axes and highlight detected segments only on rectus channels
-        #     ax = fig.axes[0]
-        #     for segment in roving_channels:
-        #         for ch in roving_segments:
-        #             ch_index = global_raw_ica.ch_names.index(ch)
-        #             ax.axvspan(segment[0], segment[1], color='purple', alpha=0.3, label=f'Roving Artifact ({ch})') 
-        #     if global_roving_eye_artifect_openai != None:        
-        #         openai_res = global_roving_eye_artifect_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_roving_eye_artifect_openai_med != None:
-        #         openai_res_med = global_roving_eye_artifect_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type == "muscle_tension_artifact_detection":
-        #     # Muscle tension artifact detection logic
-        #     muscle_channels = ['T3', 'T4','T5','T6']  # Channels focused on detecting rectus artifacts
-        #     muscle_segments = detect_muscle_tension_artifacts(global_raw_ica, start_time, duration=4)
+            #ax.legend()  
+            # Get the current axes and highlight detected segments only on rectus channels
+            ax = fig.axes[0]
+            for segment in roving_channels:
+                for ch in roving_segments:
+                    ch_index = global_raw_ica.ch_names.index(ch)
+                    ax.axvspan(segment[0], segment[1], color='purple', alpha=0.3, label=f'Roving Artifact ({ch})') 
+            if global_roving_eye_artifect_openai != None:        
+                openai_res = global_roving_eye_artifect_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_roving_eye_artifect_openai_med != None:
+                openai_res_med = global_roving_eye_artifect_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type == "muscle_tension_artifact_detection":
+            # Muscle tension artifact detection logic
+            muscle_channels = ['T3', 'T4','T5','T6']  # Channels focused on detecting rectus artifacts
+            muscle_segments = detect_muscle_tension_artifacts(global_raw_ica, start_time, duration=4)
 
-        #     # Plot EEG data
-        #     fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
-        #     plt.close(fig)  # Close the interactive plot to prevent blocking
+            # Plot EEG data
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
+            plt.close(fig)  # Close the interactive plot to prevent blocking
 
-        #     # Get the current axes and highlight detected segments
-        #     #ax = fig.axes[0]
-        #     #for segment in muscle_segments:
-        #     #    ax.axvspan(segment[0], segment[1], color='magenta', alpha=0.3, label='Muscle Tension Artifact')
-        #     #
-        #     #ax.legend()
-        #     ax = fig.axes[0]
-        #     for segment in muscle_segments:
-        #         for ch in muscle_channels:
-        #             ch_index = global_raw_ica.ch_names.index(ch)
-        #             ax.axvspan(segment[0], segment[1], color='magenta', alpha=0.3, label=f'Blink Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
-        #     if global_muscle_tension_artifect_openai != None:        
-        #         openai_res = global_muscle_tension_artifect_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_muscle_tension_artifect_openai_med != None:
-        #         openai_res_med = global_muscle_tension_artifect_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type == "blink_artifact_detection":
-        #     # Blink artifact detection logic
-        #     blink_channels = ['O1', 'O2']  # Channels focused on detecting rectus artifacts
-        #     blink_segments = detect_blink_artifacts(global_raw_ica, start_time, duration=4)
+            # Get the current axes and highlight detected segments
+            #ax = fig.axes[0]
+            #for segment in muscle_segments:
+            #    ax.axvspan(segment[0], segment[1], color='magenta', alpha=0.3, label='Muscle Tension Artifact')
+            #
+            #ax.legend()
+            ax = fig.axes[0]
+            for segment in muscle_segments:
+                for ch in muscle_channels:
+                    ch_index = global_raw_ica.ch_names.index(ch)
+                    ax.axvspan(segment[0], segment[1], color='magenta', alpha=0.3, label=f'Blink Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
+            if global_muscle_tension_artifect_openai != None:        
+                openai_res = global_muscle_tension_artifect_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_muscle_tension_artifect_openai_med != None:
+                openai_res_med = global_muscle_tension_artifect_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type == "blink_artifact_detection":
+            # Blink artifact detection logic
+            blink_channels = ['O1', 'O2']  # Channels focused on detecting rectus artifacts
+            blink_segments = detect_blink_artifacts(global_raw_ica, start_time, duration=4)
 
-        #     # Plot EEG data
-        #     fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
-        #     plt.close(fig)  # Close the interactive plot to prevent blocking
+            # Plot EEG data
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
+            plt.close(fig)  # Close the interactive plot to prevent blocking
 
-        #     # Get the current axes and highlight detected segments
-        #     #ax = fig.axes[0]
-        #     #for segment in blink_segments:
-        #     #    ax.axvspan(segment[0], segment[1], color='yellow', alpha=0.3, label='Blink Artifact')
+            # Get the current axes and highlight detected segments
+            #ax = fig.axes[0]
+            #for segment in blink_segments:
+            #    ax.axvspan(segment[0], segment[1], color='yellow', alpha=0.3, label='Blink Artifact')
 
-        #     #ax.legend()
-        #     ax = fig.axes[0]
-        #     for segment in blink_segments:
-        #         for ch in blink_channels:
-        #             ch_index = global_raw_ica.ch_names.index(ch)
-        #             ax.axvspan(segment[0], segment[1], color='yellow', alpha=0.3, label=f'Blink Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
-        #     if global_blink_artifect_openai != None:        
-        #         openai_res = global_blink_artifect_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_blink_artifect_openai_med != None:
-        #         openai_res_med = global_blink_artifect_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type == "rectus_spike_artifact_detection":
-        #     # Rectus spike artifact detection logic
-        #     rectus_spike_channels = ['O1', 'O2']  # Channels focused on detecting rectus artifacts
+            #ax.legend()
+            ax = fig.axes[0]
+            for segment in blink_segments:
+                for ch in blink_channels:
+                    ch_index = global_raw_ica.ch_names.index(ch)
+                    ax.axvspan(segment[0], segment[1], color='yellow', alpha=0.3, label=f'Blink Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
+            if global_blink_artifect_openai != None:        
+                openai_res = global_blink_artifect_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_blink_artifect_openai_med != None:
+                openai_res_med = global_blink_artifect_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type == "rectus_spike_artifact_detection":
+            # Rectus spike artifact detection logic
+            rectus_spike_channels = ['O1', 'O2']  # Channels focused on detecting rectus artifacts
             
-        #     rectus_spike_segments = detect_rectus_spikes_artifacts(global_raw_ica, start_time, duration=4)
+            rectus_spike_segments = detect_rectus_spikes_artifacts(global_raw_ica, start_time, duration=4)
 
-        #     # Plot EEG data
-        #     fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
-        #     plt.close(fig)  # Close the interactive plot to prevent blocking
+            # Plot EEG data
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
+            plt.close(fig)  # Close the interactive plot to prevent blocking
 
-        #     # Get the current axes and highlight detected segments
-        #     #ax = fig.axes[0]
-        #     #for segment in rectus_spike_segments:
-        #      #   ax.axvspan(segment[0], segment[1], color='purple', alpha=0.3, label='Rectus Spike Artifact')
-        #     ax = fig.axes[0]
-        #     for segment in rectus_spike_segments:
-        #         for ch in rectus_spike_channels:
-        #             ch_index = global_raw_ica.ch_names.index(ch)
-        #             ax.axvspan(segment[0], segment[1], color='cyan', alpha=0.3, label=f'Blink Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
-        #     if global_rectus_spike_artifect_openai != None:
-        #         openai_res = global_rectus_spike_artifect_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_rectus_spike_artifect_openai_med != None:
-        #         openai_res_med = global_rectus_spike_artifect_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # # PDR artifact detection logic
-        # elif plot_type == "pdr_artifact_detection":
-        #     pdr_channels = ['Fp1', 'Fp2']  # Channels focused on detecting rectus artifacts
+            # Get the current axes and highlight detected segments
+            #ax = fig.axes[0]
+            #for segment in rectus_spike_segments:
+             #   ax.axvspan(segment[0], segment[1], color='purple', alpha=0.3, label='Rectus Spike Artifact')
+            ax = fig.axes[0]
+            for segment in rectus_spike_segments:
+                for ch in rectus_spike_channels:
+                    ch_index = global_raw_ica.ch_names.index(ch)
+                    ax.axvspan(segment[0], segment[1], color='cyan', alpha=0.3, label=f'Blink Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
+            if global_rectus_spike_artifect_openai != None:
+                openai_res = global_rectus_spike_artifect_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_rectus_spike_artifect_openai_med != None:
+                openai_res_med = global_rectus_spike_artifect_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        # PDR artifact detection logic
+        elif plot_type == "pdr_artifact_detection":
+            pdr_channels = ['Fp1', 'Fp2']  # Channels focused on detecting rectus artifacts
             
-        #     pdr_segments = detect_pdr_artifacts(global_raw_ica, start_time, duration=4)
+            pdr_segments = detect_pdr_artifacts(global_raw_ica, start_time, duration=4)
 
-        #     # Plot EEG data
-        #     fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
-        #     plt.close(fig)  # Close the interactive plot to prevent blocking
+            # Plot EEG data
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
+            plt.close(fig)  # Close the interactive plot to prevent blocking
 
-        #     # Get the current axes and highlight detected segments
-        #     #ax = fig.axes[0]
-        #     #for segment in pdr_segments:
-        #        # ax.axvspan(segment[0], segment[1], color='green', alpha=0.3, label='PDR Artifact')
-        #     ax = fig.axes[0]
-        #     for segment in pdr_segments:
-        #         for ch in pdr_channels:
-        #             ch_index = global_raw_ica.ch_names.index(ch)
-        #             ax.axvspan(segment[0], segment[1], color='olive', alpha=0.3, label=f'Blink Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
-        #     if global_pdr_openai != None:
-        #         openai_res = global_pdr_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_pdr_openai != None:
-        #         openai_res_med = global_pdr_openai
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type == "impedance_artifact_detection":
-        #     # Impedance artifact detection logic
-        #     impedance_segments = detect_impedance_artifacts(global_raw_ica, start_time, duration=4)
+            # Get the current axes and highlight detected segments
+            #ax = fig.axes[0]
+            #for segment in pdr_segments:
+               # ax.axvspan(segment[0], segment[1], color='green', alpha=0.3, label='PDR Artifact')
+            ax = fig.axes[0]
+            for segment in pdr_segments:
+                for ch in pdr_channels:
+                    ch_index = global_raw_ica.ch_names.index(ch)
+                    ax.axvspan(segment[0], segment[1], color='olive', alpha=0.3, label=f'Blink Artifact ({ch})', ymin=ch_index / 19, ymax=(ch_index + 1) / 19)
+            if global_pdr_openai != None:
+                openai_res = global_pdr_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_pdr_openai != None:
+                openai_res_med = global_pdr_openai
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type == "impedance_artifact_detection":
+            # Impedance artifact detection logic
+            impedance_segments = detect_impedance_artifacts(global_raw_ica, start_time, duration=4)
 
-        #     # Plot EEG data
-        #     fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
-        #     plt.close(fig)  # Close the interactive plot to prevent blocking
+            # Plot EEG data
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
+            plt.close(fig)  # Close the interactive plot to prevent blocking
 
-        #     # Get the current axes and highlight detected segments
-        #     ax = fig.axes[0]
-        #     for segment in impedance_segments:
-        #         ax.axvspan(segment[0], segment[1], color='steelblue', alpha=0.3, label='Impedance Artifact')
-        #     if global_impedance_openai != None:    
-        #         openai_res = global_impedance_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_impedance_openai_med != None:
-        #         openai_res_med = global_impedance_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type == "epileptic_pattern_detection":
-        #     epileptic_segments = detect_epileptic_patterns(global_raw_ica, start_time, duration=4)
+            # Get the current axes and highlight detected segments
+            ax = fig.axes[0]
+            for segment in impedance_segments:
+                ax.axvspan(segment[0], segment[1], color='steelblue', alpha=0.3, label='Impedance Artifact')
+            if global_impedance_openai != None:    
+                openai_res = global_impedance_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_impedance_openai_med != None:
+                openai_res_med = global_impedance_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type == "epileptic_pattern_detection":
+            epileptic_segments = detect_epileptic_patterns(global_raw_ica, start_time, duration=4)
 
-        #     # Plot EEG data
-        #     fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
-        #     plt.close(fig)  # Close the interactive plot to prevent blocking
+            # Plot EEG data
+            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
+            plt.close(fig)  # Close the interactive plot to prevent blocking
 
-        #     # Highlight detected epileptic patterns
-        #     ax = fig.axes[0]
-        #     for segment in epileptic_segments:
-        #         ax.axvspan(segment[0], segment[1], color='purple', alpha=0.3, label='Epileptic Pattern')
-        #     if global_epileptic_openai != None:     
-        #         openai_res = global_epileptic_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_epileptic_openai_med != None: 
-        #         openai_res_med = global_epileptic_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
-        # elif plot_type == "dipole_analysis":
-        #     fig = perform_dipole_analysis()
-        #     openai_res = None
-        #     openai_res_med = None
-        # elif plot_type == 'frequency_bins':
-        #     fig = plot_frequency_bins(global_raw, frequency_bins)
-        #     if global_frq_bins_openai != None:     
-        #         openai_res = global_frq_bins_openai
-        #         openai_res = re.sub(r'[*#]', '', openai_res)
-        #     if global_frq_bins_openai_med != None: 
-        #         openai_res_med = global_frq_bins_openai_med
-        #         openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+            # Highlight detected epileptic patterns
+            ax = fig.axes[0]
+            for segment in epileptic_segments:
+                ax.axvspan(segment[0], segment[1], color='purple', alpha=0.3, label='Epileptic Pattern')
+            if global_epileptic_openai != None:     
+                openai_res = global_epileptic_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_epileptic_openai_med != None: 
+                openai_res_med = global_epileptic_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
+        elif plot_type == "dipole_analysis":
+            fig = perform_dipole_analysis()
+            openai_res = None
+            openai_res_med = None
+        elif plot_type == 'frequency_bins':
+            fig = plot_frequency_bins(global_raw, frequency_bins)
+            if global_frq_bins_openai != None:     
+                openai_res = global_frq_bins_openai
+                openai_res = re.sub(r'[*#]', '', openai_res)
+            if global_frq_bins_openai_med != None: 
+                openai_res_med = global_frq_bins_openai_med
+                openai_res_med = re.sub(r'[*#]', '', openai_res_med)
 
         else:
             return  # No action if the plot type is unrecognized or data is not loaded
