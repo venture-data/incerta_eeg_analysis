@@ -2038,7 +2038,8 @@ def upload_file():
                     ica = mne.preprocessing.ICA(n_components=19, random_state=97, max_iter=800)
                     ica.fit(raw)
                     # eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name=eog_channels)
-                    ica.exclude = [0,1,7,8,9,10,11,12]
+                    # ica.exclude = [0,1,7,8,9,10,11,12]
+                    ica.exclude = [0,1,2,3,4,5,6,7,8,12]
                     # ica = mne.preprocessing.ICA(random_state=97, max_iter=800)
                     # ica.fit(cleaned_raw)#, reject=reject)
                     
