@@ -2020,27 +2020,27 @@ def upload_file():
                     # Set the EOG channels (Fp1 and Fp2) for detecting eye movement artifacts
                     # eog_channels = ['Fp1', 'Fp2','T3', 'T4', 'F7', 'F8']
                     # Define preprocessing parameters for PyPREP (this is required for the pipeline)
-                    prep_params = {
-                        "ref_chs": raw.ch_names,  # reference all EEG channels (adjust if needed)
-                        "reref_chs": raw.ch_names,  # re-reference all EEG channels
-                        "line_freqs": [50]  # specify the line noise frequency (e.g., 50Hz for Europe, 60Hz for the US)
-                    }
-                    prep = PrepPipeline(raw, prep_params, montage)
+                    # prep_params = {
+                    #     "ref_chs": raw.ch_names,  # reference all EEG channels (adjust if needed)
+                    #     "reref_chs": raw.ch_names,  # re-reference all EEG channels
+                    #     "line_freqs": [50]  # specify the line noise frequency (e.g., 50Hz for Europe, 60Hz for the US)
+                    # }
+                    # prep = PrepPipeline(raw, prep_params, montage)
                     
-                    # Run the pipeline, which includes ASR for cleaning
-                    prep.fit()
-                    # Extract the cleaned raw data
-                    cleaned_raw = prep.raw
+                    # # Run the pipeline, which includes ASR for cleaning
+                    # prep.fit()
+                    # # Extract the cleaned raw data
+                    # cleaned_raw = prep.raw
 
                     
 
-                    # # Perform ICA for artifact correction
-                    # ica = mne.preprocessing.ICA(n_components=19, random_state=97, max_iter=800)
-                    # ica.fit(raw)
-                    # # eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name=eog_channels)
-                    # ica.exclude = [0,1,2,3,4,5,6,7,8,9,10,11,12]
-                    ica = mne.preprocessing.ICA(random_state=97, max_iter=800)
-                    ica.fit(cleaned_raw)#, reject=reject)
+                    # Perform ICA for artifact correction
+                    ica = mne.preprocessing.ICA(n_components=19, random_state=97, max_iter=800)
+                    ica.fit(raw)
+                    # eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name=eog_channels)
+                    ica.exclude = [0,1,7,8,9,10,11,12]
+                    # ica = mne.preprocessing.ICA(random_state=97, max_iter=800)
+                    # ica.fit(cleaned_raw)#, reject=reject)
                     
                     # ica.exclude = eog_indices
                     # Get channel names and their indices
@@ -2048,8 +2048,8 @@ def upload_file():
                     channel_dict = {name: idx for idx, name in enumerate(channel_names)}  # Create a dictionary with channel names and their indices
                 
                     global_channel_dict = channel_dict
-                    # raw_ica = ica.apply(raw.copy())
-                    raw_ica = ica.apply(cleaned_raw.copy())
+                    raw_ica = ica.apply(raw.copy())
+                    # raw_ica = ica.apply(cleaned_raw.copy())
                     #creating channel dictionary
                     #raw_ica_channel_names = raw_ica.info['ch_names']
                     # Store channel names and indexes in a dictionary
