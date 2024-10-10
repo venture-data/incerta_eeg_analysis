@@ -2013,7 +2013,7 @@ def upload_file():
                     raw.resample(250.)
                 
                     # raw.filter(l_freq=1., h_freq=100.)
-                    raw.filter(l_freq=1., h_freq=70.)
+                    raw.filter(l_freq=1., h_freq=50.)
                     raw.notch_filter(freqs=[16.667, 50]); # bandstop the train and power grid
                     raw_uncleaned = raw.copy()
                     
