@@ -2052,6 +2052,8 @@ def upload_file():
                     # Apply notch filtering to remove line noise (optional)
                     raw.notch_filter(freqs=50) 
 
+                    # excluding start and end time points
+                    raw = raw.crop(tmin=60, tmax=raw.times[-100])
                     # # Perform ICA for artifact correction
                     ica = mne.preprocessing.ICA(n_components=19, random_state=97, max_iter=800)
                    
