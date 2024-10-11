@@ -2080,6 +2080,36 @@ def upload_file():
                     global_channel_dict = channel_dict
                     raw_ica = ica.apply(raw.copy())
 
+                    # Detect bad segments based on muscle artifacts with a threshold of 3.0
+                    annotations, z_scores = mne.preprocessing.annotate_muscle_zscore(raw_ica, threshold=0.5, filter_freq=[20, 50])
+                    
+                    
+                    # Add the annotations to the raw data
+                    raw_ica.set_annotations(annotations)
+
+                    good_segments = []
+                    start_time = 0
+                    
+                    for annotation in raw.annotations:
+                        if 'BAD' in annotation['description'].upper():
+                            # Add interval before this bad segment if it's longer than zero
+                            if annotation['onset'] > start_time:
+                                good_segments.append((start_time, annotation['onset']))
+                            # Update the start time to the end of the current bad segment
+                            start_time = annotation['onset'] + annotation['duration']
+                    
+                    # Add the last segment if there's remaining data
+                    if start_time < raw_ica.times[-1]:
+                        good_segments.append((start_time, raw_ica.times[-1]))
+                    
+                    # Create a new Raw object that contains only the good segments
+                    raw_clean  = mne.concatenate_raws([raw_ica.copy().crop(tmin=start, tmax=stop) for start, stop in good_segments])
+                    
+                    
+                    epochs = mne.Epochs(raw_clean , events, tmin=-0.5, tmax=1.5, preload=True)
+                    
+                    # Automatically reject epochs with large peak-to-peak values
+                    epochs.drop_bad(reject=dict(eeg=50e-6))
                     # Store the processed data globally
                     global_raw_ica = raw_ica
                     global_ica = ica
