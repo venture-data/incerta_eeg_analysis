@@ -2052,8 +2052,19 @@ def upload_file():
                     # Apply notch filtering to remove line noise (optional)
                     raw.notch_filter(freqs=50) 
 
-                    # excluding start and end time points
-                    raw = raw.crop(tmin=60, tmax=raw.times[-100])
+                    raw = raw.crop(tmin=60, tmax=raw.times[-120])
+                    # Create synthetic events for demonstration (every 2 seconds)
+                    events = mne.make_fixed_length_events(raw, duration=1.0)
+                    # Set event ID (you can set any number if you don't have specific event codes)
+                    event_id = 1
+                    
+                    # Create epochs (time window around events, e.g., from -0.2 to 0.5 seconds)
+                    epochs = mne.Epochs(raw, events, event_id=event_id, tmin=-0.2, tmax=0.5, preload=True)
+                    
+                    
+                    # Example of automatic rejection based on peak-to-peak values
+                    rejection_criteria = dict(eeg=100e-6)  # 150 µV
+                    epochs.drop_bad(reject=rejection_criteria)
                     # # Perform ICA for artifact correction
                     ica = mne.preprocessing.ICA(n_components=19, random_state=97, max_iter=800)
                    
