@@ -16,7 +16,8 @@ from mne.transforms import Transform
 from openai import OpenAI
 import re
 from scipy.stats import kurtosis, skew
-from pyprep import PrepPipeline
+from pyprep.prep_pipeline import PrepPipeline  # For ASR
+from autoreject import AutoReject
 
 
 
@@ -1998,120 +1999,96 @@ def upload_file():
                 
                     # Load the EEG data using MNE
                     raw = mne.io.read_raw_edf(filepath, preload=True)
-                
-
-                    # Apply preprocessing
-                
-                    # Apply preprocessing
-                    picks = mne.pick_types(raw.info, meg=False, eeg=True, stim=False, eog=False)
-                    raw.pick(picks)
-                    raw.set_eeg_reference("average")
-                    channels_to_drop = ['Bio1-2', 'Bio3-4', 'ECG', 'Bio4', 'VSyn', 'ASyn', 'LABEL', 'EEG Fpz','A1','A2','EEG Oz']
-                    raw.drop_channels(channels_to_drop)
-                    raw.rename_channels(mapping)
-                    raw.set_montage(montage)
-                    raw.resample(250.)
-                
-                    # raw.filter(l_freq=1., h_freq=100.)
-                    raw.filter(l_freq=1., h_freq=50.)
-                    raw.notch_filter(freqs=[16.667, 50]); # bandstop the train and power grid
-                    raw_uncleaned = raw.copy()
-                    
-                    global_raw = raw_uncleaned
-
-                    
-
-                    # # Perform ICA for artifact correction
-                    # ica = mne.preprocessing.ICA(n_components=19, random_state=97, max_iter=800)
-                    # ica.fit(raw)
-                    # # eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name=eog_channels)
-                    # # ica.exclude = [0,1,7,8,9,10,11,12]
-                    # ica.exclude = [0,1,2,3,4,5,6,7,8,9,11]
-                    # # ica = mne.preprocessing.ICA(random_state=97, max_iter=800)
-                    # # ica.fit(cleaned_raw)#, reject=reject)
-                    
-                    # # ica.exclude = eog_indices
-                    # # Get channel names and their indices
-                    # channel_names = raw.info['ch_names']  # List of channel names
-                    # channel_dict = {name: idx for idx, name in enumerate(channel_names)}  # Create a dictionary with channel names and their indices
-                
-                    # global_channel_dict = channel_dict
-                    # raw_ica = ica.apply(raw.copy())
-                    # # raw_ica = ica.apply(cleaned_raw.copy())
-                    # #creating channel dictionary
-                    # #raw_ica_channel_names = raw_ica.info['ch_names']
-                    # # Store channel names and indexes in a dictionary
-                    # #channel_index_dict = {name: index for index, name in enumerate(raw_ica_channel_names)}
-
-
-                    # 4. Detect and annotate bad segments based on the rejection criteria
-                    reject_criteria = dict(eeg=50e-6)  # 100 µV for EEG
-                    # raw.set_annotations(mne.Annotations(onset=[], duration=[], description=[]))  # Initialize empty annotations
-                    
-                    # 5. Detecting and removing/filtering out slow waves (0–1 Hz) and fast waves (20–35 Hz)
-                    # Apply notch filtering to remove line noise (optional)
-                    raw.notch_filter(freqs=50) 
-
-                    raw = raw.crop(tmin=60, tmax=raw.times[-120])
-                    # Create synthetic events for demonstration (every 2 seconds)
-                    events = mne.make_fixed_length_events(raw, duration=1.0)
-                    # Set event ID (you can set any number if you don't have specific event codes)
-                    event_id = 1
-                    
-                    # Create epochs (time window around events, e.g., from -0.2 to 0.5 seconds)
-                    epochs = mne.Epochs(raw, events, event_id=event_id, tmin=-0.2, tmax=0.5, preload=True)
-                    
-                    
-                    # Example of automatic rejection based on peak-to-peak values
-                    rejection_criteria = dict(eeg=100e-6)  # 150 µV
-                    epochs.drop_bad(reject=rejection_criteria)
-                    # # Perform ICA for artifact correction
-                    ica = mne.preprocessing.ICA(n_components=19, random_state=97, max_iter=800)
-                   
-                    ica.exclude = [0,1,2,3,5,6,7,11,12]
-                    # ica = mne.preprocessing.ICA(random_state=97, max_iter=800)
-                    ica.fit(raw, reject=reject_criteria)
-
-                    # ica.exclude = eog_indices
-                    # Get channel names and their indices
-                    channel_names = raw.info['ch_names']  # List of channel names
-                    channel_dict = {name: idx for idx, name in enumerate(channel_names)}  # Create a dictionary with channel names and their indices
                                     
-                    global_channel_dict = channel_dict
-                    raw_ica = ica.apply(raw.copy())
-
-                    # Detect bad segments based on muscle artifacts with a threshold of 3.0
-                    annotations, z_scores = mne.preprocessing.annotate_muscle_zscore(raw_ica, threshold=0.5, filter_freq=[20, 50])
+                    # Remove 'EEG ' prefix from EEG channel names to match standard 10-20 montage names
+                    rename_dict = {ch: ch.replace('EEG ', '') for ch in raw.ch_names if ch.startswith('EEG ')}
+                    raw.rename_channels(rename_dict)
+                    
+                    raw = raw.crop(tmin=20, tmax=raw.times[-30])
+                    
+                    # --- Adjusting the scale for visualization ---
+                    scaling_values = dict(eeg=10e-6)  # Adjust this value to make the data look less crowded (try 5-10 µV)
                     
                     
-                    # Add the annotations to the raw data
-                    raw_ica.set_annotations(annotations)
-
-                    good_segments = []
-                    start_time = 0
+                    # Set channel types for non-EEG channels
+                    channel_types = {
+                        'Bio1-2': 'ecg',
+                        'Bio3-4': 'misc',
+                        'ECG': 'ecg',
+                        'Bio4': 'misc',
+                        'VSyn': 'stim',
+                        'ASyn': 'stim',
+                        'LABEL': 'misc'
+                    }
+                    raw.set_channel_types(channel_types)
+                    # Set the standard 10-20 montage for only the EEG channels
+                    montage = mne.channels.make_standard_montage('standard_1020')
+                    raw.set_montage(montage, on_missing='ignore')
+                    channels_to_drop = ['Bio1-2', 'Bio3-4', 'ECG', 'Bio4', 'VSyn', 'ASyn', 'LABEL', 'Fpz','A1','A2','Oz']
+                    raw.drop_channels(channels_to_drop)
                     
-                    for annotation in raw.annotations:
-                        if 'BAD' in annotation['description'].upper():
-                            # Add interval before this bad segment if it's longer than zero
-                            if annotation['onset'] > start_time:
-                                good_segments.append((start_time, annotation['onset']))
-                            # Update the start time to the end of the current bad segment
-                            start_time = annotation['onset'] + annotation['duration']
+                    # Apply notch filter to remove 50 Hz powerline noise
+                    raw.notch_filter(freqs=50)
                     
-                    # Add the last segment if there's remaining data
-                    if start_time < raw_ica.times[-1]:
-                        good_segments.append((start_time, raw_ica.times[-1]))
+                    eeg_channels = [ch for ch in raw.ch_names if ch not in ['Bio1-2', 'Bio3-4', 'ECG', 'Bio4', 'VSyn', 'ASyn', 'LABEL']]
                     
-                    # Create a new Raw object that contains only the good segments
-                    raw_clean  = mne.concatenate_raws([raw_ica.copy().crop(tmin=start, tmax=stop) for start, stop in good_segments])
+                    # --- Define prep_params for the PREP pipeline ---
+                    prep_params = {
+                        "ref_chs": eeg_channels,     # Use actual EEG channels for referencing
+                        "reref_chs": eeg_channels,   # Re-reference all EEG channels after PREP
+                        "line_freqs": [50],          # Correct key for line frequency (50 Hz in Europe, 60 Hz for the US)
+                        "max_iterations": 5          # Max iterations for robust referencing (can adjust if needed)
+                    }
+                    
+                    # --- 1. Apply ASR (Artifact Subspace Reconstruction) using pyPREP ---
+                    prep = PrepPipeline(raw, prep_params, montage='standard_1020')
+                    prep.fit()  # Apply the ASR algorithm to clean high-amplitude artifacts
+                    raw_clean_asr = prep.raw
+                    
+                    # --- 2. Apply 'average' reference after PREP using MNE ---
+                    raw_clean_asr.set_eeg_reference(ref_channels='average', projection=True)
+                    
+                    # --- 3. Apply ICA for structured artifacts (eye blinks, muscle) ---
+                    # Apply more aggressive band-pass filter (3-40 Hz) before ICA
+                    raw_filtered = raw_clean_asr.copy().filter(l_freq=3., h_freq=40.)
+                    raw_uncleaned = raw_filtered.copy()
+                    global_raw = raw_uncleaned
+                    
+                    # Dynamically get the picks (channels used for ICA)
+                    picks = mne.pick_types(raw_filtered.info, eeg=True, exclude='bads')
+                    
+                    # Dynamically set n_components based on the number of channels used in ICA
+                    n_components = min(25, len(picks))  # Ensure n_components <= number of channels
+                    
+                    ica = mne.preprocessing.ICA(n_components=n_components, random_state=97, max_iter=1000)
+                    ica.fit(raw_filtered, picks=picks)
+                    
+                    # # Manually inspect the ICA components to find additional artifact-related components
+                    # ica.plot_components()
+                    
+                    # Exclude more components based on visual inspection (especially for eye movement and muscle artifacts)
+                    ica.exclude = [3, 7, 8, 9, 11, 12, 15, 16, 17]  # Add more components here if identified as noisy
+                    
+                    # Find ICA components related to eye blinks using frontal EEG channels as surrogates for EOG
+                    eog_indices, eog_scores = ica.find_bads_eog(raw_filtered, ch_name=['Fp1', 'Fp2'])
+                    ica.exclude.extend(eog_indices)  # Extend exclusion list with EOG-detected components
+                    
+                    # Apply the ICA solution to remove the selected components
+                    raw_clean_ica = raw_filtered.copy()
+                    ica.apply(raw_clean_ica)
+                    # --- 4. Apply Stricter AutoReject for aggressive epoch rejection ---
+                    # Increase interpolation and lower consensus to reject more aggressively
+                    ar = AutoReject(n_interpolate=[1, 4], consensus=[0.5, 0.7], random_state=42)
+                    epochs = mne.make_fixed_length_epochs(raw_clean_ica, duration=2.0, preload=True)
+                    
+                    # Apply AutoReject to remove bad epochs and interpolate bad channels
+                    epochs_clean = ar.fit_transform(epochs)
                     
                     
-                    epochs = mne.Epochs(raw_clean , events, tmin=-0.5, tmax=1.5, preload=True)
                     
-                    # Automatically reject epochs with large peak-to-peak values
-                    epochs.drop_bad(reject=dict(eeg=50e-6))
+                    
                     # Store the processed data globally
-                    global_raw_ica = raw_ica
+                    global_raw_ica = raw_clean_ica 
                     global_ica = ica
                     
                     # #raw openai
@@ -2655,7 +2632,8 @@ def handle_slider_update(data):
                 openai_res_med = re.sub(r'[*#]', '', openai_res_med)
                 print(global_raw_openai_med)
         elif plot_type == 'cleaned' and global_raw_ica:
-            fig = global_raw_ica.plot(start=start_time, duration=4, n_channels=19, show=False)
+            scalings = {'eeg': 5e-6}  # Scale EEG channels to 20 µV
+            fig = global_raw_ica.plot(start=start_time, duration=4, show=False,scalings=scalings)
             if global_raw_ica_openai != None:
                 openai_res = global_raw_ica_openai
                 openai_res = re.sub(r'[*#]', '', openai_res)
