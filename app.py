@@ -2026,6 +2026,8 @@ def upload_file():
                     raw.set_montage(montage, on_missing='ignore')
                     channels_to_drop = ['Bio1-2', 'Bio3-4', 'ECG', 'Bio4', 'VSyn', 'ASyn', 'LABEL', 'Fpz','A1','A2','Oz']
                     raw.drop_channels(channels_to_drop)
+                    raw_uncleaned = raw.copy()
+                    global_raw = raw_uncleaned
                     
                     # Apply notch filter to remove 50 Hz powerline noise
                     raw.notch_filter(freqs=50)
@@ -2051,14 +2053,13 @@ def upload_file():
                     # --- 3. Apply ICA for structured artifacts (eye blinks, muscle) ---
                     # Apply more aggressive band-pass filter (3-40 Hz) before ICA
                     raw_filtered = raw_clean_asr.copy().filter(l_freq=3., h_freq=40.)
-                    raw_uncleaned = raw_filtered.copy()
-                    global_raw = raw_uncleaned
                     
                     # Dynamically get the picks (channels used for ICA)
-                    picks = mne.pick_types(raw_filtered.info, eeg=True, exclude='bads')
+                    picks = mne.pick_types(raw_filtered.info, eeg=True)#, exclude='bads')
                     
                     # Dynamically set n_components based on the number of channels used in ICA
-                    n_components = min(25, len(picks))  # Ensure n_components <= number of channels
+                    # n_components = min(25, len(picks))  # Ensure n_components <= number of channels
+                    n_components = min(25, len(raw.ch_names)) 
                     
                     ica = mne.preprocessing.ICA(n_components=n_components, random_state=97, max_iter=1000)
                     ica.fit(raw_filtered, picks=picks)
