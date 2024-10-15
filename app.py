@@ -2059,7 +2059,7 @@ def upload_file():
                     
                     # Dynamically set n_components based on the number of channels used in ICA
                     # n_components = min(25, len(picks))  # Ensure n_components <= number of channels
-                    n_components = min(25, len(raw.ch_names)) 
+                    n_components = min(25, len(picks)) 
                     
                     ica = mne.preprocessing.ICA(n_components=n_components, random_state=97, max_iter=1000)
                     ica.fit(raw_filtered, picks=picks)
