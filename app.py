@@ -2026,7 +2026,7 @@ def upload_file():
                     raw.set_montage(montage, on_missing='ignore')
                     channels_to_drop = ['Bio1-2', 'Bio3-4', 'ECG', 'Bio4', 'VSyn', 'ASyn', 'LABEL', 'Fpz','A1','A2','Oz']
                     raw.drop_channels(channels_to_drop)
-                    raw_uncleaned = raw.copy().filter(l_freq=1., h_freq=100.)
+                    raw_uncleaned = raw.copy().filter(l_freq=1., h_freq=70.)
                     # raw_uncleaned = raw.copy()
                     global_raw = raw_uncleaned
                     
