@@ -162,7 +162,7 @@ def upload_file():
 
                     # --- 3. Apply ICA for structured artifacts (eye blinks, muscle) ---
                     # Apply more aggressive band-pass filter (3-40 Hz) before ICA
-                    raw_filtered = raw.copy().filter(l_freq=1., h_freq=45.)
+                    raw_filtered = raw.copy().filter(l_freq=1., h_freq=40.)
                     
                     # Dynamically get the picks (channels used for ICA)
                     picks = mne.pick_types(raw_filtered.info, eeg=True, exclude='bads')
