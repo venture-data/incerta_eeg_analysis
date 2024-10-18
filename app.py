@@ -17,6 +17,8 @@ from openai import OpenAI
 import re
 from scipy.stats import kurtosis, skew
 from mne.preprocessing import create_eog_epochs
+from autoreject import AutoReject
+from pyprep.prep_pipeline import PrepPipeline  # For ASR
 
 
 app = Flask(__name__)
@@ -160,9 +162,28 @@ def upload_file():
                     # Apply notch filter to remove 50 Hz powerline noise
                     raw.notch_filter(freqs=50)
 
+                    eeg_channels = [ch for ch in raw.ch_names if ch not in ['Bio1-2', 'Bio3-4', 'ECG', 'Bio4', 'VSyn', 'ASyn', 'LABEL']]
+
+                    # --- Define prep_params for the PREP pipeline ---
+                    prep_params = {
+                        "ref_chs": eeg_channels,     # Use actual EEG channels for referencing
+                        "reref_chs": eeg_channels,   # Re-reference all EEG channels after PREP
+                        "line_freqs": [50],          # Correct key for line frequency (50 Hz in Europe, 60 Hz for the US)
+                        "max_iterations": 5          # Max iterations for robust referencing (can adjust if needed)
+                    }
+
+                    # --- 1. Apply ASR (Artifact Subspace Reconstruction) using pyPREP ---
+                    prep = PrepPipeline(raw, prep_params, montage='standard_1020')
+                    prep.fit()  # Apply the ASR algorithm to clean high-amplitude artifacts
+                    raw_clean_asr = prep.raw
+
+                    # --- 2. Apply 'average' reference after PREP using MNE ---
+                    raw_clean_asr.set_eeg_reference(ref_channels='average', projection=True)
+
                     # --- 3. Apply ICA for structured artifacts (eye blinks, muscle) ---
                     # Apply more aggressive band-pass filter (3-40 Hz) before ICA
-                    raw_filtered = raw.copy().filter(l_freq=0.1, h_freq=40.)
+                    raw_filtered = raw_clean_asr.copy().filter(l_freq=0.3, h_freq=40.)
+                    
                     
                     # Dynamically get the picks (channels used for ICA)
                     picks = mne.pick_types(raw_filtered.info, eeg=True, exclude='bads')
@@ -170,15 +191,14 @@ def upload_file():
                     # Dynamically set n_components based on the number of channels used in ICA
                     n_components = min(25, len(picks))  # Ensure n_components <= number of channels
 
-                    ica = mne.preprocessing.ICA(n_components=n_components, random_state=97, max_iter=1000,
-                                                method = 'fastica')
+                    ica = mne.preprocessing.ICA(n_components=n_components, random_state=97, max_iter=1000)
                     ica.fit(raw_filtered, picks=picks)
 
                     # # Manually inspect the ICA components to find additional artifact-related components
                     # ica.plot_components()
 
                     # Exclude more components based on visual inspection (especially for eye movement and muscle artifacts)
-                    ica.exclude = [3, 7, 8, 9, 11, 12, 15, 16, 17]  # Add more components here if identified as noisy
+                    ica.exclude = [3, 4, 5, 6, 11, 15, 16, 17]  # Add more components here if identified as noisy
 
                     # Find ICA components related to eye blinks using frontal EEG channels as surrogates for EOG
                     eog_indices, eog_scores = ica.find_bads_eog(raw_filtered, ch_name=['Fp1', 'Fp2'])
@@ -187,10 +207,22 @@ def upload_file():
                     # Apply the ICA solution to remove the selected components
                     raw_ica = raw_filtered.copy()
                     ica.apply(raw_ica)
-                    
+                    # --- 4. Apply Stricter AutoReject for aggressive epoch rejection ---
+                    # Increase interpolation and lower consensus to reject more aggressively
+                    ar = AutoReject(n_interpolate=[1, 4], consensus=[0.5, 0.7], random_state=42)
+                    epochs = mne.make_fixed_length_epochs(raw_ica, duration=2.0, preload=True)
+
+                    # Apply AutoReject to remove bad epochs and interpolate bad channels
+                    epochs_clean = ar.fit_transform(epochs)
+                    # Clean the data for all channels, removing residual peaks by replacing with interpolation
+                    # raw_cleaned_ica = remove_residual_peaks_mne(raw_ica, threshold=50e-6, duration=0.05)
+                    # Clean the data for all channels, removing the data around residual peaks by cropping
+                    # raw_cleaned_ica = remove_peaks_by_cropping(raw_ica, threshold=100e-6, crop_duration=2)
+
+
                     # Store the processed data globally
                         
-                    global_raw_ica = raw_ica
+                    global_raw_ica = raw_ica                    
                     channel_names = global_raw_ica.info['ch_names']  # List of channel names
                     channel_dict = {name: idx for idx, name in enumerate(channel_names)}  # Create a dictionary with channel names and their indices
                 
