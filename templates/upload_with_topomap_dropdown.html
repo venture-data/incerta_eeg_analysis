@@ -42,45 +42,8 @@
                     <label for="file">Upload EEG File (.edf)</label>
                     <input type="file" class="form-control-file" name="file" required>
                 </div>
-                <div class="form-group">
-                    <label for="report_type">Select Report Type</label>
-                    <select class="form-control" id="report_type" name="report_type" required>
-                        <option value="patient">Patient Report</option>
-                        <option value="medical">Medical Personnel Report</option>
-                    </select>
-                </div>
 
                 <!-- Additional Input Fields for OpenAI Prompt -->
-                <div class="form-group">
-                    <label for="name">Name</label>
-                    <input type="text" class="form-control" id="name" name="name" required>
-                </div>
-                <div class="form-group">
-                    <label for="known_issues">Known Issues</label>
-                    <input type="text" class="form-control" id="known_issues" name="known_issues" required>
-                </div>
-                <div class="form-group">
-                    <label for="medications">Medications</label>
-                    <input type="text" class="form-control" id="medications" name="medications" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="dob">Date of Birth</label>
-                    <input type="date" class="form-control" id="dob" name="dob" required onchange="calculateAge()">
-                </div>
-
-                <div class="form-group">
-                    <label for="age">Age</label>
-                    <input type="number" class="form-control" id="age" name="age" readonly>
-                </div>
-
-                <div class="form-group">
-                    <label for="gender">Gender</label>
-                    <select class="form-control" id="gender" name="gender" required>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                    </select>
-                </div>
 
                 <input type="submit" class="btn btn-primary" value="Upload">
             </form>
@@ -91,33 +54,6 @@
             <select name="plot_type" id="plot_type" class="form-control" onchange="updatePlotType()">
                 <option value="raw">Raw EEG</option>
                 <option value="cleaned">ICA Cleaned EEG</option>
-                <option value="qeeg_report">qEEG Report Analysis</option>
-                <option value="ica_properties">ICA Components</option>
-                <option value="delta">Delta Band (1.5 - 4 Hz)</option>
-                <option value="theta">Theta Band (4 - 7.5 Hz)</option>
-                <option value="alpha">Alpha Band (7.5 - 14 Hz)</option>
-                <option value="beta-1">Beta-1 Band (14 - 20 Hz)</option>
-                <option value="beta-2">Beta-2 Band (20 - 30 Hz)</option>
-                <option value="gamma">Gamma Band (30 - 40 Hz)</option>
-                <option value="topomaps_relative">Relative Power Topomaps</option>
-                <option value="topomaps_absolute">Absolute Power Topomaps</option>
-                <option value="relative_spectra">Relative Spectra</option>
-                <option value="absolute_spectra">Absolute Spectra</option>
-                <option value="theta_beta_ratio">Theta/Beta Ratio</option>
-                <option value="brain_mapping">Brain Mapping (Theta/Beta)</option>
-                <option value="occipital_alpha_peak">Occipital Alpha Peak Analysis</option>
-                <option value="chewing_artifact_detection">Chewing Artifact Detection</option>
-                <option value="ecg_artifact_detection">ECG Artifact Detection</option>
-                <option value="rectus_artifact_detection">Rectus Artifact Detection</option>
-                <option value="roving_eye_artifact_detection">Roving Eye Artifact Detection</option>
-                <option value="muscle_tension_artifact_detection">Muscle Tension Artifact Detection</option>
-                <option value="blink_artifact_detection">Blink Artifact Detection</option>
-                <option value="rectus_spike_artifact_detection">Rectus Spike Artifact Detection</option>
-                <option value="pdr_artifact_detection">PDR Artifact Detection</option>
-                <option value="impedance_artifact_detection">Impedance Artifact Detection</option>
-                <option value="epileptic_pattern_detection">Epileptic Pattern Detection</option>
-                <option value="dipole_analysis">Dipole Location Analysis</option>
-                <option value="frequency_bins">Frequency Bins Topomaps</option>
             </select>
           </div>
 
@@ -138,16 +74,6 @@
               <img id="plot-image" src="" alt="EEG Plot" class="img-fluid">
           </div>
           <!-- Add a new div to display the EEG report -->
-          <div id="report-container">
-              <h3>EEG Analysis Report</h3>
-              <!-- Change 'report-text' to match the ID in the JavaScript -->
-              <p id="report-text"></p>
-          </div>
-          <div id="report-medical-container">
-              <h3>EEG Medical Expert Analysis Report</h3>
-              <!-- Change 'report-text' to match the ID in the JavaScript -->
-              <p id="report-medical-text"></p>
-          </div>
           {% endif %}
       </div>
     </div>
@@ -182,20 +108,6 @@
         plot_type: plotType
       });
       }
-    function calculateAge() {
-        let dob = document.getElementById('dob').value;
-        if (dob) {
-            let dobDate = new Date(dob);
-            let today = new Date();
-            let age = today.getFullYear() - dobDate.getFullYear();
-            let monthDiff = today.getMonth() - dobDate.getMonth();
-            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dobDate.getDate())) {
-                age--;
-            }
-            document.getElementById('age').value = age;
-        }
-    }
-
     const debouncedUpdateSlider = debounce(updateSlider, 300);
 
     document.getElementById("start_time").oninput = debouncedUpdateSlider;
