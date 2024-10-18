@@ -198,14 +198,14 @@ def upload_file():
                     
                     max_time = int(raw.times[-1])
                     #flash('File successfully uploaded and processed.', 'success')
-                    return render_template('upload_with_topomap_dropdown_dropdown.html', max_time=max_time)
+                    return render_template('upload_with_topomap_dropdown.html', max_time=max_time)
 
                 except Exception as e:
                     print(f"Error processing file: {e}")
                     return "Error processing file", 500
 
     # If the request method is GET, render the upload page
-    return render_template('upload_with_topomap_dropdown_dropdown.html', max_time=0)
+    return render_template('upload_with_topomap_dropdown.html', max_time=0)
 
 
 
