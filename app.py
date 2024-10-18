@@ -255,8 +255,8 @@ def handle_slider_update(data):
         if plot_type == 'raw' and global_raw:
             fig = global_raw.plot(start=start_time, duration=4, n_channels=19, show=False)
         elif plot_type == 'cleaned' and global_raw_ica:
-            # scalings = {'eeg': 5e-6}  # Scale EEG channels to 20 µV
-            fig = global_raw_ica.plot(start=start_time, duration=4, show=False)#,scalings=scalings)
+            scalings = {'eeg': 5e-6}  # Scale EEG channels to 20 µV
+            fig = global_raw_ica.plot(start=start_time, duration=4, show=False,scalings=scalings)
             
         else:
             return  # No action if the plot type is unrecognized or data is not loaded
