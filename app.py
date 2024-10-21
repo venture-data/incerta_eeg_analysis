@@ -178,24 +178,53 @@ def upload_file():
                         end = min(len(times) - 1, peak + int(5 * raw.info['sfreq']))
                         artifact_times.append((start, end))
 
+                # # Power Spectrum Analysis (FFT)
+                # fft_data = np.fft.rfft(raw_filtered.get_data())
+                # freqs = np.fft.rfftfreq(len(raw_filtered.times), d=1. / raw.info['sfreq'])
+                # power_spectra = np.abs(fft_data) ** 2
+
+                # power_threshold = np.mean(power_spectra, axis=1) + 2 * np.std(power_spectra, axis=1)
+                # increased_power_channels = {}
+                # for idx, ch in enumerate(raw_filtered.ch_names):
+                #     increased_freqs = freqs[power_spectra[idx] > power_threshold[idx]]
+                #     if increased_freqs.size > 0:
+                #         increased_power_channels[ch] = increased_freqs
+
+                # # Prepare output with increased power frequencies
+                # findings = []
+                # for ch, freqs in increased_power_channels.items():
+                #     findings.append(f"Channel {ch}: Increased power at frequencies {freqs}")
+                
+                # # Render results
+                # return render_template('upload_with_topomap_dropdown.html', max_time=int(raw_filtered.times[-1]), findings=findings)
                 # Power Spectrum Analysis (FFT)
                 fft_data = np.fft.rfft(raw_filtered.get_data())
                 freqs = np.fft.rfftfreq(len(raw_filtered.times), d=1. / raw.info['sfreq'])
                 power_spectra = np.abs(fft_data) ** 2
-
-                power_threshold = np.mean(power_spectra, axis=1) + 2 * np.std(power_spectra, axis=1)
+                
+                power_mean = np.mean(power_spectra, axis=1)
+                power_std = np.std(power_spectra, axis=1)
+                
                 increased_power_channels = {}
+                decreased_power_channels = {}
+                
                 for idx, ch in enumerate(raw_filtered.ch_names):
-                    increased_freqs = freqs[power_spectra[idx] > power_threshold[idx]]
+                    increased_freqs = freqs[power_spectra[idx] > power_mean[idx] + 2 * power_std[idx]]
+                    decreased_freqs = freqs[power_spectra[idx] < power_mean[idx] - 2 * power_std[idx]]
+                    
                     if increased_freqs.size > 0:
                         increased_power_channels[ch] = increased_freqs
-
-                # Prepare output with increased power frequencies
+                    if decreased_freqs.size > 0:
+                        decreased_power_channels[ch] = decreased_freqs
+                
+                # Prepare output with increased and decreased power frequencies
                 findings = []
                 for ch, freqs in increased_power_channels.items():
                     findings.append(f"Channel {ch}: Increased power at frequencies {freqs}")
+                for ch, freqs in decreased_power_channels.items():
+                    findings.append(f"Channel {ch}: Decreased power at frequencies {freqs}")
                 
-                # Render results
+                # Render the template with the updated findings
                 return render_template('upload_with_topomap_dropdown.html', max_time=int(raw_filtered.times[-1]), findings=findings)
 
             except Exception as e:
