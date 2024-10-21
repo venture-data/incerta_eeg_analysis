@@ -16,6 +16,26 @@
     .plot-container img {
       margin-bottom: 20px;
     }
+
+    .findings-container {
+      margin-top: 20px;
+    }
+
+    .findings-container h3 {
+      margin-bottom: 10px;
+    }
+
+    .findings-container ul {
+      list-style-type: none;
+      padding-left: 0;
+    }
+
+    .findings-container li {
+      background-color: #f8f9fa;
+      padding: 10px;
+      margin-bottom: 5px;
+      border-radius: 4px;
+    }
   </style>
 </head>
 
@@ -43,8 +63,6 @@
                     <input type="file" class="form-control-file" name="file" required>
                 </div>
 
-                <!-- Additional Input Fields for OpenAI Prompt -->
-
                 <input type="submit" class="btn btn-primary" value="Upload">
             </form>
         {% if max_time > 0 %}
@@ -70,10 +88,20 @@
           {% if max_time > 0 %}
           <div class="plot-container">
               <h2>EEG Plot</h2>
-              <!-- Change 'plot-image' to match the ID in the JavaScript -->
               <img id="plot-image" src="" alt="EEG Plot" class="img-fluid">
           </div>
-          <!-- Add a new div to display the EEG report -->
+
+          <!-- Findings section for power spectra analysis -->
+          <div class="findings-container">
+            <h3>Power Spectra Findings</h3>
+            <ul>
+              {% for finding in findings %}
+                <li>{{ finding }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+          <!-- End of Findings section -->
+
           {% endif %}
       </div>
     </div>
@@ -107,7 +135,7 @@
         start_time: sliderValue,
         plot_type: plotType
       });
-      }
+    }
     const debouncedUpdateSlider = debounce(updateSlider, 300);
 
     document.getElementById("start_time").oninput = debouncedUpdateSlider;
@@ -119,12 +147,10 @@
 
         if (data.raw_report) {
             document.getElementById('report-text').innerText = data.raw_report;
-            // Ensure the report container is visible when there is a report
             document.getElementById('report-container').style.display = 'block';
         }
         if (data.raw_medical_report) {
             document.getElementById('report-medical-text').innerText = data.raw_medical_report;
-            // Ensure the report container is visible when there is a report
             document.getElementById('report-medical-container').style.display = 'block';
         }
     });
