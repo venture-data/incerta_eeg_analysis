@@ -111,84 +111,108 @@ global_ica = None
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
-    global global_raw, global_raw_ica, global_ica
-
     if request.method == 'POST':
-        uploaded_file = request.files['file']
+       
+        uploaded_file = request.files['file']        
         
         if uploaded_file:
             file_ext = os.path.splitext(uploaded_file.filename)[1]
             if file_ext.lower() != '.edf':
                 flash('Invalid file format! Please upload a .edf file.', 'error')
                 return redirect(request.url)
-            
-            try:
-                f = request.files['file']
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], f.filename)
-                f.save(filepath)
-
-                # Load the EEG data using MNE
-                raw = mne.io.read_raw_edf(filepath, preload=True)
-                raw.rename_channels({ch: ch.replace('EEG ', '') for ch in raw.ch_names if ch.startswith('EEG ')})
-                raw.set_montage(montage, on_missing='ignore')
+            # Handle file upload
+            if 'file' in request.files:
+                try:
+                    f = request.files['file']
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], f.filename)
+                    f.save(filepath)
                 
-                # Filter and clean raw data
-                raw.filter(l_freq=1., h_freq=120., picks='eeg')
-                raw.notch_filter(freqs=50, picks='eeg')
-
-                # ASR and ICA
-                prep_params = {
-                    "ref_chs": raw.ch_names, 
-                    "reref_chs": raw.ch_names,
-                    "line_freqs": [50], "max_iterations": 5
-                }
-                prep = PrepPipeline(raw, prep_params, montage='standard_1020')
-                prep.fit()
-                raw_clean_asr = prep.raw
-                raw_clean_asr.set_eeg_reference(ref_channels='average')
-
-                # ICA
-                raw_filtered = raw_clean_asr.copy().filter(l_freq=0.3, h_freq=40.)
-                ica = mne.preprocessing.ICA(n_components=min(25, len(raw.ch_names)), random_state=97, max_iter=1000)
-                ica.fit(raw_filtered)
-                ica.apply(raw_filtered)
-
-                global_raw_ica = raw_filtered
-
-                # Artifact detection based on thresholds
-                threshold = 100e-6  # 100 µV threshold for detecting artifacts
-                artifact_times = []
-                for ch in raw_filtered.ch_names:
-                    data, times = raw_filtered[ch, :]
-                    peaks, _ = find_peaks(np.abs(data[0]), height=threshold)
-                    for peak in peaks:
-                        start = max(0, peak - int(5 * raw.info['sfreq']))
-                        end = min(len(times) - 1, peak + int(5 * raw.info['sfreq']))
-                        artifact_times.append((start, end))
-
-                # Power Spectrum Analysis (FFT)
-                fft_data = np.fft.rfft(raw_filtered.get_data())
-                freqs = np.fft.rfftfreq(len(raw_filtered.times), d=1. / raw.info['sfreq'])
-                power_spectra = np.abs(fft_data) ** 2
-
-                power_threshold = np.mean(power_spectra, axis=1) + 2 * np.std(power_spectra, axis=1)
-                increased_power_channels = {}
-                for idx, ch in enumerate(raw_filtered.ch_names):
-                    increased_freqs = freqs[power_spectra[idx] > power_threshold[idx]]
-                    if increased_freqs.size > 0:
-                        increased_power_channels[ch] = increased_freqs
-
-                # Prepare output with increased power frequencies
-                findings = []
-                for ch, freqs in increased_power_channels.items():
-                    findings.append(f"Channel {ch}: Increased power at frequencies {freqs}")
+                    # Load the EEG data using MNE
+                    raw = mne.io.read_raw_edf(filepath, preload=True)
                 
-                # Render results
-                return render_template('upload_with_topomap_dropdown.html', max_time=int(raw_filtered.times[-1]), findings=findings)
+                    # Remove 'EEG ' prefix from EEG channel names to match standard 10-20 montage names
+                    rename_dict = {ch: ch.replace('EEG ', '') for ch in raw.ch_names if ch.startswith('EEG ')}
+                    raw.rename_channels(rename_dict)
+                    
+                    raw = raw.crop(tmin=20, tmax=raw.times[-30])
+                    
+                    # --- Adjusting the scale for visualization ---
+                    scaling_values = dict(eeg=10e-6)  # Adjust this value to make the data look less crowded (try 5-10 µV)
 
-            except Exception as e:
-                print(f"Error processing file: {e}")
-                return "Error processing file", 500
+
+                    # Set channel types for non-EEG channels
+                    channel_types = {
+                        'Bio1-2': 'ecg',
+                        'Bio3-4': 'misc',
+                        'ECG': 'ecg',
+                        'Bio4': 'misc',
+                        'VSyn': 'stim',
+                        'ASyn': 'stim',
+                        'LABEL': 'misc'
+                    }
+                    raw.set_channel_types(channel_types)
+                    # Set the standard 10-20 montage for only the EEG channels
+                    montage = mne.channels.make_standard_montage('standard_1020')
+                    raw.set_montage(montage, on_missing='ignore')
+                    channels_to_drop = ['Bio1-2', 'Bio3-4', 'ECG', 'Bio4', 'VSyn', 'ASyn', 'LABEL', 'Fpz','A1','A2','Oz']
+                    raw.drop_channels(channels_to_drop)
+                    raw_uncleaned = raw.copy().filter(l_freq=1., h_freq=120.)
+                    global_raw = raw_uncleaned
+                    raw.notch_filter(freqs=50, picks='eeg')
+    
+                    # ASR and ICA
+                    prep_params = {
+                        "ref_chs": raw.ch_names, 
+                        "reref_chs": raw.ch_names,
+                        "line_freqs": [50], "max_iterations": 5
+                    }
+                    prep = PrepPipeline(raw, prep_params, montage='standard_1020')
+                    prep.fit()
+                    raw_clean_asr = prep.raw
+                    raw_clean_asr.set_eeg_reference(ref_channels='average')
+    
+                    # ICA
+                    raw_filtered = raw_clean_asr.copy().filter(l_freq=0.3, h_freq=40.)
+                    ica = mne.preprocessing.ICA(n_components=min(25, len(raw.ch_names)), random_state=97, max_iter=1000)
+                    ica.fit(raw_filtered)
+                    ica.apply(raw_filtered)
+    
+                    global_raw_ica = raw_filtered
+    
+                    # Artifact detection based on thresholds
+                    threshold = 100e-6  # 100 µV threshold for detecting artifacts
+                    artifact_times = []
+                    for ch in raw_filtered.ch_names:
+                        data, times = raw_filtered[ch, :]
+                        peaks, _ = find_peaks(np.abs(data[0]), height=threshold)
+                        for peak in peaks:
+                            start = max(0, peak - int(5 * raw.info['sfreq']))
+                            end = min(len(times) - 1, peak + int(5 * raw.info['sfreq']))
+                            artifact_times.append((start, end))
+    
+                    # Power Spectrum Analysis (FFT)
+                    fft_data = np.fft.rfft(raw_filtered.get_data())
+                    freqs = np.fft.rfftfreq(len(raw_filtered.times), d=1. / raw.info['sfreq'])
+                    power_spectra = np.abs(fft_data) ** 2
+    
+                    power_threshold = np.mean(power_spectra, axis=1) + 2 * np.std(power_spectra, axis=1)
+                    increased_power_channels = {}
+                    for idx, ch in enumerate(raw_filtered.ch_names):
+                        increased_freqs = freqs[power_spectra[idx] > power_threshold[idx]]
+                        if increased_freqs.size > 0:
+                            increased_power_channels[ch] = increased_freqs
+    
+                    # Prepare output with increased power frequencies
+                    findings = []
+                    for ch, freqs in increased_power_channels.items():
+                        findings.append(f"Channel {ch}: Increased power at frequencies {freqs}")
+                    
+                    # Render results
+                    return render_template('upload_with_topomap_dropdown.html', max_time=int(raw_filtered.times[-1]), findings=findings)
+
+                except Exception as e:
+                    print(f"Error processing file: {e}")
+                    return "Error processing file", 500
 
     return render_template('upload_with_topomap_dropdown.html', max_time=0)
 
