@@ -129,8 +129,13 @@ def upload_file():
                 # Load the EEG data using MNE
                 raw = mne.io.read_raw_edf(filepath, preload=True)
                 raw.rename_channels({ch: ch.replace('EEG ', '') for ch in raw.ch_names if ch.startswith('EEG ')})
-                raw.set_montage(montage, on_missing='ignore')
+                # Remove unnecessary channels before applying the montage
+                channels_to_drop = ['Bio1-2', 'Bio3-4', 'ECG', 'Bio4', 'VSyn', 'ASyn', 'LABEL']
+                raw.drop_channels(channels_to_drop)
                 
+                # Now apply the montage
+                montage = mne.channels.make_standard_montage('standard_1020')
+                raw.set_montage(montage, on_missing='ignore')  # Use 'ignore' to skip missing channels if needed                
                 # Filter and clean raw data
                 raw.filter(l_freq=1., h_freq=120., picks='eeg')
                 raw.notch_filter(freqs=50, picks='eeg')
