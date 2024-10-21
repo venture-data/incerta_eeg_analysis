@@ -155,8 +155,14 @@ def upload_file():
                 # ICA
                 raw_filtered = raw_clean_asr.copy().filter(l_freq=0.3, h_freq=40.)
                 
-                ica = mne.preprocessing.ICA(n_components=min(25, len(raw_filtered.ch_names)), random_state=97, max_iter=1000)
-                ica.fit(raw_filtered)
+                # Dynamically get the picks (channels used for ICA)
+                picks = mne.pick_types(raw_filtered.info, eeg=True, exclude='bads')
+
+                # Dynamically set n_components based on the number of channels used in ICA
+                n_components = min(17, len(picks))  # Ensure n_components <= number of channels
+
+                ica = mne.preprocessing.ICA(n_components=n_components, random_state=97, max_iter=1000)
+                ica.fit(raw_filtered, picks=picks)
                 ica.apply(raw_filtered)
 
                 global_raw_ica = raw_filtered
