@@ -151,9 +151,11 @@ def upload_file():
                 raw_clean_asr = prep.raw
                 raw_clean_asr.set_eeg_reference(ref_channels='average')
 
+                
                 # ICA
                 raw_filtered = raw_clean_asr.copy().filter(l_freq=0.3, h_freq=40.)
-                ica = mne.preprocessing.ICA(n_components=min(25, len(raw.ch_names)), random_state=97, max_iter=1000)
+                
+                ica = mne.preprocessing.ICA(n_components=min(25, len(raw_filtered.ch_names)), random_state=97, max_iter=1000)
                 ica.fit(raw_filtered)
                 ica.apply(raw_filtered)
 
