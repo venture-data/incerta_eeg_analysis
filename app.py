@@ -115,6 +115,15 @@ global_decreased_combined_power_fig = None
 global_decreased_activation_bandwise = None
 global_increased_combined_power_fig = None
 global_increased_activation_bandwise = None
+global_abs_power_spectra_lines = None
+global_abs_power_spectra_topo = None
+global_rel_power_spectra_lines = None
+global_rel_power_spectra_topo = None
+global_theta_beta_ratio= None
+global_asymmetry_fig = None
+global_brodmann_dorsolateral = None
+global_brodmann_dorsolateral_combined = None
+global_brodmann_findings = None
 
 
 
@@ -122,7 +131,10 @@ global_increased_activation_bandwise = None
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
     global global_raw, global_raw_ica, global_ica, global_channel_dict, global_decreased_combined_power_fig, \
-    global_decreased_activation_bandwise, global_increased_combined_power_fig, global_increased_activation_bandwise
+    global_decreased_activation_bandwise, global_increased_combined_power_fig, global_increased_activation_bandwise, \
+    global_abs_power_spectra_lines, global_abs_power_spectra_topo, global_rel_power_spectra_lines,global_rel_power_spectra_topo, \
+    global_theta_beta_ratio, global_asymmetry_fig, global_brodmann_dorsolateral, global_brodmann_dorsolateral_combined, \
+    global_brodmann_findings
 
     if request.method == 'POST':
        
@@ -619,7 +631,517 @@ def upload_file():
 
                     # Call the function and store the figure globally
                     global_increased_combined_power_fig = plot_increased_combined_power()
+                    
+                    num_channels = len(channel_names)
+                    # Function to plot relative power lines and return the figure
+                    def plot_absolute_power_lines():
+                        # Determine the number of rows needed for the grid of subplots
+                        # Number of channels
+                        num_channels = len(channel_names)
 
+                        
+                        ncols = 3
+                        nrows = (num_channels + ncols - 1) // ncols  # Calculate rows based on number of channels
+
+                        # Create a figure with subplots arranged in a grid
+                        fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(16, 4 * nrows), constrained_layout=True)
+
+                        # Set up normalization manually
+                        vmin, vmax = 0, 15  # Adjust these values as needed
+                        cmap = 'jet'  # Colormap
+
+                        for i, ch_name in enumerate(channel_names):
+                            ax = axs[i // ncols, i % ncols]  # Get the subplot axis
+
+                            # Plot the power spectrum for the current channel
+                            ax.plot(freqs, psds[i], color='black', linewidth=1, label=f'{ch_name} Power Spectrum')
+
+                            # Fill each frequency band with colors
+                            ax.fill_between(freqs, psds[i], where=(freqs >= 0.5) & (freqs <= 4), color='brown', alpha=1.0, label='Delta Band')
+                            ax.fill_between(freqs, psds[i], where=(freqs > 4) & (freqs <= 8), color='orange', alpha=1.0, label='Theta Band')
+                            ax.fill_between(freqs, psds[i], where=(freqs > 8) & (freqs <= 13), color='blue', alpha=1.0, label='Alpha Band')
+                            ax.fill_between(freqs, psds[i], where=(freqs > 13) & (freqs <= 20), color='green', alpha=1.0, label='Beta1 Band')
+                            ax.fill_between(freqs, psds[i], where=(freqs > 20) & (freqs <= 30), color='yellow', alpha=1.0, label='Beta2 Band')
+                            ax.fill_between(freqs, psds[i], where=(freqs > 30) & (freqs <= 40), color='cyan', alpha=1.0, label='Gamma Band')
+
+                            # Add labels and grid for each subplot
+                            ax.set_title(f'Absolute Power Spectrum - {ch_name}')
+                            ax.set_xlabel('Frequency (Hz)')
+                            ax.set_ylabel('Power (uV^2/Hz)')
+                            ax.legend(loc='upper right', fontsize='small')
+                            ax.grid(True)
+
+                        # Hide any unused subplots
+                        for j in range(num_channels, nrows * ncols):
+                            axs[j // ncols, j % ncols].set_visible(False)
+
+                        # Add a main title for the entire figure
+                        plt.suptitle('Absolute Power Spectra for All Channels', fontsize=20)
+
+                        # Return the figure object
+                        return fig
+
+                    # Call the function and store the figure globally
+                    global_abs_power_spectra_lines = plot_absolute_power_lines()
+
+                    # Function to plot absolute power spectra topomaps and return the figure
+                    def plot_absolute_power_spectra():
+                        # Create a figure with 2 rows and 3 columns
+                        fig, axs = plt.subplots(2, 3, figsize=(16, 12))  # Adjusted figure size
+
+                        # Set up normalization and colormap
+                        vmin, vmax = 0, 15  # Adjust these values as needed
+                        cmap = 'jet'
+
+                        # Plot topomaps for each frequency band
+                        mne.viz.plot_topomap(delta_power, cleaned_raw.info, axes=axs[0, 0], show=False, cmap=cmap)
+                        axs[0, 0].set_title('Delta Power')
+                        
+                        mne.viz.plot_topomap(theta_power, cleaned_raw.info, axes=axs[0, 1], show=False, cmap=cmap)
+                        axs[0, 1].set_title('Theta Power')
+                        
+                        mne.viz.plot_topomap(alpha_power, cleaned_raw.info, axes=axs[0, 2], show=False, cmap=cmap)
+                        axs[0, 2].set_title('Alpha Power')
+                        
+                        mne.viz.plot_topomap(beta1_power, cleaned_raw.info, axes=axs[1, 0], show=False, cmap=cmap)
+                        axs[1, 0].set_title('Beta1 Power')
+                        
+                        mne.viz.plot_topomap(beta2_power, cleaned_raw.info, axes=axs[1, 1], show=False, cmap=cmap)
+                        axs[1, 1].set_title('Beta2 Power')
+                        
+                        mne.viz.plot_topomap(gamma_power, cleaned_raw.info, axes=axs[1, 2], show=False, cmap=cmap)
+                        axs[1, 2].set_title('Gamma Power')
+
+                        # Add the main title
+                        plt.suptitle('Absolute Power Spectra', fontsize=16)
+
+                        # Adjust layout to prevent overlap
+                        plt.tight_layout()
+                        plt.subplots_adjust(top=0.90, bottom=0.1, wspace=0.3, hspace=0.4, right=0.85)  # Adjust for colorbar
+
+                        # Create and position the colorbar
+                        cbar_ax = fig.add_axes([0.88, 0.15, 0.02, 0.7])  # Adjusted position for colorbar
+                        norm = plt.Normalize(vmin=vmin, vmax=vmax)
+                        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+                        sm.set_array([])  # Required for ScalarMappable
+                        cbar = fig.colorbar(sm, cax=cbar_ax)
+                        cbar.set_label('Power (µV²)')
+
+                        # Return the figure object
+                        return fig
+
+                    # Call the function and store the figure globally
+                    global_abs_power_spectra_topo = plot_absolute_power_spectra()
+
+
+                    # Function to plot relative power spectra lines and return the figure
+                    def plot_relative_power_spectra_lines():
+                        # Calculate the total power for normalization
+                        total_power = np.sum(psds, axis=1)
+
+                        # Number of channels and grid dimensions
+                        ncols = 3
+                        nrows = (num_channels + ncols - 1) // ncols  # Calculate rows based on number of channels
+
+                        # Create a figure with subplots arranged in a grid
+                        fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(16, 4 * nrows), constrained_layout=True)
+
+                        # Plot relative power spectrum for each channel
+                        for i, ch_name in enumerate(channel_names):
+                            # Calculate relative power spectra as percentage of total power
+                            relative_psd = (psds[i] / total_power[i]) * 100
+
+                            ax = axs[i // ncols, i % ncols]  # Get the subplot axis
+
+                            # Plot the relative power spectrum for the current channel
+                            ax.plot(freqs, relative_psd, color='black', linewidth=1.5, label=f'{ch_name} Relative Power Spectrum (%P)')
+
+                            # Fill each frequency band with colors
+                            ax.fill_between(freqs, relative_psd, where=(freqs >= 0.5) & (freqs <= 4), color='brown', alpha=1.0, label='Delta Band')
+                            ax.fill_between(freqs, relative_psd, where=(freqs > 4) & (freqs <= 8), color='orange', alpha=1.0, label='Theta Band')
+                            ax.fill_between(freqs, relative_psd, where=(freqs > 8) & (freqs <= 13), color='blue', alpha=1.0, label='Alpha Band')
+                            ax.fill_between(freqs, relative_psd, where=(freqs > 13) & (freqs <= 20), color='green', alpha=1.0, label='Beta1 Band')
+                            ax.fill_between(freqs, relative_psd, where=(freqs > 20) & (freqs <= 30), color='yellow', alpha=1.0, label='Beta2 Band')
+                            ax.fill_between(freqs, relative_psd, where=(freqs > 30) & (freqs <= 40), color='cyan', alpha=1.0, label='Gamma Band')
+
+                            # Add labels and grid for each subplot
+                            ax.set_title(f'Relative Power Spectrum (%P) - {ch_name}')
+                            ax.set_xlabel('Frequency (Hz)')
+                            ax.set_ylabel('Relative Power (%P)')
+                            ax.legend(loc='upper right', fontsize='small')
+                            ax.grid(True)
+
+                        # Hide any unused subplots
+                        for j in range(num_channels, nrows * ncols):
+                            axs[j // ncols, j % ncols].set_visible(False)
+
+                        # Add a main title for the entire figure
+                        plt.suptitle('Relative Power Spectra for All Channels', fontsize=20)
+
+                        # Return the figure object
+                        return fig
+
+                    # Call the function and store the figure globally
+                    global_rel_power_spectra_lines = plot_relative_power_spectra_lines()
+
+                    # Function to plot relative power spectra topomaps and return the figure
+                    def plot_relative_power_spectra_topo():
+                        # Create a figure with 2 rows and 3 columns layout
+                        fig, axs = plt.subplots(2, 3, figsize=(18, 12))
+
+                        # Set up normalization and colormap
+                        vmin, vmax = 0, 15  # Adjust these based on your dataset
+                        cmap = 'jet'
+
+                        # Plot topomaps for each frequency band
+                        mne.viz.plot_topomap(relative_delta_power, cleaned_raw.info, axes=axs[0, 0], show=False, cmap=cmap)
+                        axs[0, 0].set_title('Delta Power')
+                        
+                        mne.viz.plot_topomap(relative_theta_power, cleaned_raw.info, axes=axs[0, 1], show=False, cmap=cmap)
+                        axs[0, 1].set_title('Theta Power')
+                        
+                        mne.viz.plot_topomap(relative_alpha_power, cleaned_raw.info, axes=axs[0, 2], show=False, cmap=cmap)
+                        axs[0, 2].set_title('Alpha Power')
+                        
+                        mne.viz.plot_topomap(relative_beta1_power, cleaned_raw.info, axes=axs[1, 0], show=False, cmap=cmap)
+                        axs[1, 0].set_title('Beta1 Power')
+                        
+                        mne.viz.plot_topomap(relative_beta2_power, cleaned_raw.info, axes=axs[1, 1], show=False, cmap=cmap)
+                        axs[1, 1].set_title('Beta2 Power')
+                        
+                        mne.viz.plot_topomap(relative_gamma_power, cleaned_raw.info, axes=axs[1, 2], show=False, cmap=cmap)
+                        axs[1, 2].set_title('Gamma Power')
+
+                        # Add the main title
+                        plt.suptitle('Relative Power Spectra (%P)', fontsize=16)
+
+                        # Adjust layout to avoid overlap with the color bar
+                        plt.tight_layout()
+                        plt.subplots_adjust(top=0.90, bottom=0.1, right=0.85, wspace=0.3, hspace=0.4)  # Adjust for colorbar
+
+                        # Create and position the colorbar
+                        cbar_ax = fig.add_axes([0.88, 0.15, 0.02, 0.7])  # Position for colorbar
+                        norm = plt.Normalize(vmin=vmin, vmax=vmax)
+                        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+                        sm.set_array([])  # Required for ScalarMappable
+                        cbar = fig.colorbar(sm, cax=cbar_ax)
+                        cbar.set_label('Power (%P)')
+
+                        # Return the figure object
+                        return fig
+
+                    # Call the function and store the figure globally
+                    global_rel_power_spectra_topo = plot_relative_power_spectra_topo()
+
+                    # Function to plot the Theta/Beta1 ratio topomap and return the figure
+                    def plot_theta_beta_ratio():
+                        # Calculate Theta/Beta1 ratio for each channel
+                        theta_beta_ratio = theta_power / beta1_power
+
+                        # Create a figure and axis for the topomap
+                        fig, ax = plt.subplots(figsize=(6, 6))
+
+                        # Plot the topomap with the 'jet' colormap
+                        im, _ = mne.viz.plot_topomap(theta_beta_ratio, cleaned_raw.info, axes=ax, show=False, cmap='jet')
+
+                        # Add a color bar to the side
+                        cbar = plt.colorbar(im, ax=ax, orientation='vertical')
+                        cbar.set_label('Theta/Beta1 Ratio')
+
+                        # Add a title
+                        ax.set_title('Theta/Beta1 Ratio (Attention Index)', fontsize=14)
+
+                        # Return the figure object
+                        return fig
+
+                    # Call the function and store the figure globally
+                    global_theta_beta_ratio = plot_theta_beta_ratio()
+
+                    # Function to plot asymmetry topomaps for each frequency band and return the figure
+                    def plot_asymmetry():
+                        frequency_bands = {
+                            'Delta': delta_power,
+                            'Theta': theta_power,
+                            'Alpha': alpha_power,
+                            'Beta1': beta1_power,
+                            'Beta2': beta2_power,
+                            'Gamma': gamma_power
+                        }
+
+                        # Define zones: pairs of left and right hemisphere channels
+                        zones = {
+                            'Frontal': (['F3', 'F7', 'Fp1'], ['F4', 'F8', 'Fp2']),
+                            'Central': (['C3'], ['C4']),
+                            'Temporal': (['T3', 'T5'], ['T4', 'T6']),
+                            'Parietal': (['P3'], ['P4']),
+                            'Occipital': (['O1'], ['O2'])
+                        }
+
+                        # Channel names in the standard 10-20 system
+                        channel_names = ['Fp1', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz', 'C4', 'T4', 'T5', 'P3', 'Pz', 'P4', 'T6', 'O1', 'O2']
+
+                        # Initialize a figure for the topomaps (2x3 grid for the 6 frequency bands)
+                        fig, axs = plt.subplots(2, 3, figsize=(15, 10))
+
+                        # Iterate over each frequency band and calculate the asymmetry
+                        for i, (band_name, power_data) in enumerate(frequency_bands.items()):
+                            # Map power data to channels
+                            channel_power_map = dict(zip(channel_names, power_data))
+
+                            # Calculate asymmetry for each zone (left-right difference)
+                            asymmetry_by_zone = {}
+                            for zone_name, (left_channels, right_channels) in zones.items():
+                                left_power = np.mean([channel_power_map[ch] for ch in left_channels])
+                                right_power = np.mean([channel_power_map[ch] for ch in right_channels])
+                                asymmetry_by_zone[zone_name] = left_power - right_power  # Asymmetry = left - right
+
+                            # Create an array with the asymmetry values for topomap plotting
+                            asymmetry_values = np.zeros(19)
+
+                            # Assign asymmetry values to left and right hemisphere channels
+                            for zone_name, (left_channels, right_channels) in zones.items():
+                                left_asymmetry = asymmetry_by_zone[zone_name]
+                                for ch in left_channels:
+                                    asymmetry_values[channel_names.index(ch)] = left_asymmetry
+                                for ch in right_channels:
+                                    asymmetry_values[channel_names.index(ch)] = -left_asymmetry  # Right side gets negative value
+
+                            # Plot the asymmetry topomap for the current frequency band
+                            ax = axs[i // 3, i % 3]  # Select the subplot for the current frequency band
+                            im, _ = mne.viz.plot_topomap(asymmetry_values, cleaned_raw.info, axes=ax, show=False, cmap='jet', contours=4)
+
+                            # Set a title for each plot (the name of the frequency band)
+                            ax.set_title(f'{band_name} Band', fontsize=14)
+
+                        # Add a color bar for the entire figure
+                        fig.subplots_adjust(right=0.9)  # Make space on the right for the color bar
+                        cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])  # Position for the color bar
+                        fig.colorbar(im, cax=cbar_ax)
+
+                        # Add an overall title
+                        plt.suptitle('Asymmetry', fontsize=16)
+
+                        # Return the figure object
+                        return fig
+
+                    # Call the function and store the figure globally
+                    global_asymmetry_fig = plot_asymmetry()
+
+                    # Function to plot deviations for each Brodmann area and return the figures in a dictionary
+                    def plot_brodmann_dorsolateral():
+                        # Normative values (assuming you have calculated alpha_power, beta1_power, etc.)
+                        normative_values = {
+                            'Alpha': np.mean(alpha_power),
+                            'Beta1': np.mean(beta1_power),
+                            'Beta2': np.mean(beta2_power),
+                            'Gamma': np.mean(gamma_power),
+                            'Theta': np.mean(theta_power),
+                            'Delta': np.mean(delta_power)
+                        }
+
+                        # Map EEG channels to Brodmann areas
+                        brodmann_mapping = {
+                            'Fp1': 'Brodmann Area 11', 'Fp2': 'Brodmann Area 11', 'F7': 'Brodmann Area 46',
+                            'F3': 'Brodmann Area 46', 'Fz': 'Brodmann Area 9', 'F4': 'Brodmann Area 46',
+                            'F8': 'Brodmann Area 46', 'T3': 'Brodmann Area 21', 'C3': 'Brodmann Area 4',
+                            'Cz': 'Brodmann Area 4', 'C4': 'Brodmann Area 4', 'T4': 'Brodmann Area 21',
+                            'T5': 'Brodmann Area 39', 'P3': 'Brodmann Area 39', 'Pz': 'Brodmann Area 7',
+                            'P4': 'Brodmann Area 39', 'T6': 'Brodmann Area 39', 'O1': 'Brodmann Area 17',
+                            'O2': 'Brodmann Area 17'
+                        }
+
+                        # Initialize dictionary to store average power for each Brodmann area
+                        brodmann_area_power = {area: {band: 0 for band in normative_values.keys()} for area in set(brodmann_mapping.values())}
+
+                        # Calculate average power for each Brodmann area
+                        for area in brodmann_area_power.keys():
+                            area_channels = [ch for ch, mapped_area in brodmann_mapping.items() if mapped_area == area]
+
+                            for band in normative_values.keys():
+                                power_values = []
+                                for channel in area_channels:
+                                    if channel in locals():  # Ensure the power variable exists
+                                        power_values.append(locals()[f"{band.lower()}_power"][cleaned_raw.ch_names.index(channel)])
+
+                                brodmann_area_power[area][band] = np.mean(power_values) if power_values else 0
+
+                        # Calculate deviations from normative values
+                        deviation_results = {}
+                        for area, area_power in brodmann_area_power.items():
+                            deviations = {}
+                            for band, value in area_power.items():
+                                deviation = value - normative_values[band]
+                                deviations[band] = deviation
+                            deviation_results[area] = deviations
+
+                        # Brodmann area descriptions
+                        brodmann_area_descriptions = {
+                            'Brodmann Area 11': 'Orbital Gyrus Frontal Lobe',
+                            'Brodmann Area 4': 'Precentral Gyrus Frontal Lobe',
+                            'Brodmann Area 39': 'Angular Gyrus Parietal Lobe',
+                            'Brodmann Area 21': 'Middle Temporal Gyrus Temporal Lobe',
+                            'Brodmann Area 46': 'Dorsolateral Prefrontal Cortex',
+                            'Brodmann Area 17': 'Primary Visual Cortex',
+                            'Brodmann Area 7': 'Superior Parietal Lobule',
+                            'Brodmann Area 9': 'Dorsolateral Prefrontal Cortex'
+                        }
+
+                        # Dictionary to store the figures
+                        brodmann_figures = {}
+
+                        # Plot deviations for each Brodmann area
+                        for area, deviations in deviation_results.items():
+                            description = brodmann_area_descriptions.get(area, "Description not found")
+                            
+                            # Create a new figure for each Brodmann area
+                            fig, ax = plt.subplots(figsize=(10, 4))
+                            ax.bar(deviations.keys(), deviations.values(), color='skyblue')
+                            ax.set_title(f"{area}: {description}")
+                            ax.set_xlabel("Frequency Band")
+                            ax.set_ylabel("Deviation from Norm")
+                            
+                            # Store the figure in the dictionary
+                            brodmann_figures[area] = fig
+
+                        # Return the dictionary of figures
+                        return brodmann_figures
+
+                    # Call the function and store the result globally
+                    global_brodmann_dorsolateral = plot_brodmann_dorsolateral()
+
+                    # Function to create a combined figure with multiple Brodmann area plots
+                    def plot_combined_brodmann_dorsolateral(brodmann_figures):
+                        num_plots = len(brodmann_figures)
+                        ncols = 3  # Set number of columns (adjustable)
+                        nrows = (num_plots + ncols - 1) // ncols  # Calculate number of rows based on number of plots
+
+                        fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(15, 5 * nrows))  # Adjust the figure size
+
+                        # Flatten the axes array for easy indexing
+                        axs = axs.flatten()
+
+                        # Plot each Brodmann area in a subplot
+                        for i, (area, brodmann_fig) in enumerate(brodmann_figures.items()):
+                            # Extract the bar chart data from each Brodmann area plot
+                            deviations = brodmann_fig.axes[0].containers[0].datavalues
+                            labels = [label.get_text() for label in brodmann_fig.axes[0].get_xticklabels()]
+                            
+                            axs[i].bar(labels, deviations, color='skyblue')
+                            axs[i].set_title(area)
+                            axs[i].set_xlabel("Frequency Band")
+                            axs[i].set_ylabel("Deviation from Norm")
+
+                        # Hide any remaining unused subplots
+                        for j in range(i + 1, len(axs)):
+                            axs[j].axis('off')
+
+                        # Add a main title for the entire combined figure
+                        plt.suptitle("Brodmann Area Deviations", fontsize=16)
+
+                        # Return the combined figure
+                        return fig
+
+                    # Call the function and store the combined figure globally
+                    global_brodmann_dorsolateral_combined = plot_combined_brodmann_dorsolateral(global_brodmann_dorsolateral)
+
+                    #brodmann findings
+                    def generate_brodmann_findings_figure():
+                        # Generate the findings text as before
+                        normative_values = {
+                            'Alpha': np.mean(alpha_power),
+                            'Beta1': np.mean(beta1_power),
+                            'Beta2': np.mean(beta2_power),
+                            'Gamma': np.mean(gamma_power),
+                            'Theta': np.mean(theta_power),
+                            'Delta': np.mean(delta_power)
+                        }
+                        
+
+                        # Map EEG channels to Brodmann areas
+                        brodmann_mapping = {
+                            'Fp1': 'Brodmann Area 11',
+                            'Fp2': 'Brodmann Area 11',
+                            'F7': 'Brodmann Area 46',
+                            'F3': 'Brodmann Area 46',
+                            'Fz': 'Brodmann Area 9',
+                            'F4': 'Brodmann Area 46',
+                            'F8': 'Brodmann Area 46',
+                            'T3': 'Brodmann Area 21',
+                            'C3': 'Brodmann Area 4',
+                            'Cz': 'Brodmann Area 4',
+                            'C4': 'Brodmann Area 4',
+                            'T4': 'Brodmann Area 21',
+                            'T5': 'Brodmann Area 39',
+                            'P3': 'Brodmann Area 39',
+                            'Pz': 'Brodmann Area 7',
+                            'P4': 'Brodmann Area 39',
+                            'T6': 'Brodmann Area 39',
+                            'O1': 'Brodmann Area 17',
+                            'O2': 'Brodmann Area 17',
+                        }
+
+                        brodmann_area_power = {area: {band: 0 for band in normative_values.keys()} for area in set(brodmann_mapping.values())}
+
+                        # Calculate average power for each Brodmann area
+                        for area in brodmann_area_power.keys():
+                            area_channels = [ch for ch, mapped_area in brodmann_mapping.items() if mapped_area == area]
+                            for band in normative_values.keys():
+                                power_values = []
+                                for channel in area_channels:
+                                    if channel in locals():
+                                        power_values.append(locals()[f"{band.lower()}_power"][global_raw.ch_names.index(channel)])
+                                brodmann_area_power[area][band] = np.mean(power_values) if power_values else 0
+
+                        deviation_results = {}
+                        for area, area_power in brodmann_area_power.items():
+                            deviations = {}
+                            for band, value in area_power.items():
+                                deviation = value - normative_values[band]
+                                deviations[band] = deviation
+                            deviation_results[area] = deviations
+
+                        brodmann_area_descriptions = {
+                            'Brodmann Area 11': 'Orbital Gyrus Frontal Lobe',
+                            'Brodmann Area 4': 'Precentral Gyrus Frontal Lobe',
+                            'Brodmann Area 39': 'Angular Gyrus Parietal Lobe',
+                            'Brodmann Area 21': 'Middle Temporal Gyrus Temporal Lobe',
+                            'Brodmann Area 46': 'Dorsolateral Prefrontal Cortex',
+                            'Brodmann Area 17': 'Primary Visual Cortex',
+                            'Brodmann Area 7': 'Superior Parietal Lobule',
+                            'Brodmann Area 9': 'Dorsolateral Prefrontal Cortex'
+                        }
+
+                        adjacent_areas = {
+                            'Brodmann Area 11': ['Brodmann Area 47', 'Brodmann Area 10'],
+                            'Brodmann Area 4': ['Brodmann Area 6', 'Brodmann Area 1', 'Brodmann Area 2', 'Brodmann Area 3'],
+                            'Brodmann Area 39': ['Brodmann Area 40', 'Brodmann Area 7', 'Brodmann Area 19'],
+                            'Brodmann Area 21': ['Brodmann Area 20', 'Brodmann Area 22'],
+                            'Brodmann Area 46': ['Brodmann Area 9', 'Brodmann Area 10'],
+                            'Brodmann Area 17': ['Brodmann Area 18', 'Brodmann Area 19'],
+                            'Brodmann Area 7': ['Brodmann Area 39', 'Brodmann Area 40', 'Brodmann Area 5'],
+                            'Brodmann Area 9': ['Brodmann Area 46', 'Brodmann Area 10']
+                        }
+
+                        # Generate findings text
+                        brodmann_output_results = "Following deviations were calculated:\n\n"
+                        for area, deviations in deviation_results.items():
+                            if deviations:
+                                adjacent_with_deviation = any(
+                                    adjacent in deviation_results and deviation_results[adjacent]
+                                    for adjacent in adjacent_areas.get(area, [])
+                                )
+                                if not adjacent_with_deviation:
+                                    description = brodmann_area_descriptions.get(area, "Description not found")
+                                    brodmann_output_results += f"{area}: {description}\n"
+
+                        # Plot the findings text on a figure
+                        fig, ax = plt.subplots(figsize=(10, 6))
+                        ax.text(0.5, 0.5, brodmann_output_results, ha='center', va='center', fontsize=12, wrap=True)
+                        ax.axis('off')  # Hide the axes for a cleaner look
+                        fig.suptitle("Brodmann Findings", fontsize=16)
+                        return fig
+                    
+                    global_brodmann_findings = generate_brodmann_findings_figure()
 
 
 
@@ -631,31 +1153,10 @@ def upload_file():
                     
                     max_time = int(raw.times[-1])
 
-                    # Prepare output with increased and decreased power frequencies
-                    findings = []
-                    # Print the findings
-                    print(delta_report)
-                    print(theta_report)
-                    print(alpha_report)
-                    print(beta1_report)
-                    print(beta2_report)
-                    print(gamma_report)
-
-                    """### R3.2 Decreased Relative Power Spectra"""
-
-                    # Print the findings
-                    print(delta_decrease_report)
-                    print(theta_decrease_report)
-                    print(alpha_decrease_report)
-                    print(beta1_decrease_report)
-                    print(beta2_decrease_report)
-                    print(gamma_decrease_report)
-
-                    findings.append(f"Delta Band Report:  {delta_report}")
                     # for ch, freqs in decreased_power_channels.items():
                     #     findings.append(f"Channel {ch}: Decreased power at frequencies {freqs}")
                     #flash('File successfully uploaded and processed.', 'success')
-                    return render_template('upload_with_topomap_dropdown.html', max_time=max_time, findings=findings)
+                    return render_template('upload_with_topomap_dropdown.html', max_time=max_time)
 
                 except Exception as e:
                     print(f"Error processing file: {e}")
@@ -708,6 +1209,22 @@ def handle_slider_update(data):
             fig = global_increased_combined_power_fig
         elif plot_type == 'increase_brain_power_bandwise' and global_increased_activation_bandwise:
             fig = global_increased_activation_bandwise
+        elif plot_type == 'abs_power_spectra_lines' and global_abs_power_spectra_lines:
+            fig = global_abs_power_spectra_lines
+        elif plot_type == 'abs_power_spectra_topo' and global_abs_power_spectra_topo:
+            fig = global_abs_power_spectra_topo
+        elif plot_type == 'rel_power_spectra_lines' and global_rel_power_spectra_lines:
+            fig = global_rel_power_spectra_lines
+        elif plot_type == 'rel_power_spectra_topo' and global_rel_power_spectra_topo:
+            fig = global_rel_power_spectra_topo
+        elif plot_type == 'theta_beta_ratio' and global_theta_beta_ratio:
+            fig = global_theta_beta_ratio
+        elif plot_type == 'asymmetry' and global_asymmetry_fig:
+            fig = global_asymmetry_fig
+        elif plot_type == 'brodmann_dorsolateral' and global_brodmann_dorsolateral_combined:
+            fig = global_brodmann_dorsolateral_combined
+        elif plot_type == 'brodmann_findings' and global_brodmann_findings:
+            fig = global_brodmann_findings
     
             
         else:
