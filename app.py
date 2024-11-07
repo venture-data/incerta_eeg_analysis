@@ -20,16 +20,6 @@ from mne.preprocessing import create_eog_epochs
 from autoreject import AutoReject
 from pyprep.prep_pipeline import PrepPipeline  # For ASR
 from mne.preprocessing import ICA
-import mne
-from mne.preprocessing import ICA
-import matplotlib.pyplot as plt
-import numpy as np
-import pywt
-from scipy.signal import find_peaks
-import pandas as pd
-from datetime import datetime
-import os
-from pathlib import Path
 
 
 app = Flask(__name__)
