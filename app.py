@@ -241,7 +241,25 @@ def handle_slider_update(data):
             scalings = {'eeg': 8e-6}  # Scale EEG channels to 20 µV
             fig = global_raw_ica.plot(start=start_time, duration=4, show=False,scalings=70e-6)
         elif plot_type == "ica_properties":
-            figs = global_ica.plot_properties(global_raw_ica ,show=False)
+            figs = global_ica.plot_properties(global_raw_ica, picks=[global_channel_dict['T3'], global_channel_dict['T4'],
+                                                                     global_channel_dict['F7'], global_channel_dict['F8'], 
+                                                                     global_channel_dict['Fp1'], global_channel_dict['Fp2'],
+                                                                     global_channel_dict['Cz']] ,show=False)
+    
+            # Save each figure to an image and send them to the client
+            plot_urls = []
+            for chann in ['T3','T4','F7','F8','Fp1','Fp2','Cz']:
+                figs = global_ica.plot_properties(global_raw_ica, picks=[global_channel_dict[chann]] ,show=False)
+                for fig in figs:
+                
+                    img = BytesIO()
+                    fig.savefig(img, format='png')
+                    img.seek(0)
+                    plot_url = base64.b64encode(img.getvalue()).decode()
+                    #
+                    #
+                    #print (f'this is plot URL: {plot_url}')
+                    plot_urls.append(plot_url)
     
             
         else:
