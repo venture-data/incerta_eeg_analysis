@@ -129,103 +129,85 @@ def upload_file():
                     f.save(filepath)
                 
                     # Load the EEG data using MNE
-                    raw = mne.io.read_raw_edf(filepath, preload=True)
+                    raw = mne.io.read_raw_edf(filepath, preload=True, encoding='latin1')
                 
-                    # Remove 'EEG ' prefix from EEG channel names to match standard 10-20 montage names
-                    rename_dict = {ch: ch.replace('EEG ', '') for ch in raw.ch_names if ch.startswith('EEG ')}
-                    raw.rename_channels(rename_dict)
-                    
-                    raw = raw.crop(tmin=20, tmax=raw.times[-30])
-                    
-                    # --- Adjusting the scale for visualization ---
-                    scaling_values = dict(eeg=10e-6)  # Adjust this value to make the data look less crowded (try 5-10 µV)
+                    channel_names = raw.info['ch_names']
+                    print(channel_names)
 
-
-                    # Set channel types for non-EEG channels
-                    channel_types = {
-                        'Bio1-2': 'ecg',
-                        'Bio3-4': 'misc',
-                        'ECG': 'ecg',
-                        'Bio4': 'misc',
-                        'VSyn': 'stim',
-                        'ASyn': 'stim',
-                        'LABEL': 'misc'
-                    }
-                    raw.set_channel_types(channel_types)
-                    # Set the standard 10-20 montage for only the EEG channels
+                    mapping = {ch: ch.replace('EEG ', '') for ch in raw.info['ch_names'] if 'EEG ' in ch}
+                    raw.rename_channels(mapping)
+                    
+                    # Step 1.2: Set non-EEG channels (e.g., ECG, Bio channels)
+                    non_eeg_channels = ['Bio1-2', 'Bio3-4', 'ECG', 'Bio4', 'VSyn', 'ASyn', 'LABEL']
+                    raw.set_channel_types({ch: 'misc' for ch in non_eeg_channels})
+                    
+                    """### Selecting desired 19 channels"""
+                    
+                    desired_channels = [
+                        'Fp1', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8',
+                        'T3', 'C3', 'Cz', 'C4', 'T4', 'T5',
+                        'P3', 'Pz', 'P4', 'T6', 'O1', 'O2'
+                    ]
+                    raw.pick_channels(desired_channels)
+                    
                     montage = mne.channels.make_standard_montage('standard_1020')
-                    raw.set_montage(montage, on_missing='ignore')
-                    channels_to_drop = ['Bio1-2', 'Bio3-4', 'ECG', 'Bio4', 'VSyn', 'ASyn', 'LABEL', 'Fpz','A1','A2','Oz']
-                    raw.drop_channels(channels_to_drop)
-                    raw_uncleaned = raw.copy().filter(l_freq=1., h_freq=120.)
-                    global_raw = raw_uncleaned
-                    # Apply notch filter to remove 50 Hz powerline noise
-                    raw.notch_filter(freqs=50)
-
-                    eeg_channels = [ch for ch in raw.ch_names if ch not in ['Bio1-2', 'Bio3-4', 'ECG', 'Bio4', 'VSyn', 'ASyn', 'LABEL']]
-
-                    # --- Define prep_params for the PREP pipeline ---
-                    prep_params = {
-                        "ref_chs": eeg_channels,     # Use actual EEG channels for referencing
-                        "reref_chs": eeg_channels,   # Re-reference all EEG channels after PREP
-                        "line_freqs": [50],          # Correct key for line frequency (50 Hz in Europe, 60 Hz for the US)
-                        "max_iterations": 5          # Max iterations for robust referencing (can adjust if needed)
-                    }
-
-                    # --- 1. Apply ASR (Artifact Subspace Reconstruction) using pyPREP ---
-                    prep = PrepPipeline(raw, prep_params, montage='standard_1020')
-                    prep.fit()  # Apply the ASR algorithm to clean high-amplitude artifacts
-                    raw_clean_asr = prep.raw
-
-                    # --- 2. Apply 'average' reference after PREP using MNE ---
-                    raw_clean_asr.set_eeg_reference(ref_channels='average', projection=True)
-
-                    # --- 3. Apply ICA for structured artifacts (eye blinks, muscle) ---
-                    # Apply more aggressive band-pass filter (3-40 Hz) before ICA
-                    raw_filtered = raw_clean_asr.copy().filter(l_freq=0.3, h_freq=40.)
+                    raw.set_montage(montage)
                     
+                    print(raw.info)
+                    # Define the duration to remove (in seconds)
+                    remove_duration = 10  # seconds
                     
-                    # Dynamically get the picks (channels used for ICA)
-                    picks = mne.pick_types(raw_filtered.info, eeg=True, exclude='bads')
+                    # Define the sampling frequency of your data
+                    sampling_frequency = raw.info['sfreq']  # Get sampling frequency from the raw object
+                    
+                    # Calculate the number of samples to remove
+                    samples_to_remove = int(remove_duration * sampling_frequency)
+                    
+                    # Get the total number of samples in the raw data
+                    total_samples = raw.n_times
 
-                    # Dynamically set n_components based on the number of channels used in ICA
-                    n_components = min(25, len(picks))  # Ensure n_components <= number of channels
+                    # Check if the total samples are sufficient
+                    if total_samples > 2 * samples_to_remove:
+                        # Trim the raw data
+                        trimmed_data = raw.copy().crop(tmin=samples_to_remove / sampling_frequency,
+                                                                tmax=(total_samples - samples_to_remove) / sampling_frequency)
+                    
+                        # Optionally, you can update cleaned_raw with the trimmed data
+                        raw = trimmed_data
+                    else:
+                        print("Not enough data to remove the specified duration.")
 
-                    ica = mne.preprocessing.ICA(n_components=n_components, random_state=97, max_iter=1000)
-                    ica.fit(raw_filtered, picks=picks)
+                    # Print new data info
+                    print(f"New data length: {raw.n_times} samples, "
+                          f"Duration: {raw.times[-1] - raw.times[0]:.2f} seconds")
+                    
+                    """## Filtering"""
+                    
+                    raw.filter(l_freq=0.53, h_freq=50)
+                    raw.notch_filter(freqs=50)  # Assuming notch at 50 Hz to remove power line noise (modify if 50 Hz)
 
+                    global_raw = raw
+
+                    """## ICA"""
+
+                    ica = ICA(n_components=15, random_state=13, max_iter='auto')
+                    ica.fit(raw)
+
+                    ica.exclude = [3]
+                    cleaned_raw = ica.apply(raw.copy())  # Apply the ICA to the raw data
+
+                    # Mark Fp1 and Fp2 as bad channels
+                    cleaned_raw.info['bads'] = ['F7']
+                    
+                    # Interpolate bad channels
+                    cleaned_raw.interpolate_bads(reset_bads=True)
                     # # Manually inspect the ICA components to find additional artifact-related components
                     # ica.plot_components()
 
-                    # Exclude more components based on visual inspection (especially for eye movement and muscle artifacts)
-                    ica.exclude = [3, 4, 5, 6, 11, 15, 16, 17]  # Add more components here if identified as noisy
-
-                    # Find ICA components related to eye blinks using frontal EEG channels as surrogates for EOG
-                    eog_indices, eog_scores = ica.find_bads_eog(raw_filtered, ch_name=['Fp1', 'Fp2'])
-                    ica.exclude.extend(eog_indices)  # Extend exclusion list with EOG-detected components
-
-                    # Apply the ICA solution to remove the selected components
-                    raw_ica = raw_filtered.copy()
-                    ica.apply(raw_ica)
-                    # --- 4. Apply Stricter AutoReject for aggressive epoch rejection ---
-                    # Increase interpolation and lower consensus to reject more aggressively
-                    ar = AutoReject(n_interpolate=[1, 4], consensus=[0.5, 0.7], random_state=42)
-                    epochs = mne.make_fixed_length_epochs(raw_ica, duration=2.0, preload=True)
-
-                    # Apply AutoReject to remove bad epochs and interpolate bad channels
-                    epochs_clean = ar.fit_transform(epochs)
-                    # Clean the data for all channels, removing residual peaks by replacing with interpolation
-                    # raw_cleaned_ica = remove_residual_peaks_mne(raw_ica, threshold=50e-6, duration=0.05)
-                    # Clean the data for all channels, removing the data around residual peaks by cropping
-                    # raw_cleaned_ica = remove_peaks_by_cropping(raw_ica, threshold=100e-6, crop_duration=2)
-
-
-                    # Store the processed data globally
+                   
                         
-                    global_raw_ica = raw_ica                    
-                    channel_names = global_raw_ica.info['ch_names']  # List of channel names
-                    channel_dict = {name: idx for idx, name in enumerate(channel_names)}  # Create a dictionary with channel names and their indices
-                
+                    global_raw_ica = cleaned_raw                    
+                    
                     global_ica = ica
                     
                     max_time = int(raw.times[-1])
@@ -253,10 +235,10 @@ def handle_slider_update(data):
         openai_res_med = None
 
         if plot_type == 'raw' and global_raw:
-            fig = global_raw.plot(start=start_time, duration=4, n_channels=19, show=False)
+            fig = global_raw.plot(start=start_time, duration=4, n_channels=19, show=False,scalings=70e-6)
         elif plot_type == 'cleaned' and global_raw_ica:
             scalings = {'eeg': 8e-6}  # Scale EEG channels to 20 µV
-            fig = global_raw_ica.plot(start=start_time, duration=4, show=False,scalings=scalings)
+            fig = global_raw_ica.plot(start=start_time, duration=4, show=False,scalings=70e-6)
             
         else:
             return  # No action if the plot type is unrecognized or data is not loaded
