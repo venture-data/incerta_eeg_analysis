@@ -19,6 +19,7 @@ from scipy.stats import kurtosis, skew
 from mne.preprocessing import create_eog_epochs
 from autoreject import AutoReject
 from pyprep.prep_pipeline import PrepPipeline  # For ASR
+from mne.preprocessing import ICA
 
 
 app = Flask(__name__)
