@@ -20,6 +20,16 @@ from mne.preprocessing import create_eog_epochs
 from autoreject import AutoReject
 from pyprep.prep_pipeline import PrepPipeline  # For ASR
 from mne.preprocessing import ICA
+import mne
+from mne.preprocessing import ICA
+import matplotlib.pyplot as plt
+import numpy as np
+import pywt
+from scipy.signal import find_peaks
+import pandas as pd
+from datetime import datetime
+import os
+from pathlib import Path
 
 
 app = Flask(__name__)
@@ -204,7 +214,7 @@ def upload_file():
                     cleaned_raw.interpolate_bads(reset_bads=True)
                     # # Manually inspect the ICA components to find additional artifact-related components
                     # ica.plot_components()
-
+                    
                    
                         
                     global_raw_ica = cleaned_raw                    
@@ -240,6 +250,9 @@ def handle_slider_update(data):
         elif plot_type == 'cleaned' and global_raw_ica:
             scalings = {'eeg': 8e-6}  # Scale EEG channels to 20 µV
             fig = global_raw_ica.plot(start=start_time, duration=4, show=False,scalings=70e-6)
+        elif plot_type == "ica_properties":
+            figs = global_ica.plot_properties(global_raw_ica ,show=False)
+    
             
         else:
             return  # No action if the plot type is unrecognized or data is not loaded
