@@ -105,13 +105,14 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 global_raw = None
 global_raw_ica = None
 global_ica = None
+global_channel_dict = None
 
 
 
 # OpenAI API Key setup
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
-    global global_raw, global_raw_ica, global_ica
+    global global_raw, global_raw_ica, global_ica, global_channel_dict
 
     if request.method == 'POST':
        
@@ -205,7 +206,10 @@ def upload_file():
                     # # Manually inspect the ICA components to find additional artifact-related components
                     # ica.plot_components()
                     
-                   
+                    channel_names = cleaned_raw.info['ch_names']  # List of channel names
+                    channel_dict = {name: idx for idx, name in enumerate(channel_names)}  # Create a dictionary with channel names and their indices
+                
+                    global_channel_dict = channel_dict
                         
                     global_raw_ica = cleaned_raw                    
                     
