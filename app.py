@@ -13,7 +13,7 @@ from scipy.signal import find_peaks
 from mne import make_bem_model, make_bem_solution, make_forward_solution
 from mne.dipole import fit_dipole
 from mne.transforms import Transform
-from openai import OpenAI
+# from openai import OpenAI
 import re
 from scipy.stats import kurtosis, skew
 from mne.preprocessing import create_eog_epochs
@@ -26,6 +26,10 @@ from datetime import datetime
 import os
 from pathlib import Path
 
+
+# with open('./apikey.txt', 'r') as file:
+#     openai_api_key = file.read().strip()
+# openai.api_key = openai_api_key
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
@@ -124,6 +128,16 @@ global_asymmetry_fig = None
 global_brodmann_dorsolateral = None
 global_brodmann_dorsolateral_combined = None
 global_brodmann_findings = None
+global_pathological_signs_detection_fig = None
+qeeg_report_content = None
+global_qeeg_report_fig = None
+medications=None
+name = None
+dob= None 
+age = None 
+gender = None 
+known_issues = None 
+
 
 
 
@@ -134,11 +148,19 @@ def upload_file():
     global_decreased_activation_bandwise, global_increased_combined_power_fig, global_increased_activation_bandwise, \
     global_abs_power_spectra_lines, global_abs_power_spectra_topo, global_rel_power_spectra_lines,global_rel_power_spectra_topo, \
     global_theta_beta_ratio, global_asymmetry_fig, global_brodmann_dorsolateral, global_brodmann_dorsolateral_combined, \
-    global_brodmann_findings
+    global_brodmann_findings, global_pathological_signs_detection_fig, qeeg_report_content, global_qeeg_report_fig, \
+    name, dob, age, \
+    gender, known_issues, medications
 
     if request.method == 'POST':
        
-        uploaded_file = request.files['file']        
+        uploaded_file = request.files['file']   
+        name = request.form.get('name')
+        dob = request.form.get('dob')
+        age = request.form.get('age')
+        gender = request.form.get('gender')
+        known_issues = request.form.get('known_issues')
+        medications = request.form.get('medications')     
         
         if uploaded_file:
             file_ext = os.path.splitext(uploaded_file.filename)[1]
@@ -1227,6 +1249,60 @@ def upload_file():
                     
                     global_brodmann_findings = generate_brodmann_findings_figure()
 
+                    def pathological_signs_detection(cleaned_raw):
+                        # Threshold for detecting epileptiform activity
+                        epileptiform_threshold = 0.5  # Adjust as necessary based on data
+
+                        # 1. Epileptiform or Altered Activity Detection (Delta and Theta bands)
+                        delta_power = cleaned_raw.copy().filter(l_freq=0.5, h_freq=4).get_data()
+                        theta_power = cleaned_raw.copy().filter(l_freq=4, h_freq=7).get_data()
+                        epileptiform_detected = (
+                            np.any(np.max(delta_power, axis=1) > epileptiform_threshold) or
+                            np.any(np.max(theta_power, axis=1) > epileptiform_threshold)
+                        )
+                        epileptiform_text = "No epileptiform or other type of altered activity observed in the recording."
+                        if epileptiform_detected:
+                            epileptiform_text = "Epileptiform or altered activity detected in the recording."
+
+                        # 2. Occipital Alpha Peaks (Alpha band in O1 and O2 channels)
+                        spectrum = cleaned_raw.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+                        psds, freqs = spectrum.get_data(return_freqs=True)
+                        occipital_channels = ['O1', 'O2']
+                        alpha_band = (7.5, 14)
+                        occipital_psds = psds[[cleaned_raw.ch_names.index(ch) for ch in occipital_channels], :]
+                        alpha_mask = np.where((freqs >= alpha_band[0]) & (freqs <= alpha_band[1]))[0]
+                        alpha_freqs = freqs[alpha_mask]
+                        occipital_psds_alpha = occipital_psds[:, alpha_mask]
+                        alpha_peaks = {}
+                        for idx, ch_name in enumerate(occipital_channels):
+                            alpha_psd = occipital_psds_alpha[idx]
+                            peak_idx = np.argmax(alpha_psd)
+                            alpha_peaks[ch_name] = alpha_freqs[peak_idx]
+                        alpha_results_text = f"O1 = {alpha_peaks['O1']:.2f} Hz / uV^2\nO2 = {alpha_peaks['O2']:.2f} Hz / uV^2"
+
+                        # 3. Markers for Leaky Gut Syndrome (Delta power in temporal regions)
+                        temporal_channels = ['T3', 'T4', 'T5', 'T6']
+                        temporal_delta_data = cleaned_raw.copy().filter(l_freq=0.5, h_freq=4).get_data()
+                        temporal_delta_power = np.mean([np.mean(temporal_delta_data[cleaned_raw.ch_names.index(ch)]) for ch in temporal_channels])
+                        leaky_gut_text = "No markers for leaky gut syndrome detected."
+                        if temporal_delta_power > epileptiform_threshold:
+                            leaky_gut_text = "Yes – increased delta power in temporal regions."
+
+                        # Display findings in a structured layout without a table format
+                        fig, ax = plt.subplots(figsize=(8, 4))
+                        ax.axis('off')
+                        results_text = (
+                            f"Pathological Signs Detection\n\n"
+                            f"{epileptiform_text}\n\n"
+                            f"Occipital peak Alpha frequency and power (Eyes open):\n{alpha_results_text}\n\n"
+                            f"Markers for leaky gut syndrome (slow waves in occipital and temporal regions) (Eyes Open):\n{leaky_gut_text}"
+                        )
+                        ax.text(0.5, 0.5, results_text, ha='center', va='center', fontsize=12, wrap=True, bbox=dict(facecolor='lightgrey', edgecolor='black', boxstyle='round,pad=0.5'))
+
+                        return fig
+
+                    # Call the function and pass in the cleaned_raw EEG data
+                    global_pathological_signs_detection_fig = pathological_signs_detection(cleaned_raw)
 
 
                     global_channel_dict = channel_dict
@@ -1235,6 +1311,245 @@ def upload_file():
                     
                     global_ica = ica
                     
+                    import openai
+
+                    # Initialize OpenAI API
+                    with open('root/apikey.txt', 'r') as file:
+                        openai_api_key = file.read().strip()
+
+                    openai.api_key = openai_api_key
+                    # Function to generate each summary
+                    def generate_raw_eeg_summary(raw):
+                        duration = raw.times[-1] - raw.times[0]
+                        sampling_frequency = raw.info['sfreq']
+                        channel_count = len(raw.ch_names)
+                        return f"Raw EEG recording with {channel_count} channels, duration of {duration:.2f} seconds, sampled at {sampling_frequency} Hz."
+
+                    def generate_cleaned_ica_summary(cleaned_ica, excluded_components):
+                        return f"ICA-cleaned EEG data. {len(excluded_components)} components were excluded for artifact removal, focusing on eye movement and noise reduction."
+
+                    def generate_theta_beta_summary(cleaned_raw, theta_power, beta_power):
+                        theta_beta_ratio = theta_power / beta_power
+                        avg_theta_beta_ratio = np.mean(theta_beta_ratio)
+                        return f"Average Theta/Beta ratio: {avg_theta_beta_ratio:.2f}. This ratio is associated with attentional processes."
+
+                    def generate_bands_summary(bands, delta_power, theta_power, alpha_power, beta1_power, beta2_power, gamma_power):
+                        band_powers = {
+                            "Delta": np.mean(delta_power),
+                            "Theta": np.mean(theta_power),
+                            "Alpha": np.mean(alpha_power),
+                            "Beta1": np.mean(beta1_power),
+                            "Beta2": np.mean(beta2_power),
+                            "Gamma": np.mean(gamma_power)
+                        }
+                        summary = "Band-wise average power: "
+                        summary += ", ".join([f"{band}: {power:.2f} µV²" for band, power in band_powers.items()])
+                        return summary
+
+                    def generate_ica_com_summary(ica, excluded_components):
+                        summary = "ICA analysis detected artifacts in components: "
+                        summary += ", ".join(map(str, excluded_components))
+                        summary += ". These components were removed to minimize artifacts."
+                        return summary
+
+                    def generate_rel_spec_summary(relative_delta_power, relative_theta_power, relative_alpha_power,
+                                                relative_beta1_power, relative_beta2_power, relative_gamma_power):
+                        relative_powers = {
+                            "Delta": np.mean(relative_delta_power),
+                            "Theta": np.mean(relative_theta_power),
+                            "Alpha": np.mean(relative_alpha_power),
+                            "Beta1": np.mean(relative_beta1_power),
+                            "Beta2": np.mean(relative_beta2_power),
+                            "Gamma": np.mean(relative_gamma_power)
+                        }
+                        summary = "Relative power percentages: "
+                        summary += ", ".join([f"{band}: {power:.2f}%" for band, power in relative_powers.items()])
+                        return summary
+
+                    def generate_abs_spec_summary(delta_power, theta_power, alpha_power, beta1_power, beta2_power, gamma_power):
+                        abs_powers = {
+                            "Delta": np.mean(delta_power),
+                            "Theta": np.mean(theta_power),
+                            "Alpha": np.mean(alpha_power),
+                            "Beta1": np.mean(beta1_power),
+                            "Beta2": np.mean(beta2_power),
+                            "Gamma": np.mean(gamma_power)
+                        }
+                        summary = "Absolute power levels (µV²): "
+                        summary += ", ".join([f"{band}: {power:.2f}" for band, power in abs_powers.items()])
+                        return summary
+
+                    # Generate summaries based on cleaned EEG data and other variables
+                    raw_eeg_summary = generate_raw_eeg_summary(global_raw)
+                    excluded_components = global_ica.exclude
+                    cleaned_ica_summary = generate_cleaned_ica_summary(global_raw_ica, excluded_components)
+                    theta_beta_summary = generate_theta_beta_summary(global_raw_ica, theta_power, beta1_power)
+                    bands_summary = generate_bands_summary(bands, delta_power, theta_power, alpha_power, beta1_power, beta2_power, gamma_power)
+                    ica_com_summary = generate_ica_com_summary(global_ica, excluded_components)
+                    rel_spec_summary = generate_rel_spec_summary(relative_delta_power, relative_theta_power, relative_alpha_power,
+                                                                relative_beta1_power, relative_beta2_power, relative_gamma_power)
+                    abs_spec_summary = generate_abs_spec_summary(delta_power, theta_power, alpha_power, beta1_power, beta2_power, gamma_power)
+
+                    # Function to call OpenAI API to generate qEEG Patient Report
+                    # Function to call OpenAI API to generate qEEG Patient Report
+                    def main_qeeg_rehab(analysis, raw_eeg_summary, cleaned_ica_summary, theta_beta_summary, bands_summary, ica_com_summary,
+                                        rel_spec_summary, abs_spec_summary, name, bands, age, gender, known_issues, medications):
+                        
+                        response = openai.ChatCompletion.create(
+                            # model="gpt-4",
+                            # messages=[
+                            #     {"role": "system", "content": """You are an expert in neuroscience, specializing in EEG analysis and frequency 
+                            #             band interpretation. Moreover, You are a specialist in creating personalized Comprehensive qEEG Analysis and 
+                            #             Rehabilitation Guide."""},
+                            #     {"role": "user", "content": f""" You need to make a detailed report on: {analysis}. The report should have following
+                            #                                 headings only: Introduction, Patient Overview, Assessment of qEEG Data, 
+                            #                                 Daily Life and Family Dynamics, Nutrition and Dietary Recommendations,
+                            #                                 Sports and Physical Activity Recommendations, Educational and Professional Guidance,
+                            #                                 Abilities and Skills Development, Rehabilitation Goals, Intervention Strategies (should have
+                            #                                 following sub headings: Cognitive Rehabilitation, Behavioural and Psychological Support,
+                            #                                 and Physical Rehabilitation), Lifestyle and Routine Recommendations,
+                            #                                 Implementation Plan, Developmental and Age-Related Considerations, Conclusion and
+                            #                                 References. I will explain what you need to include in the above mentioned sections:
+                                                            
+                            #                                 The Introduction section should contains: Overview of qEEG-Guided Rehabilitation based on
+                            #                                 raw EEG findings: {raw_eeg_summary}, ica cleaned EEG findings: {cleaned_ica_summary},
+                            #                                 theta beta ratio findings: {theta_beta_summary}, band wise findings: {bands_summary},
+                            #                                 (Bands ranges are as follows: {bands}), ica components findings: {ica_com_summary}, Relative
+                            #                                 spectra summary {rel_spec_summary} and absolute spectra summary {abs_spec_summary} (Define 
+                            #                                 the methods and related studies or literature to the above findings).
+                            #                                 After giving the overview, the purpose of the Rehabilitation Plan should be defined.
+                                                            
+                            #                                 In Patient Overview secion, the background of patient information such as name: {name},
+                            #                                 age: {age}, gender: {gender}, medications: {medications}, and known issues: {known_issues} 
+                            #                                 should be defined. Afterwards, Summary of qEEG Findings should be included based on raw 
+                            #                                 EEG findings: {raw_eeg_summary}, ica cleaned EEG findings: {cleaned_ica_summary}, theta beta ratio 
+                            #                                 findings: {theta_beta_summary}, band wise findings: {bands_summary}, and ica 
+                            #                                 components findings: {ica_com_summary}, (Bands ranges are as follows: {bands}). 
+                            #                                 Last but not least, Clinical Implications of qEEG Results will be added also in this section.
+                                                            
+                            #                                 Please proceed with these guidelines to generate the report in British English."""}
+                            # ]
+                            model="chatgpt-4o-latest",
+                            messages=[
+                    {"role": "system", "content": """You are an expert in neuroscience, specializing in EEG analysis and frequency 
+                      band interpretation. Moreover, You are a specialist in creating personalized Comprehensive qEEG Analysis and 
+                      Rehabilitation Guide """},
+                    {"role": "user", "content": f""" You need to make a detailed report on: {analysis}. The report should have following
+                                        headings only: Introduction, Patient Overview, Assessment of qEEG Data, 
+                                        Daily Life and Family Dynamics, Nutrition and Dietary Recommendations,
+                                        Sports and Physical Activity Recommendations, Educational and Professional Guidance,
+                                        Abilities and Skills Development, Rehabilitation Goals,  Intervention Strategies (should have
+                                        following sub headings: Cognitive Rehabilitation, Behavioural and Psychological Support,
+                                        and Physical Rehabilitation), Lifestyle and Routine Recommendations,
+                                        Implementation Plan, Developmental and Age-Related Considerations, Conclusion and
+                                        References. I will explain what you need to include in the above mentioned sections:
+                                        
+                                        The Introduction section should contains: Overview of qEEG-Guided Rehabilitation based on
+                                        raw EEG findings: {raw_eeg_summary}, ica cleaned EEG findings: {cleaned_ica_summary},
+                                        theta beta ratio findings: {theta_beta_summary}, band wise findings: {bands_summary},
+                                        (Bands ranges are as follows: {bands}), ica components findings: {ica_com_summary}, Relative
+                                        spectra summary {rel_spec_summary} and absolute spectra summary {abs_spec_summary}(Define 
+                                        the methods and related studies or literature to the above findings)
+                                        After giving the overview, the purpose of the Rehabilitation Plan should be defined.
+                                        
+                                        In Patient Overview secion, the background of patient information such as name: {name},
+                                        age: {age}, gender: {gender}, medications:{medications} and known issues:{known_issues} 
+                                        should be defined. Afterwards, Summary of qEEG Findings should be included based on raw 
+                                        EEG findings: {raw_eeg_summary}, ica cleaned EEG findings: {cleaned_ica_summary}, theta beta ratio 
+                                        findings: {theta_beta_summary} ,band wise findings: {bands_summary}, and ica 
+                                        components findings: {ica_com_summary}, (Bands ranges are as follows: {bands}). 
+                                        Last but not least Clinical Implications of qEEG Results will be added also in this section.
+                                        
+                                        The Assessment of qEEG Data section contains information about: Detailed Analysis of 
+                                        qEEG Reports based on bands: {bands},and you can finds the findings of each band wave 
+                                        from here: {bands_summary}. 
+                                        Based on all the findings please include also the Identification of Dysregulated Brain 
+                                        Regions. after this please add detailed information based on the qEEG findings for: 
+                                        Visual Cortex Activity and Eye Health:
+                                        Auditory Cortex Activity and Hearing Health:
+                                        Neural Correlates of Leaky Gut Syndrome:
+                                        
+                                        In  Daily Life and Family Dynamics sections, based on the findings you have to include
+                                        information about: 
+                                        Impact of Findings on Daily Life Activitie, Family Support and Involvement, Relationship 
+                                        with Family and Friends, Strategies for Enhancing Family Communication and Support and 
+                                        Adjustments to Home Environment for Optimal Rehabilitation. The content should not be
+                                        too plain and not like normal content it should give more info related to findings 
+                                        and patient suggestins daily life example etc.
+                                        
+                                        The section Nutrition and Dietary Recommendations should contains information on: 
+                                        Nutrition: Foods to Eat and Foods to Avoid and 
+                                        Vitamins to Consume and Their Benefits in detail.
+                                        
+                                        In Sports and Physical Activity Recommendations section the following should be included in detail:
+                                        Assessment of Physical Abilities, Recommended Sports and Physical Activities,
+                                        Tailoring Physical Activities to Support Rehabilitation Goals, and 
+                                        Safety Considerations and Precautions.
+                                        
+                                        In  Educational and Professional Guidance section should explain the following:
+                                        Cognitive and Learning Abilities, Recommendations for Educational Pathways, and 
+                                        Professional and Career Counselling
+                                        
+                                        In Abilities and Skills Development please exaplain about: Identification of Strengths 
+                                        and Areas for Improvement, Skill-Building Exercises for Cognitive and Physical Development,
+                                        Encouraging Independence and Self-Efficacy, Long-Term Developmental Goals.
+                                        
+                                        In  Rehabilitation Goals please explain the followings: Cognitive Rehabilitation Goals,
+                                        Behavioural and Psychological Rehabilitation Goals, Physical Rehabilitation Goals, and
+                                        Long-term Outcome Goals
+                                        
+                                        In  Intervention Strategies section please define about: 1. Cognitive Rehabilitation in which
+                                        you have to explain about Memory and Attention Training Exercises, Executive Function 
+                                        Enhancement Exercises. 2. Behavioural and Psychological Support please explain about
+                                        Cognitive-Behavioural Therapy (CBT) Techniques and Relaxation and Stress Management Techniques
+                                        and 3. Physical Rehabilitation, please write about: Motor Function Rehabilitation Exercises,
+                                        Biofeedback Integration
+                                        
+                                        in  Lifestyle and Routine Recommendations  section please suggest about: Sleep Routine 
+                                        Suggestions, Games and Play Suggestions.
+                                        
+                                        In  Implementation Plan please explain in detailed about Multidisciplinary Team Involvement,
+                                        Session Scheduling and Duration, Home-Based Exercises and Activities, and 
+                                        Patient and Family Education
+                                        
+                                        In Developmental and Age-Related Considerations section please explain about: 
+                                        Tailoring the Plan for Age and Developmental Stage and Special Considerations for 
+                                        Brain Maturation
+                                        
+                                        In Conclusion  you have to explain about: Summary of the Rehabilitation Plan,
+                                        Expected Outcomes and Importance of Adherence and Follow-Up
+                                        
+                                        In References part please list down in detail, List of References and Research Supporting the Plan
+                                        and qEEG and Neurofeedback Literature.
+                                        
+                                        Please write a detailed and comprehensive report in British English"""}
+                                            
+                            ]
+                        )
+                        return response['choices'][0]['message']['content']
+
+                    # Call the function to generate the qEEG Patient Report
+                    qeeg_report_content = main_qeeg_rehab(
+                        analysis="qEEG Patient Report",
+                        raw_eeg_summary=raw_eeg_summary,
+                        cleaned_ica_summary=cleaned_ica_summary,
+                        theta_beta_summary=theta_beta_summary,
+                        bands_summary=bands_summary,
+                        ica_com_summary=ica_com_summary,
+                        rel_spec_summary=rel_spec_summary,
+                        abs_spec_summary=abs_spec_summary,
+                        name=name,
+                        bands=bands,
+                        age=age,
+                        gender=gender,
+                        known_issues=known_issues,
+                        medications=medications
+                    )
+
+                    # Display or save the generated report content
+                    print(qeeg_report_content)
+                    
+
                     max_time = int(raw.times[-1])
 
                     # for ch, freqs in decreased_power_channels.items():
@@ -1261,6 +1576,9 @@ def handle_slider_update(data):
         plot_url = None  # Initialize plot_url to avoid reference error
         openai_res = None
         openai_res_med = None
+        report_content = None
+        fig=None
+        
 
         if plot_type == 'raw' and global_raw:
             fig = global_raw.plot(start=start_time, duration=4, n_channels=19, show=False,scalings=70e-6)
@@ -1309,21 +1627,25 @@ def handle_slider_update(data):
             fig = global_brodmann_dorsolateral_combined
         elif plot_type == 'brodmann_findings' and global_brodmann_findings:
             fig = global_brodmann_findings
+        elif plot_type == 'pathological_signs_detection' and global_pathological_signs_detection_fig:
+            fig = global_pathological_signs_detection_fig
+        elif plot_type == 'qEEG_patient_report' and qeeg_report_content:
+            report_content = qeeg_report_content
     
             
         else:
             return  # No action if the plot type is unrecognized or data is not loaded
-
-        # Convert the plot to an image and send it to the client
-        img = BytesIO()
-        fig.savefig(img, format='png')
-        img.seek(0)
-        plot_url = base64.b64encode(img.getvalue()).decode()
+        if fig:
+            # Convert the plot to an image and send it to the client
+            img = BytesIO()
+            fig.savefig(img, format='png')
+            img.seek(0)
+            plot_url = base64.b64encode(img.getvalue()).decode()
 
         # Emit the updated plot back to the client
         #emit('update_plot', {'plot_url': plot_url})
         # Include raw report to send back
-        emit('update_plot', {'plot_url': plot_url, 'raw_report': openai_res, 'raw_medical_report': openai_res_med})
+        emit('update_plot', {'plot_url': plot_url, 'raw_report': report_content, 'raw_medical_report': openai_res_med})
         
     except Exception as e:
         print(f"Error generating plot: {e}")
