@@ -857,8 +857,78 @@ def upload_file():
                     # Call the function and store the figure globally
                     global_theta_beta_ratio = plot_theta_beta_ratio()
 
-                    # Function to plot asymmetry topomaps for each frequency band and return the figure
-                    def plot_asymmetry():
+                    # # Function to plot asymmetry topomaps for each frequency band and return the figure
+                    # def plot_asymmetry():
+                    #     frequency_bands = {
+                    #         'Delta': delta_power,
+                    #         'Theta': theta_power,
+                    #         'Alpha': alpha_power,
+                    #         'Beta1': beta1_power,
+                    #         'Beta2': beta2_power,
+                    #         'Gamma': gamma_power
+                    #     }
+
+                    #     # Define zones: pairs of left and right hemisphere channels
+                    #     zones = {
+                    #         'Frontal': (['F3', 'F7', 'Fp1'], ['F4', 'F8', 'Fp2']),
+                    #         'Central': (['C3'], ['C4']),
+                    #         'Temporal': (['T3', 'T5'], ['T4', 'T6']),
+                    #         'Parietal': (['P3'], ['P4']),
+                    #         'Occipital': (['O1'], ['O2'])
+                    #     }
+
+                    #     # Channel names in the standard 10-20 system
+                    #     channel_names = ['Fp1', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz', 'C4', 'T4', 'T5', 'P3', 'Pz', 'P4', 'T6', 'O1', 'O2']
+
+                    #     # Initialize a figure for the topomaps (2x3 grid for the 6 frequency bands)
+                    #     fig, axs = plt.subplots(2, 3, figsize=(15, 10))
+
+                    #     # Iterate over each frequency band and calculate the asymmetry
+                    #     for i, (band_name, power_data) in enumerate(frequency_bands.items()):
+                    #         # Map power data to channels
+                    #         channel_power_map = dict(zip(channel_names, power_data))
+
+                    #         # Calculate asymmetry for each zone (left-right difference)
+                    #         asymmetry_by_zone = {}
+                    #         for zone_name, (left_channels, right_channels) in zones.items():
+                    #             left_power = np.mean([channel_power_map[ch] for ch in left_channels])
+                    #             right_power = np.mean([channel_power_map[ch] for ch in right_channels])
+                    #             asymmetry_by_zone[zone_name] = left_power - right_power  # Asymmetry = left - right
+
+                    #         # Create an array with the asymmetry values for topomap plotting
+                    #         asymmetry_values = np.zeros(19)
+
+                    #         # Assign asymmetry values to left and right hemisphere channels
+                    #         for zone_name, (left_channels, right_channels) in zones.items():
+                    #             left_asymmetry = asymmetry_by_zone[zone_name]
+                    #             for ch in left_channels:
+                    #                 asymmetry_values[channel_names.index(ch)] = left_asymmetry
+                    #             for ch in right_channels:
+                    #                 asymmetry_values[channel_names.index(ch)] = -left_asymmetry  # Right side gets negative value
+
+                    #         # Plot the asymmetry topomap for the current frequency band
+                    #         ax = axs[i // 3, i % 3]  # Select the subplot for the current frequency band
+                    #         im, _ = mne.viz.plot_topomap(asymmetry_values, cleaned_raw.info, axes=ax, show=False, cmap='jet', contours=4)
+
+                    #         # Set a title for each plot (the name of the frequency band)
+                    #         ax.set_title(f'{band_name} Band', fontsize=14)
+
+                    #     # Add a color bar for the entire figure
+                    #     fig.subplots_adjust(right=0.9)  # Make space on the right for the color bar
+                    #     cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])  # Position for the color bar
+                    #     fig.colorbar(im, cax=cbar_ax)
+
+                    #     # Add an overall title
+                    #     plt.suptitle('Asymmetry', fontsize=16)
+
+                    #     # Return the figure object
+                    #     return fig
+
+                    # # Call the function and store the figure globally
+                    # global_asymmetry_fig = plot_asymmetry()
+
+                    def plot_asymmetry_with_summary():
+                        # Frequency bands and power data (assuming these are already defined)
                         frequency_bands = {
                             'Delta': delta_power,
                             'Theta': theta_power,
@@ -880,52 +950,66 @@ def upload_file():
                         # Channel names in the standard 10-20 system
                         channel_names = ['Fp1', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz', 'C4', 'T4', 'T5', 'P3', 'Pz', 'P4', 'T6', 'O1', 'O2']
 
-                        # Initialize a figure for the topomaps (2x3 grid for the 6 frequency bands)
-                        fig, axs = plt.subplots(2, 3, figsize=(15, 10))
+                        # Initialize a set to store zones with significant asymmetry
+                        significant_zones = set()
 
-                        # Iterate over each frequency band and calculate the asymmetry
-                        for i, (band_name, power_data) in enumerate(frequency_bands.items()):
+                        # Generate the asymmetry report for each frequency band
+                        for band_name, power_data in frequency_bands.items():
                             # Map power data to channels
                             channel_power_map = dict(zip(channel_names, power_data))
 
-                            # Calculate asymmetry for each zone (left-right difference)
-                            asymmetry_by_zone = {}
+                            # Calculate asymmetry for each zone
                             for zone_name, (left_channels, right_channels) in zones.items():
                                 left_power = np.mean([channel_power_map[ch] for ch in left_channels])
                                 right_power = np.mean([channel_power_map[ch] for ch in right_channels])
-                                asymmetry_by_zone[zone_name] = left_power - right_power  # Asymmetry = left - right
+                                asymmetry = left_power - right_power
 
-                            # Create an array with the asymmetry values for topomap plotting
+                                # If significant asymmetry is found
+                                if abs(asymmetry) > 0.05:  # Threshold for asymmetry reporting
+                                    significant_zones.add(zone_name)
+
+                        # Format the report summary
+                        if significant_zones:
+                            zone_list = ', '.join(significant_zones)
+                            summary_text = f"Significant asymmetry over the {zone_list.lower()} areas in a wide frequency range."
+                        else:
+                            summary_text = "No significant asymmetry found in the specified zones."
+
+                        # Plot the asymmetry topomaps
+                        fig, axs = plt.subplots(3, 2, figsize=(15, 16))
+                        fig.subplots_adjust(hspace=0.5, wspace=0.3, top=0.93)  # Adjust spacing for topomaps
+
+                        for i, (band_name, power_data) in enumerate(frequency_bands.items()):
+                            channel_power_map = dict(zip(channel_names, power_data))
                             asymmetry_values = np.zeros(19)
 
-                            # Assign asymmetry values to left and right hemisphere channels
+                            # Calculate and assign asymmetry values for each zone
                             for zone_name, (left_channels, right_channels) in zones.items():
-                                left_asymmetry = asymmetry_by_zone[zone_name]
+                                left_power = np.mean([channel_power_map[ch] for ch in left_channels])
+                                right_power = np.mean([channel_power_map[ch] for ch in right_channels])
+                                asymmetry = left_power - right_power
+
+                                # Assign asymmetry values to channels for left and right zones
                                 for ch in left_channels:
-                                    asymmetry_values[channel_names.index(ch)] = left_asymmetry
+                                    asymmetry_values[channel_names.index(ch)] = asymmetry
                                 for ch in right_channels:
-                                    asymmetry_values[channel_names.index(ch)] = -left_asymmetry  # Right side gets negative value
+                                    asymmetry_values[channel_names.index(ch)] = -asymmetry
 
-                            # Plot the asymmetry topomap for the current frequency band
-                            ax = axs[i // 3, i % 3]  # Select the subplot for the current frequency band
-                            im, _ = mne.viz.plot_topomap(asymmetry_values, cleaned_raw.info, axes=ax, show=False, cmap='jet', contours=4)
+                            # Plot each band on the corresponding subplot
+                            ax = axs[i // 2, i % 2]
+                            mne.viz.plot_topomap(asymmetry_values, cleaned_raw.info, axes=ax, show=False, cmap='jet')
+                            ax.set_title(f'{band_name} Band')
 
-                            # Set a title for each plot (the name of the frequency band)
-                            ax.set_title(f'{band_name} Band', fontsize=14)
+                        # Add text as an annotation below the topomaps
+                        fig.text(0.5, 0.05, summary_text, ha='center', va='center', fontsize=14, wrap=True)
+                        fig.suptitle("Asymmetry Analysis with Summary", fontsize=16)
 
-                        # Add a color bar for the entire figure
-                        fig.subplots_adjust(right=0.9)  # Make space on the right for the color bar
-                        cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])  # Position for the color bar
-                        fig.colorbar(im, cax=cbar_ax)
-
-                        # Add an overall title
-                        plt.suptitle('Asymmetry', fontsize=16)
-
-                        # Return the figure object
+                        # Return the combined figure
                         return fig
 
-                    # Call the function and store the figure globally
-                    global_asymmetry_fig = plot_asymmetry()
+                    # Call the function and store the figure in a global variable for use in the web app
+                    global_asymmetry_fig = plot_asymmetry_with_summary()
+
 
                     # Function to plot deviations for each Brodmann area and return the figures in a dictionary
                     def plot_brodmann_dorsolateral():
