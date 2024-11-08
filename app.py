@@ -557,7 +557,7 @@ def upload_file():
                         plot_brain_activation(axs[1, 2], increased_gamma, 'Gamma','increased')
 
                         # Add a title for the entire figure
-                        plt.suptitle('Decreased Power', fontsize=16)
+                        plt.suptitle('Increased Power', fontsize=16)
                         # Adjust spacing to reduce space between subplots and improve overall plot size
                         plt.subplots_adjust(wspace=0.4, hspace=0.4, top=0.9, bottom=0.1, left=0.05, right=0.95)
 
