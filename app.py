@@ -1314,7 +1314,7 @@ def upload_file():
                     import openai
 
                     # Initialize OpenAI API
-                    with open('./root/apikey.txt', 'r') as file:
+                    with open('/root/apikey.txt', 'r') as file:
                         openai_api_key = file.read().strip()
 
                     openai.api_key = openai_api_key
