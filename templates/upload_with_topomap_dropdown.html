@@ -42,6 +42,36 @@
                     <label for="file">Upload EEG File (.edf)</label>
                     <input type="file" class="form-control-file" name="file" required>
                 </div>
+                <div class="form-group">
+                  <label for="name">Name</label>
+                  <input type="text" class="form-control" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="known_issues">Known Issues</label>
+                    <input type="text" class="form-control" id="known_issues" name="known_issues" required>
+                </div>
+                <div class="form-group">
+                    <label for="medications">Medications</label>
+                    <input type="text" class="form-control" id="medications" name="medications" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="dob">Date of Birth</label>
+                    <input type="date" class="form-control" id="dob" name="dob" required onchange="calculateAge()">
+                </div>
+
+                <div class="form-group">
+                    <label for="age">Age</label>
+                    <input type="number" class="form-control" id="age" name="age" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label for="gender">Gender</label>
+                    <select class="form-control" id="gender" name="gender" required>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                </div>
 
                 <!-- Additional Input Fields for OpenAI Prompt -->
 
@@ -67,9 +97,11 @@
                 <option value="asymmetry">Asymmetry Analysis</option>
                 <option value="brodmann_dorsolateral">Dorsolateral Prefrontal Cortex</option>
                 <option value="brodmann_findings">Brodmann Findings</option>
+                <option value="pathological_signs_detection">Pathological Signs Detection</option>
+                <option value="qEEG_patient_report">qEEG Patient Report</option>
             </select>
           </div>
-          
+
 
           <div class="form-group">
             <label for="start_time">Navigate EEG Data</label>
@@ -88,6 +120,10 @@
               <img id="plot-image" src="" alt="EEG Plot" class="img-fluid">
           </div>
           <!-- Add a new div to display the EEG report -->
+          <div id="report-container" style="display: none; margin-top: 20px;">
+            <h2>qEEG Patient Report</h2>
+            <p id="report-text"></p>
+          </div>
           {% endif %}
       </div>
     </div>
@@ -122,26 +158,53 @@
         plot_type: plotType
       });
       }
+      function calculateAge() {
+        let dob = document.getElementById('dob').value;
+        if (dob) {
+            let dobDate = new Date(dob);
+            let today = new Date();
+            let age = today.getFullYear() - dobDate.getFullYear();
+            let monthDiff = today.getMonth() - dobDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dobDate.getDate())) {
+                age--;
+            }
+            document.getElementById('age').value = age;
+        }
+    }
     const debouncedUpdateSlider = debounce(updateSlider, 300);
 
     document.getElementById("start_time").oninput = debouncedUpdateSlider;
 
-    socket.on('update_plot', function (data) {
-        if (data.plot_url) {
-            document.getElementById('plot-image').src = 'data:image/png;base64,' + data.plot_url;
-        }
+    // socket.on('update_plot', function (data) {
+    //     if (data.plot_url) {
+    //         document.getElementById('plot-image').src = 'data:image/png;base64,' + data.plot_url;
+    //     }
 
-        if (data.raw_report) {
-            document.getElementById('report-text').innerText = data.raw_report;
-            // Ensure the report container is visible when there is a report
-            document.getElementById('report-container').style.display = 'block';
-        }
-        if (data.raw_medical_report) {
-            document.getElementById('report-medical-text').innerText = data.raw_medical_report;
-            // Ensure the report container is visible when there is a report
-            document.getElementById('report-medical-container').style.display = 'block';
-        }
+    //     if (data.raw_report) {
+    //         document.getElementById('report-text').innerText = data.raw_report;
+    //         // Ensure the report container is visible when there is a report
+    //         document.getElementById('report-container').style.display = 'block';
+    //     }
+    //     if (data.raw_medical_report) {
+    //         document.getElementById('report-medical-text').innerText = data.raw_medical_report;
+    //         // Ensure the report container is visible when there is a report
+    //         document.getElementById('report-medical-container').style.display = 'block';
+    //     }
+    // });
+    socket.on('update_plot', function (data) {
+    if (data.plot_url) {
+        document.getElementById('plot-image').src = 'data:image/png;base64,' + data.plot_url;
+    }
+
+    if (data.raw_report) {
+        document.getElementById('report-text').innerText = data.raw_report;
+        document.getElementById('report-container').style.display = 'block';
+    } else {
+        document.getElementById('report-container').style.display = 'none';
+    }
     });
+
+
 
   </script>
 
