@@ -137,6 +137,7 @@ dob= None
 age = None 
 gender = None 
 known_issues = None 
+global_relative_activity_findings_fig = None
 
 
 
@@ -150,7 +151,7 @@ def upload_file():
     global_theta_beta_ratio, global_asymmetry_fig, global_brodmann_dorsolateral, global_brodmann_dorsolateral_combined, \
     global_brodmann_findings, global_pathological_signs_detection_fig, qeeg_report_content, global_qeeg_report_fig, \
     name, dob, age, \
-    gender, known_issues, medications
+    gender, known_issues, medications, global_relative_activity_findings_fig
 
     if request.method == 'POST':
        
@@ -201,7 +202,9 @@ def upload_file():
                     
                     print(raw.info)
                     # Define the duration to remove (in seconds)
-                    remove_duration = 10  # seconds
+                    # remove_duration = 10  # seconds
+
+                    remove_duration = 30  # seconds
                     
                     # Define the sampling frequency of your data
                     sampling_frequency = raw.info['sfreq']  # Get sampling frequency from the raw object
@@ -229,14 +232,16 @@ def upload_file():
                     
                     """## Filtering"""
                     
-                    raw.filter(l_freq=0.53, h_freq=50)
+                    # raw.filter(l_freq=0.53, h_freq=50)
+                    raw.filter(l_freq=0.3, h_freq=50)
                     raw.notch_filter(freqs=50)  # Assuming notch at 50 Hz to remove power line noise (modify if 50 Hz)
 
                     global_raw = raw
 
                     """## ICA"""
 
-                    ica = ICA(n_components=15, random_state=13, max_iter='auto')
+                    # ica = ICA(n_components=15, random_state=13, max_iter='auto')
+                    ica = ICA(n_components=17, random_state=800, max_iter='auto')
                     ica.fit(raw)
 
                     ica.exclude = [3]
@@ -987,7 +992,7 @@ def upload_file():
                                 asymmetry = left_power - right_power
 
                                 # If significant asymmetry is found
-                                if abs(asymmetry) > 0.05:  # Threshold for asymmetry reporting
+                                if abs(asymmetry) > 0.05: # 0.05  # Threshold for asymmetry reporting
                                     significant_zones.add(zone_name)
 
                         # Format the report summary
@@ -1392,162 +1397,218 @@ def upload_file():
 
                     # Function to call OpenAI API to generate qEEG Patient Report
                     # Function to call OpenAI API to generate qEEG Patient Report
-                    def main_qeeg_rehab(analysis, raw_eeg_summary, cleaned_ica_summary, theta_beta_summary, bands_summary, ica_com_summary,
-                                        rel_spec_summary, abs_spec_summary, name, bands, age, gender, known_issues, medications):
+                    # def main_qeeg_rehab(analysis, raw_eeg_summary, cleaned_ica_summary, theta_beta_summary, bands_summary, ica_com_summary,
+                    #                     rel_spec_summary, abs_spec_summary, name, bands, age, gender, known_issues, medications):
                         
-                        response = openai.ChatCompletion.create(
-                            # model="gpt-4",
-                            # messages=[
-                            #     {"role": "system", "content": """You are an expert in neuroscience, specializing in EEG analysis and frequency 
-                            #             band interpretation. Moreover, You are a specialist in creating personalized Comprehensive qEEG Analysis and 
-                            #             Rehabilitation Guide."""},
-                            #     {"role": "user", "content": f""" You need to make a detailed report on: {analysis}. The report should have following
-                            #                                 headings only: Introduction, Patient Overview, Assessment of qEEG Data, 
-                            #                                 Daily Life and Family Dynamics, Nutrition and Dietary Recommendations,
-                            #                                 Sports and Physical Activity Recommendations, Educational and Professional Guidance,
-                            #                                 Abilities and Skills Development, Rehabilitation Goals, Intervention Strategies (should have
-                            #                                 following sub headings: Cognitive Rehabilitation, Behavioural and Psychological Support,
-                            #                                 and Physical Rehabilitation), Lifestyle and Routine Recommendations,
-                            #                                 Implementation Plan, Developmental and Age-Related Considerations, Conclusion and
-                            #                                 References. I will explain what you need to include in the above mentioned sections:
+                    #     response = openai.ChatCompletion.create(
+                    #         # model="gpt-4",
+                    #         # messages=[
+                    #         #     {"role": "system", "content": """You are an expert in neuroscience, specializing in EEG analysis and frequency 
+                    #         #             band interpretation. Moreover, You are a specialist in creating personalized Comprehensive qEEG Analysis and 
+                    #         #             Rehabilitation Guide."""},
+                    #         #     {"role": "user", "content": f""" You need to make a detailed report on: {analysis}. The report should have following
+                    #         #                                 headings only: Introduction, Patient Overview, Assessment of qEEG Data, 
+                    #         #                                 Daily Life and Family Dynamics, Nutrition and Dietary Recommendations,
+                    #         #                                 Sports and Physical Activity Recommendations, Educational and Professional Guidance,
+                    #         #                                 Abilities and Skills Development, Rehabilitation Goals, Intervention Strategies (should have
+                    #         #                                 following sub headings: Cognitive Rehabilitation, Behavioural and Psychological Support,
+                    #         #                                 and Physical Rehabilitation), Lifestyle and Routine Recommendations,
+                    #         #                                 Implementation Plan, Developmental and Age-Related Considerations, Conclusion and
+                    #         #                                 References. I will explain what you need to include in the above mentioned sections:
                                                             
-                            #                                 The Introduction section should contains: Overview of qEEG-Guided Rehabilitation based on
-                            #                                 raw EEG findings: {raw_eeg_summary}, ica cleaned EEG findings: {cleaned_ica_summary},
-                            #                                 theta beta ratio findings: {theta_beta_summary}, band wise findings: {bands_summary},
-                            #                                 (Bands ranges are as follows: {bands}), ica components findings: {ica_com_summary}, Relative
-                            #                                 spectra summary {rel_spec_summary} and absolute spectra summary {abs_spec_summary} (Define 
-                            #                                 the methods and related studies or literature to the above findings).
-                            #                                 After giving the overview, the purpose of the Rehabilitation Plan should be defined.
+                    #         #                                 The Introduction section should contains: Overview of qEEG-Guided Rehabilitation based on
+                    #         #                                 raw EEG findings: {raw_eeg_summary}, ica cleaned EEG findings: {cleaned_ica_summary},
+                    #         #                                 theta beta ratio findings: {theta_beta_summary}, band wise findings: {bands_summary},
+                    #         #                                 (Bands ranges are as follows: {bands}), ica components findings: {ica_com_summary}, Relative
+                    #         #                                 spectra summary {rel_spec_summary} and absolute spectra summary {abs_spec_summary} (Define 
+                    #         #                                 the methods and related studies or literature to the above findings).
+                    #         #                                 After giving the overview, the purpose of the Rehabilitation Plan should be defined.
                                                             
-                            #                                 In Patient Overview secion, the background of patient information such as name: {name},
-                            #                                 age: {age}, gender: {gender}, medications: {medications}, and known issues: {known_issues} 
-                            #                                 should be defined. Afterwards, Summary of qEEG Findings should be included based on raw 
-                            #                                 EEG findings: {raw_eeg_summary}, ica cleaned EEG findings: {cleaned_ica_summary}, theta beta ratio 
-                            #                                 findings: {theta_beta_summary}, band wise findings: {bands_summary}, and ica 
-                            #                                 components findings: {ica_com_summary}, (Bands ranges are as follows: {bands}). 
-                            #                                 Last but not least, Clinical Implications of qEEG Results will be added also in this section.
+                    #         #                                 In Patient Overview secion, the background of patient information such as name: {name},
+                    #         #                                 age: {age}, gender: {gender}, medications: {medications}, and known issues: {known_issues} 
+                    #         #                                 should be defined. Afterwards, Summary of qEEG Findings should be included based on raw 
+                    #         #                                 EEG findings: {raw_eeg_summary}, ica cleaned EEG findings: {cleaned_ica_summary}, theta beta ratio 
+                    #         #                                 findings: {theta_beta_summary}, band wise findings: {bands_summary}, and ica 
+                    #         #                                 components findings: {ica_com_summary}, (Bands ranges are as follows: {bands}). 
+                    #         #                                 Last but not least, Clinical Implications of qEEG Results will be added also in this section.
                                                             
-                            #                                 Please proceed with these guidelines to generate the report in British English."""}
-                            # ]
-                            model="chatgpt-4o-latest",
-                            messages=[
-                    {"role": "system", "content": """You are an expert in neuroscience, specializing in EEG analysis and frequency 
-                      band interpretation. Moreover, You are a specialist in creating personalized Comprehensive qEEG Analysis and 
-                      Rehabilitation Guide """},
-                    {"role": "user", "content": f""" You need to make a detailed report on: {analysis}. The report should have following
-                                        headings only: Introduction, Patient Overview, Assessment of qEEG Data, 
-                                        Daily Life and Family Dynamics, Nutrition and Dietary Recommendations,
-                                        Sports and Physical Activity Recommendations, Educational and Professional Guidance,
-                                        Abilities and Skills Development, Rehabilitation Goals,  Intervention Strategies (should have
-                                        following sub headings: Cognitive Rehabilitation, Behavioural and Psychological Support,
-                                        and Physical Rehabilitation), Lifestyle and Routine Recommendations,
-                                        Implementation Plan, Developmental and Age-Related Considerations, Conclusion and
-                                        References. I will explain what you need to include in the above mentioned sections:
+                    #         #                                 Please proceed with these guidelines to generate the report in British English."""}
+                    #         # ]
+                    #         model="chatgpt-4o-latest",
+                    #         messages=[
+                    # {"role": "system", "content": """You are an expert in neuroscience, specializing in EEG analysis and frequency 
+                    #   band interpretation. Moreover, You are a specialist in creating personalized Comprehensive qEEG Analysis and 
+                    #   Rehabilitation Guide """},
+                    # {"role": "user", "content": f""" You need to make a detailed report on: {analysis}. The report should have following
+                    #                     headings only: Introduction, Patient Overview, Assessment of qEEG Data, 
+                    #                     Daily Life and Family Dynamics, Nutrition and Dietary Recommendations,
+                    #                     Sports and Physical Activity Recommendations, Educational and Professional Guidance,
+                    #                     Abilities and Skills Development, Rehabilitation Goals,  Intervention Strategies (should have
+                    #                     following sub headings: Cognitive Rehabilitation, Behavioural and Psychological Support,
+                    #                     and Physical Rehabilitation), Lifestyle and Routine Recommendations,
+                    #                     Implementation Plan, Developmental and Age-Related Considerations, Conclusion and
+                    #                     References. I will explain what you need to include in the above mentioned sections:
                                         
-                                        The Introduction section should contains: Overview of qEEG-Guided Rehabilitation based on
-                                        raw EEG findings: {raw_eeg_summary}, ica cleaned EEG findings: {cleaned_ica_summary},
-                                        theta beta ratio findings: {theta_beta_summary}, band wise findings: {bands_summary},
-                                        (Bands ranges are as follows: {bands}), ica components findings: {ica_com_summary}, Relative
-                                        spectra summary {rel_spec_summary} and absolute spectra summary {abs_spec_summary}(Define 
-                                        the methods and related studies or literature to the above findings)
-                                        After giving the overview, the purpose of the Rehabilitation Plan should be defined.
+                    #                     The Introduction section should contains: Overview of qEEG-Guided Rehabilitation based on
+                    #                     raw EEG findings: {raw_eeg_summary}, ica cleaned EEG findings: {cleaned_ica_summary},
+                    #                     theta beta ratio findings: {theta_beta_summary}, band wise findings: {bands_summary},
+                    #                     (Bands ranges are as follows: {bands}), ica components findings: {ica_com_summary}, Relative
+                    #                     spectra summary {rel_spec_summary} and absolute spectra summary {abs_spec_summary}(Define 
+                    #                     the methods and related studies or literature to the above findings)
+                    #                     After giving the overview, the purpose of the Rehabilitation Plan should be defined.
                                         
-                                        In Patient Overview secion, the background of patient information such as name: {name},
-                                        age: {age}, gender: {gender}, medications:{medications} and known issues:{known_issues} 
-                                        should be defined. Afterwards, Summary of qEEG Findings should be included based on raw 
-                                        EEG findings: {raw_eeg_summary}, ica cleaned EEG findings: {cleaned_ica_summary}, theta beta ratio 
-                                        findings: {theta_beta_summary} ,band wise findings: {bands_summary}, and ica 
-                                        components findings: {ica_com_summary}, (Bands ranges are as follows: {bands}). 
-                                        Last but not least Clinical Implications of qEEG Results will be added also in this section.
+                    #                     In Patient Overview secion, the background of patient information such as name: {name},
+                    #                     age: {age}, gender: {gender}, medications:{medications} and known issues:{known_issues} 
+                    #                     should be defined. Afterwards, Summary of qEEG Findings should be included based on raw 
+                    #                     EEG findings: {raw_eeg_summary}, ica cleaned EEG findings: {cleaned_ica_summary}, theta beta ratio 
+                    #                     findings: {theta_beta_summary} ,band wise findings: {bands_summary}, and ica 
+                    #                     components findings: {ica_com_summary}, (Bands ranges are as follows: {bands}). 
+                    #                     Last but not least Clinical Implications of qEEG Results will be added also in this section.
                                         
-                                        The Assessment of qEEG Data section contains information about: Detailed Analysis of 
-                                        qEEG Reports based on bands: {bands},and you can finds the findings of each band wave 
-                                        from here: {bands_summary}. 
-                                        Based on all the findings please include also the Identification of Dysregulated Brain 
-                                        Regions. after this please add detailed information based on the qEEG findings for: 
-                                        Visual Cortex Activity and Eye Health:
-                                        Auditory Cortex Activity and Hearing Health:
-                                        Neural Correlates of Leaky Gut Syndrome:
+                    #                     The Assessment of qEEG Data section contains information about: Detailed Analysis of 
+                    #                     qEEG Reports based on bands: {bands},and you can finds the findings of each band wave 
+                    #                     from here: {bands_summary}. 
+                    #                     Based on all the findings please include also the Identification of Dysregulated Brain 
+                    #                     Regions. after this please add detailed information based on the qEEG findings for: 
+                    #                     Visual Cortex Activity and Eye Health:
+                    #                     Auditory Cortex Activity and Hearing Health:
+                    #                     Neural Correlates of Leaky Gut Syndrome:
                                         
-                                        In  Daily Life and Family Dynamics sections, based on the findings you have to include
-                                        information about: 
-                                        Impact of Findings on Daily Life Activitie, Family Support and Involvement, Relationship 
-                                        with Family and Friends, Strategies for Enhancing Family Communication and Support and 
-                                        Adjustments to Home Environment for Optimal Rehabilitation. The content should not be
-                                        too plain and not like normal content it should give more info related to findings 
-                                        and patient suggestins daily life example etc.
+                    #                     In  Daily Life and Family Dynamics sections, based on the findings you have to include
+                    #                     information about: 
+                    #                     Impact of Findings on Daily Life Activitie, Family Support and Involvement, Relationship 
+                    #                     with Family and Friends, Strategies for Enhancing Family Communication and Support and 
+                    #                     Adjustments to Home Environment for Optimal Rehabilitation. The content should not be
+                    #                     too plain and not like normal content it should give more info related to findings 
+                    #                     and patient suggestins daily life example etc.
                                         
-                                        The section Nutrition and Dietary Recommendations should contains information on: 
-                                        Nutrition: Foods to Eat and Foods to Avoid and 
-                                        Vitamins to Consume and Their Benefits in detail.
+                    #                     The section Nutrition and Dietary Recommendations should contains information on: 
+                    #                     Nutrition: Foods to Eat and Foods to Avoid and 
+                    #                     Vitamins to Consume and Their Benefits in detail.
                                         
-                                        In Sports and Physical Activity Recommendations section the following should be included in detail:
-                                        Assessment of Physical Abilities, Recommended Sports and Physical Activities,
-                                        Tailoring Physical Activities to Support Rehabilitation Goals, and 
-                                        Safety Considerations and Precautions.
+                    #                     In Sports and Physical Activity Recommendations section the following should be included in detail:
+                    #                     Assessment of Physical Abilities, Recommended Sports and Physical Activities,
+                    #                     Tailoring Physical Activities to Support Rehabilitation Goals, and 
+                    #                     Safety Considerations and Precautions.
                                         
-                                        In  Educational and Professional Guidance section should explain the following:
-                                        Cognitive and Learning Abilities, Recommendations for Educational Pathways, and 
-                                        Professional and Career Counselling
+                    #                     In  Educational and Professional Guidance section should explain the following:
+                    #                     Cognitive and Learning Abilities, Recommendations for Educational Pathways, and 
+                    #                     Professional and Career Counselling
                                         
-                                        In Abilities and Skills Development please exaplain about: Identification of Strengths 
-                                        and Areas for Improvement, Skill-Building Exercises for Cognitive and Physical Development,
-                                        Encouraging Independence and Self-Efficacy, Long-Term Developmental Goals.
+                    #                     In Abilities and Skills Development please exaplain about: Identification of Strengths 
+                    #                     and Areas for Improvement, Skill-Building Exercises for Cognitive and Physical Development,
+                    #                     Encouraging Independence and Self-Efficacy, Long-Term Developmental Goals.
                                         
-                                        In  Rehabilitation Goals please explain the followings: Cognitive Rehabilitation Goals,
-                                        Behavioural and Psychological Rehabilitation Goals, Physical Rehabilitation Goals, and
-                                        Long-term Outcome Goals
+                    #                     In  Rehabilitation Goals please explain the followings: Cognitive Rehabilitation Goals,
+                    #                     Behavioural and Psychological Rehabilitation Goals, Physical Rehabilitation Goals, and
+                    #                     Long-term Outcome Goals
                                         
-                                        In  Intervention Strategies section please define about: 1. Cognitive Rehabilitation in which
-                                        you have to explain about Memory and Attention Training Exercises, Executive Function 
-                                        Enhancement Exercises. 2. Behavioural and Psychological Support please explain about
-                                        Cognitive-Behavioural Therapy (CBT) Techniques and Relaxation and Stress Management Techniques
-                                        and 3. Physical Rehabilitation, please write about: Motor Function Rehabilitation Exercises,
-                                        Biofeedback Integration
+                    #                     In  Intervention Strategies section please define about: 1. Cognitive Rehabilitation in which
+                    #                     you have to explain about Memory and Attention Training Exercises, Executive Function 
+                    #                     Enhancement Exercises. 2. Behavioural and Psychological Support please explain about
+                    #                     Cognitive-Behavioural Therapy (CBT) Techniques and Relaxation and Stress Management Techniques
+                    #                     and 3. Physical Rehabilitation, please write about: Motor Function Rehabilitation Exercises,
+                    #                     Biofeedback Integration
                                         
-                                        in  Lifestyle and Routine Recommendations  section please suggest about: Sleep Routine 
-                                        Suggestions, Games and Play Suggestions.
+                    #                     in  Lifestyle and Routine Recommendations  section please suggest about: Sleep Routine 
+                    #                     Suggestions, Games and Play Suggestions.
                                         
-                                        In  Implementation Plan please explain in detailed about Multidisciplinary Team Involvement,
-                                        Session Scheduling and Duration, Home-Based Exercises and Activities, and 
-                                        Patient and Family Education
+                    #                     In  Implementation Plan please explain in detailed about Multidisciplinary Team Involvement,
+                    #                     Session Scheduling and Duration, Home-Based Exercises and Activities, and 
+                    #                     Patient and Family Education
                                         
-                                        In Developmental and Age-Related Considerations section please explain about: 
-                                        Tailoring the Plan for Age and Developmental Stage and Special Considerations for 
-                                        Brain Maturation
+                    #                     In Developmental and Age-Related Considerations section please explain about: 
+                    #                     Tailoring the Plan for Age and Developmental Stage and Special Considerations for 
+                    #                     Brain Maturation
                                         
-                                        In Conclusion  you have to explain about: Summary of the Rehabilitation Plan,
-                                        Expected Outcomes and Importance of Adherence and Follow-Up
+                    #                     In Conclusion  you have to explain about: Summary of the Rehabilitation Plan,
+                    #                     Expected Outcomes and Importance of Adherence and Follow-Up
                                         
-                                        In References part please list down in detail, List of References and Research Supporting the Plan
-                                        and qEEG and Neurofeedback Literature.
+                    #                     In References part please list down in detail, List of References and Research Supporting the Plan
+                    #                     and qEEG and Neurofeedback Literature.
                                         
-                                        Please write a detailed and comprehensive report in British English"""}
+                    #                     Please write a detailed and comprehensive report in British English"""}
                                             
-                            ]
-                        )
-                        return response['choices'][0]['message']['content']
+                    #         ]
+                    #     )
+                    #     return response['choices'][0]['message']['content']
 
-                    # Call the function to generate the qEEG Patient Report
-                    qeeg_report_content = main_qeeg_rehab(
-                        analysis="qEEG Patient Report",
-                        raw_eeg_summary=raw_eeg_summary,
-                        cleaned_ica_summary=cleaned_ica_summary,
-                        theta_beta_summary=theta_beta_summary,
-                        bands_summary=bands_summary,
-                        ica_com_summary=ica_com_summary,
-                        rel_spec_summary=rel_spec_summary,
-                        abs_spec_summary=abs_spec_summary,
-                        name=name,
-                        bands=bands,
-                        age=age,
-                        gender=gender,
-                        known_issues=known_issues,
-                        medications=medications
-                    )
+                    # # Call the function to generate the qEEG Patient Report
+                    # qeeg_report_content = main_qeeg_rehab(
+                    #     analysis="qEEG Patient Report",
+                    #     raw_eeg_summary=raw_eeg_summary,
+                    #     cleaned_ica_summary=cleaned_ica_summary,
+                    #     theta_beta_summary=theta_beta_summary,
+                    #     bands_summary=bands_summary,
+                    #     ica_com_summary=ica_com_summary,
+                    #     rel_spec_summary=rel_spec_summary,
+                    #     abs_spec_summary=abs_spec_summary,
+                    #     name=name,
+                    #     bands=bands,
+                    #     age=age,
+                    #     gender=gender,
+                    #     known_issues=known_issues,
+                    #     medications=medications
+                    # )
 
-                    # Display or save the generated report content
-                    print(qeeg_report_content)
+                    # # Display or save the generated report content
+                    # print(qeeg_report_content)
+
+
+                    # Function to identify channels with increased relative theta and alpha power
+                    def find_relative_increased_activity(power_band, threshold_percent=75):
+                        threshold = np.percentile(power_band, threshold_percent)  # Use 75th percentile as threshold
+                        increased_channels = [ch for ch, power in zip(channel_names, power_band) if power >= threshold]
+                        return increased_channels
+
+                    # Identify channels with increased relative theta and alpha power
+                    increased_theta_channels = find_relative_increased_activity(relative_theta_power)
+                    increased_alpha_channels = find_relative_increased_activity(relative_alpha_power)
+
+                    # Map channels to regions for theta and alpha findings
+                    def map_channels_to_regions(increased_channels):
+                        region_report = {region: [] for region in channel_groups}
+                        for channel in increased_channels:
+                            for region, region_channels in channel_groups.items():
+                                if channel in region_channels:
+                                    region_report[region].append(channel)
+                        return region_report
+
+                    # Generate region-based findings for theta and alpha
+                    theta_region_findings = map_channels_to_regions(increased_theta_channels)
+                    alpha_region_findings = map_channels_to_regions(increased_alpha_channels)
+
+                    # Function to format findings text for display
+                    def generate_activity_findings_text(region_findings, band_name):
+                        findings_text = f"% Relative increase in {band_name} activity in "
+                        regions_with_increase = {region: channels for region, channels in region_findings.items() if channels}
+                        
+                        for i, (region, channels) in enumerate(regions_with_increase.items()):
+                            channels_str = ', '.join(channels)
+                            if i == len(regions_with_increase) - 1:
+                                findings_text += f"{region} {channels_str}."
+                            else:
+                                findings_text += f"{region} {channels_str}, "
+                        return findings_text
+
+                    # Generate findings text for theta and alpha activity
+                    theta_findings_text = generate_activity_findings_text(theta_region_findings, "theta")
+                    alpha_findings_text = generate_activity_findings_text(alpha_region_findings, "alpha")
+
+                    # Combine findings for display in the app
+                    combined_findings_text = f"{theta_findings_text}\n{alpha_findings_text}"
+
+                    # Plot the findings text on a figure (optional, similar to Brodmann findings)
+                    def plot_activity_findings(combined_findings_text):
+                        fig, ax = plt.subplots(figsize=(10, 6))
+                        ax.text(0.5, 0.5, combined_findings_text, ha='center', va='center', fontsize=12, wrap=True)
+                        ax.axis('off')  # Hide axes
+                        fig.suptitle("Relative Increased Theta and Alpha Activity Findings", fontsize=16)
+                        return fig
+
+                    # Generate the findings plot and store it globally for the app
+                    global_relative_activity_findings_fig = plot_activity_findings(combined_findings_text)
+
                     
 
                     max_time = int(raw.times[-1])
@@ -1629,8 +1690,10 @@ def handle_slider_update(data):
             fig = global_brodmann_findings
         elif plot_type == 'pathological_signs_detection' and global_pathological_signs_detection_fig:
             fig = global_pathological_signs_detection_fig
-        elif plot_type == 'qEEG_patient_report' and qeeg_report_content:
-            report_content = qeeg_report_content
+        # elif plot_type == 'qEEG_patient_report' and qeeg_report_content:
+        #     report_content = qeeg_report_content
+        elif plot_type == 'relative_theta_alpha_findings' and global_relative_activity_findings_fig:
+            fig = global_relative_activity_findings_fig
     
             
         else:
