@@ -25,6 +25,8 @@ import pandas as pd
 from datetime import datetime
 import os
 from pathlib import Path
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+
 
 
 # with open('./apikey.txt', 'r') as file:
@@ -138,6 +140,7 @@ age = None
 gender = None 
 known_issues = None 
 global_relative_activity_findings_fig = None
+combined_fig = None
 
 
 
@@ -150,18 +153,18 @@ def upload_file():
     global_abs_power_spectra_lines, global_abs_power_spectra_topo, global_rel_power_spectra_lines,global_rel_power_spectra_topo, \
     global_theta_beta_ratio, global_asymmetry_fig, global_brodmann_dorsolateral, global_brodmann_dorsolateral_combined, \
     global_brodmann_findings, global_pathological_signs_detection_fig, qeeg_report_content, global_qeeg_report_fig, \
-    name, dob, age, \
-    gender, known_issues, medications, global_relative_activity_findings_fig
+    name, dob, age, gender, known_issues, medications, \
+    global_relative_activity_findings_fig, combined_fig
 
     if request.method == 'POST':
        
         uploaded_file = request.files['file']   
-        name = request.form.get('name')
-        dob = request.form.get('dob')
-        age = request.form.get('age')
-        gender = request.form.get('gender')
-        known_issues = request.form.get('known_issues')
-        medications = request.form.get('medications')     
+        # name = request.form.get('name')
+        # dob = request.form.get('dob')
+        # age = request.form.get('age')
+        # gender = request.form.get('gender')
+        # known_issues = request.form.get('known_issues')
+        # medications = request.form.get('medications')     
         
         if uploaded_file:
             file_ext = os.path.splitext(uploaded_file.filename)[1]
@@ -1028,8 +1031,8 @@ def upload_file():
                             ax.set_title(f'{band_name} Band')
 
                         # Add text as an annotation below the topomaps
-                        fig.text(0.5, 0.05, summary_text, ha='center', va='center', fontsize=14, wrap=True)
-                        fig.suptitle("Asymmetry Analysis with Summary", fontsize=16)
+                        fig.text(0.5, 0.05, summary_text, ha='center', va='center', fontsize=26, wrap=True)
+                        # fig.suptitle("Asymmetry Analysis with Summary", fontsize=16)
 
                         # Return the combined figure
                         return fig
@@ -1247,9 +1250,9 @@ def upload_file():
 
                         # Plot the findings text on a figure
                         fig, ax = plt.subplots(figsize=(10, 6))
-                        ax.text(0.5, 0.5, brodmann_output_results, ha='center', va='center', fontsize=12, wrap=True)
+                        ax.text(0.5, 0.5, brodmann_output_results, ha='center', va='center', fontsize=26, wrap=True)
                         ax.axis('off')  # Hide the axes for a cleaner look
-                        fig.suptitle("Brodmann Findings", fontsize=16)
+                        fig.suptitle("Brodmann Findings", fontsize=26)
                         return fig
                     
                     global_brodmann_findings = generate_brodmann_findings_figure()
@@ -1302,7 +1305,7 @@ def upload_file():
                             f"Occipital peak Alpha frequency and power (Eyes open):\n{alpha_results_text}\n\n"
                             f"Markers for leaky gut syndrome (slow waves in occipital and temporal regions) (Eyes Open):\n{leaky_gut_text}"
                         )
-                        ax.text(0.5, 0.5, results_text, ha='center', va='center', fontsize=12, wrap=True, bbox=dict(facecolor='lightgrey', edgecolor='black', boxstyle='round,pad=0.5'))
+                        ax.text(0.5, 0.5, results_text, ha='center', va='center', fontsize=14, wrap=True, bbox=dict(facecolor='lightgrey', edgecolor='black', boxstyle='round,pad=0.5'))
 
                         return fig
 
@@ -1316,84 +1319,84 @@ def upload_file():
                     
                     global_ica = ica
                     
-                    import openai
+                    # import openai
 
-                    # Initialize OpenAI API
-                    with open('/root/apikey.txt', 'r') as file:
-                        openai_api_key = file.read().strip()
+                    # # Initialize OpenAI API
+                    # with open('./apikey.txt', 'r') as file:
+                    #     openai_api_key = file.read().strip()
 
-                    openai.api_key = openai_api_key
-                    # Function to generate each summary
-                    def generate_raw_eeg_summary(raw):
-                        duration = raw.times[-1] - raw.times[0]
-                        sampling_frequency = raw.info['sfreq']
-                        channel_count = len(raw.ch_names)
-                        return f"Raw EEG recording with {channel_count} channels, duration of {duration:.2f} seconds, sampled at {sampling_frequency} Hz."
+                    # openai.api_key = openai_api_key
+                    # # Function to generate each summary
+                    # def generate_raw_eeg_summary(raw):
+                    #     duration = raw.times[-1] - raw.times[0]
+                    #     sampling_frequency = raw.info['sfreq']
+                    #     channel_count = len(raw.ch_names)
+                    #     return f"Raw EEG recording with {channel_count} channels, duration of {duration:.2f} seconds, sampled at {sampling_frequency} Hz."
 
-                    def generate_cleaned_ica_summary(cleaned_ica, excluded_components):
-                        return f"ICA-cleaned EEG data. {len(excluded_components)} components were excluded for artifact removal, focusing on eye movement and noise reduction."
+                    # def generate_cleaned_ica_summary(cleaned_ica, excluded_components):
+                    #     return f"ICA-cleaned EEG data. {len(excluded_components)} components were excluded for artifact removal, focusing on eye movement and noise reduction."
 
-                    def generate_theta_beta_summary(cleaned_raw, theta_power, beta_power):
-                        theta_beta_ratio = theta_power / beta_power
-                        avg_theta_beta_ratio = np.mean(theta_beta_ratio)
-                        return f"Average Theta/Beta ratio: {avg_theta_beta_ratio:.2f}. This ratio is associated with attentional processes."
+                    # def generate_theta_beta_summary(cleaned_raw, theta_power, beta_power):
+                    #     theta_beta_ratio = theta_power / beta_power
+                    #     avg_theta_beta_ratio = np.mean(theta_beta_ratio)
+                    #     return f"Average Theta/Beta ratio: {avg_theta_beta_ratio:.2f}. This ratio is associated with attentional processes."
 
-                    def generate_bands_summary(bands, delta_power, theta_power, alpha_power, beta1_power, beta2_power, gamma_power):
-                        band_powers = {
-                            "Delta": np.mean(delta_power),
-                            "Theta": np.mean(theta_power),
-                            "Alpha": np.mean(alpha_power),
-                            "Beta1": np.mean(beta1_power),
-                            "Beta2": np.mean(beta2_power),
-                            "Gamma": np.mean(gamma_power)
-                        }
-                        summary = "Band-wise average power: "
-                        summary += ", ".join([f"{band}: {power:.2f} µV²" for band, power in band_powers.items()])
-                        return summary
+                    # def generate_bands_summary(bands, delta_power, theta_power, alpha_power, beta1_power, beta2_power, gamma_power):
+                    #     band_powers = {
+                    #         "Delta": np.mean(delta_power),
+                    #         "Theta": np.mean(theta_power),
+                    #         "Alpha": np.mean(alpha_power),
+                    #         "Beta1": np.mean(beta1_power),
+                    #         "Beta2": np.mean(beta2_power),
+                    #         "Gamma": np.mean(gamma_power)
+                    #     }
+                    #     summary = "Band-wise average power: "
+                    #     summary += ", ".join([f"{band}: {power:.2f} µV²" for band, power in band_powers.items()])
+                    #     return summary
 
-                    def generate_ica_com_summary(ica, excluded_components):
-                        summary = "ICA analysis detected artifacts in components: "
-                        summary += ", ".join(map(str, excluded_components))
-                        summary += ". These components were removed to minimize artifacts."
-                        return summary
+                    # def generate_ica_com_summary(ica, excluded_components):
+                    #     summary = "ICA analysis detected artifacts in components: "
+                    #     summary += ", ".join(map(str, excluded_components))
+                    #     summary += ". These components were removed to minimize artifacts."
+                    #     return summary
 
-                    def generate_rel_spec_summary(relative_delta_power, relative_theta_power, relative_alpha_power,
-                                                relative_beta1_power, relative_beta2_power, relative_gamma_power):
-                        relative_powers = {
-                            "Delta": np.mean(relative_delta_power),
-                            "Theta": np.mean(relative_theta_power),
-                            "Alpha": np.mean(relative_alpha_power),
-                            "Beta1": np.mean(relative_beta1_power),
-                            "Beta2": np.mean(relative_beta2_power),
-                            "Gamma": np.mean(relative_gamma_power)
-                        }
-                        summary = "Relative power percentages: "
-                        summary += ", ".join([f"{band}: {power:.2f}%" for band, power in relative_powers.items()])
-                        return summary
+                    # def generate_rel_spec_summary(relative_delta_power, relative_theta_power, relative_alpha_power,
+                    #                             relative_beta1_power, relative_beta2_power, relative_gamma_power):
+                    #     relative_powers = {
+                    #         "Delta": np.mean(relative_delta_power),
+                    #         "Theta": np.mean(relative_theta_power),
+                    #         "Alpha": np.mean(relative_alpha_power),
+                    #         "Beta1": np.mean(relative_beta1_power),
+                    #         "Beta2": np.mean(relative_beta2_power),
+                    #         "Gamma": np.mean(relative_gamma_power)
+                    #     }
+                    #     summary = "Relative power percentages: "
+                    #     summary += ", ".join([f"{band}: {power:.2f}%" for band, power in relative_powers.items()])
+                    #     return summary
 
-                    def generate_abs_spec_summary(delta_power, theta_power, alpha_power, beta1_power, beta2_power, gamma_power):
-                        abs_powers = {
-                            "Delta": np.mean(delta_power),
-                            "Theta": np.mean(theta_power),
-                            "Alpha": np.mean(alpha_power),
-                            "Beta1": np.mean(beta1_power),
-                            "Beta2": np.mean(beta2_power),
-                            "Gamma": np.mean(gamma_power)
-                        }
-                        summary = "Absolute power levels (µV²): "
-                        summary += ", ".join([f"{band}: {power:.2f}" for band, power in abs_powers.items()])
-                        return summary
+                    # def generate_abs_spec_summary(delta_power, theta_power, alpha_power, beta1_power, beta2_power, gamma_power):
+                    #     abs_powers = {
+                    #         "Delta": np.mean(delta_power),
+                    #         "Theta": np.mean(theta_power),
+                    #         "Alpha": np.mean(alpha_power),
+                    #         "Beta1": np.mean(beta1_power),
+                    #         "Beta2": np.mean(beta2_power),
+                    #         "Gamma": np.mean(gamma_power)
+                    #     }
+                    #     summary = "Absolute power levels (µV²): "
+                    #     summary += ", ".join([f"{band}: {power:.2f}" for band, power in abs_powers.items()])
+                    #     return summary
 
-                    # Generate summaries based on cleaned EEG data and other variables
-                    raw_eeg_summary = generate_raw_eeg_summary(global_raw)
-                    excluded_components = global_ica.exclude
-                    cleaned_ica_summary = generate_cleaned_ica_summary(global_raw_ica, excluded_components)
-                    theta_beta_summary = generate_theta_beta_summary(global_raw_ica, theta_power, beta1_power)
-                    bands_summary = generate_bands_summary(bands, delta_power, theta_power, alpha_power, beta1_power, beta2_power, gamma_power)
-                    ica_com_summary = generate_ica_com_summary(global_ica, excluded_components)
-                    rel_spec_summary = generate_rel_spec_summary(relative_delta_power, relative_theta_power, relative_alpha_power,
-                                                                relative_beta1_power, relative_beta2_power, relative_gamma_power)
-                    abs_spec_summary = generate_abs_spec_summary(delta_power, theta_power, alpha_power, beta1_power, beta2_power, gamma_power)
+                    # # Generate summaries based on cleaned EEG data and other variables
+                    # raw_eeg_summary = generate_raw_eeg_summary(global_raw)
+                    # excluded_components = global_ica.exclude
+                    # cleaned_ica_summary = generate_cleaned_ica_summary(global_raw_ica, excluded_components)
+                    # theta_beta_summary = generate_theta_beta_summary(global_raw_ica, theta_power, beta1_power)
+                    # bands_summary = generate_bands_summary(bands, delta_power, theta_power, alpha_power, beta1_power, beta2_power, gamma_power)
+                    # ica_com_summary = generate_ica_com_summary(global_ica, excluded_components)
+                    # rel_spec_summary = generate_rel_spec_summary(relative_delta_power, relative_theta_power, relative_alpha_power,
+                    #                                             relative_beta1_power, relative_beta2_power, relative_gamma_power)
+                    # abs_spec_summary = generate_abs_spec_summary(delta_power, theta_power, alpha_power, beta1_power, beta2_power, gamma_power)
 
                     # Function to call OpenAI API to generate qEEG Patient Report
                     # Function to call OpenAI API to generate qEEG Patient Report
@@ -1601,13 +1604,58 @@ def upload_file():
                     # Plot the findings text on a figure (optional, similar to Brodmann findings)
                     def plot_activity_findings(combined_findings_text):
                         fig, ax = plt.subplots(figsize=(10, 6))
-                        ax.text(0.5, 0.5, combined_findings_text, ha='center', va='center', fontsize=12, wrap=True)
+                        ax.text(0.5, 0.5, combined_findings_text, ha='center', va='center', fontsize=24, wrap=True)
                         ax.axis('off')  # Hide axes
-                        fig.suptitle("Relative Increased Theta and Alpha Activity Findings", fontsize=16)
+                        fig.suptitle("Relative Increased Theta and Alpha Activity Findings", fontsize=26)
                         return fig
 
                     # Generate the findings plot and store it globally for the app
                     global_relative_activity_findings_fig = plot_activity_findings(combined_findings_text)
+
+                    
+                    def plot_combined_analysis():
+                        # Create a figure with 3 rows and 1 column for the combined view
+                        fig, axs = plt.subplots(4, 1, figsize=(12, 18))  # Adjust figure size if necessary
+
+                        # Helper function to render subfigures as images
+                        def render_fig_to_array(sub_fig):
+                            canvas = FigureCanvas(sub_fig)
+                            canvas.draw()
+                            width, height = canvas.get_width_height()
+                            image = np.frombuffer(canvas.tostring_rgb(), dtype='uint8').reshape(height, width, 3)
+                            return image
+
+                        # Plot Asymmetry Analysis in the first subplot
+                        if global_asymmetry_fig:
+                            asymmetry_img = render_fig_to_array(global_asymmetry_fig)
+                            axs[0].imshow(asymmetry_img)
+                            axs[0].set_title("Asymmetry Analysis")
+                            axs[0].axis('off')
+
+                        # Plot Relative Theta-Alpha Findings in the second subplot
+                        if global_relative_activity_findings_fig:
+                            theta_alpha_img = render_fig_to_array(global_relative_activity_findings_fig)
+                            axs[1].imshow(theta_alpha_img)
+                            axs[1].set_title("Relative Theta-Alpha Findings")
+                            axs[1].axis('off')
+
+                        # Plot Brodmann Findings in the third subplot
+                        if global_brodmann_findings:
+                            brodmann_img = render_fig_to_array(global_brodmann_findings)
+                            axs[2].imshow(brodmann_img)
+                            axs[2].set_title("Brodmann Findings")
+                            axs[2].axis('off')
+                        if global_pathological_signs_detection_fig:
+                            pathological_fig = render_fig_to_array(global_pathological_signs_detection_fig)
+                            axs[3].imshow(pathological_fig)
+                            axs[3].set_title("Pathological Sign Detection")
+                            axs[3].axis('off')
+
+                        # Adjust layout and return the combined figure
+                        plt.tight_layout()
+                        fig.suptitle("Combined Analysis: Asymmetry, Theta-Alpha Findings, Brodmann Findings", fontsize=16)
+                        return fig
+                    combined_fig = plot_combined_analysis()
 
                     
 
@@ -1694,6 +1742,8 @@ def handle_slider_update(data):
         #     report_content = qeeg_report_content
         elif plot_type == 'relative_theta_alpha_findings' and global_relative_activity_findings_fig:
             fig = global_relative_activity_findings_fig
+        elif plot_type == 'combined_analysis' and global_asymmetry_fig and global_relative_activity_findings_fig and global_brodmann_findings:
+            fig = combined_fig
     
             
         else:
