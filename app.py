@@ -1,1770 +1,361 @@
+import matplotlib
+matplotlib.use('Agg')  # Use non-GUI backend for Matplotlib
+
 from flask import Flask, render_template, request, flash, redirect
 from flask_socketio import SocketIO, emit
 import mne
 import os
 from io import BytesIO
 import base64
-from matplotlib.colors import LinearSegmentedColormap
-from mne.viz import plot_topomap
 import numpy as np
 import matplotlib.pyplot as plt
-import numpy as np
-from scipy.signal import find_peaks
-from mne import make_bem_model, make_bem_solution, make_forward_solution
-from mne.dipole import fit_dipole
-from mne.transforms import Transform
-# from openai import OpenAI
-import re
-from scipy.stats import kurtosis, skew
-from mne.preprocessing import create_eog_epochs
-from autoreject import AutoReject
-from pyprep.prep_pipeline import PrepPipeline  # For ASR
 from mne.preprocessing import ICA
-import pywt
-import pandas as pd
-from datetime import datetime
-import os
-from pathlib import Path
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-
-
-
-# with open('./apikey.txt', 'r') as file:
-#     openai_api_key = file.read().strip()
-# openai.api_key = openai_api_key
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
 app.config['UPLOAD_FOLDER'] = 'C:/temp'
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # Set max upload size to 50 MB
 
-# Initialize Flask-SocketIO
 socketio = SocketIO(app)
-# Define preprocessing variables at the global scope
-channels_to_drop = ['Bio1-2', 'Bio3-4', 'ECG', 'Bio4', 'VSyn', 'ASyn', 'LABEL', 'EEG Fpz','A1','A2','EEG Oz']
-mapping = {
-    'EEG Fp1': 'Fp1', 'EEG Fp2': 'Fp2',
-    'EEG F7': 'F7', 'EEG F3': 'F3', 'EEG Fz': 'Fz',
-    'EEG F4': 'F4', 'EEG F8': 'F8', 'EEG T3': 'T3',
-    'EEG C3': 'C3', 'EEG Cz': 'Cz', 'EEG C4': 'C4',
-    'EEG T4': 'T4', 'EEG T5': 'T5', 'EEG P3': 'P3',
-    'EEG Pz': 'Pz', 'EEG P4': 'P4', 'EEG T6': 'T6',
-    'EEG O1': 'O1', 'EEG O2': 'O2'
-}
-montage = mne.channels.make_standard_montage('standard_1020')
-
-# Define frequency bands
-
-bands = {
-    "delta": (1.5, 4),
-    "theta": (4, 7.5),
-    "alpha": (7.5, 14),
-    "beta-1": (14, 20),
-    "beta-2": (20, 30),
-    "gamma": (30, 40)
-}
-
-
-
-# Define colors for the bands
-band_colors = {
-    "delta": 'maroon',
-    "theta": 'red',
-    "alpha": 'yellow',
-    "beta-1": 'green',
-    "beta-2": 'cyan',
-    "gamma": 'blue'
-}
-
-# Define the custom colormap to match the colorbar in your image
-colors = [
-    (0.0, "#000000"),  # Black
-    (0.1, "#0000FF"),  # Blue
-    (0.2, "#00FFFF"),  # Cyan
-    (0.3, "#00FF00"),  # Green
-    (0.5, "#FFFF00"),  # Yellow
-    (0.7, "#FFA500"),  # Orange
-    (0.9, "#FF0000"),  # Red
-    (1.0, "#FF00FF")   # Magenta
-]
-custom_cmap = LinearSegmentedColormap.from_list("custom_jet", colors)
-
-# Define channel groups for regional analysis (frontal, parietal, occipital, etc.)
-channel_groups = {
-    "frontal": ["Fp1", "Fp2", "F3", "F4", "Fz"],
-    "parietal": ["P3", "P4", "Pz"],
-    "occipital": ["O1", "O2"],
-    "temporal": ["T3", "T4", "T5", "T6"],
-    "central": ["C3", "C4", "Cz"]
-}
-
-frequency_bins = {
-                'Bin 1 (~0.98 Hz)': (0.97, 0.99),
-                'Bin 2 (~1.95 Hz)': (1.94, 1.96),
-                'Bin 3 (~8.30 Hz)': (8.29, 8.31),
-                'Bin 4 (~26.51 Hz)': (26.50, 26.62),
-                'Bin 5 (~30.76 Hz)': (30.75, 30.77)
-            }
 
 # Ensure the upload folder exists
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
-    
 
-
-# Use global variables to store raw and ICA-cleaned EEG data
 global_raw = None
 global_raw_ica = None
-global_ica = None
-global_channel_dict = None
-global_decreased_combined_power_fig = None
-global_decreased_activation_bandwise = None
-global_increased_combined_power_fig = None
-global_increased_activation_bandwise = None
-global_abs_power_spectra_lines = None
-global_abs_power_spectra_topo = None
-global_rel_power_spectra_lines = None
-global_rel_power_spectra_topo = None
-global_theta_beta_ratio= None
-global_asymmetry_fig = None
-global_brodmann_dorsolateral = None
-global_brodmann_dorsolateral_combined = None
-global_brodmann_findings = None
-global_pathological_signs_detection_fig = None
-qeeg_report_content = None
-global_qeeg_report_fig = None
-medications=None
-name = None
-dob= None 
-age = None 
-gender = None 
-known_issues = None 
-global_relative_activity_findings_fig = None
+asymmetry_content_fig = None
 combined_fig = None
 
-
-
-
-# OpenAI API Key setup
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
-    global global_raw, global_raw_ica, global_ica, global_channel_dict, global_decreased_combined_power_fig, \
-    global_decreased_activation_bandwise, global_increased_combined_power_fig, global_increased_activation_bandwise, \
-    global_abs_power_spectra_lines, global_abs_power_spectra_topo, global_rel_power_spectra_lines,global_rel_power_spectra_topo, \
-    global_theta_beta_ratio, global_asymmetry_fig, global_brodmann_dorsolateral, global_brodmann_dorsolateral_combined, \
-    global_brodmann_findings, global_pathological_signs_detection_fig, qeeg_report_content, global_qeeg_report_fig, \
-    name, dob, age, gender, known_issues, medications, \
-    global_relative_activity_findings_fig, combined_fig
+    global global_raw, global_raw_ica, asymmetry_content_fig, combined_fig
 
     if request.method == 'POST':
-       
-        uploaded_file = request.files['file']   
-        # name = request.form.get('name')
-        # dob = request.form.get('dob')
-        # age = request.form.get('age')
-        # gender = request.form.get('gender')
-        # known_issues = request.form.get('known_issues')
-        # medications = request.form.get('medications')     
-        
+        uploaded_file = request.files['file']
         if uploaded_file:
             file_ext = os.path.splitext(uploaded_file.filename)[1]
             if file_ext.lower() != '.edf':
                 flash('Invalid file format! Please upload a .edf file.', 'error')
                 return redirect(request.url)
-            # Handle file upload
-            if 'file' in request.files:
-                try:
-                    f = request.files['file']
-                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], f.filename)
-                    f.save(filepath)
+
+            try:
+                # Save file and load EEG data
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], uploaded_file.filename)
+                uploaded_file.save(filepath)
+                raw = mne.io.read_raw_edf(filepath, preload=True)
+                raw.filter(0.5, 45, fir_design='firwin')
+
+                # Drop unnecessary channels and set montage
+                channels_to_drop = ['Bio1-2', 'Bio3-4', 'ECG', 'Bio4', 'VSyn', 'ASyn', 'LABEL', 'EEG Fpz', 'A1', 'A2', 'EEG Oz']
+                mapping = {
+                    'EEG Fp1': 'Fp1', 'EEG Fp2': 'Fp2', 'EEG F7': 'F7', 'EEG F3': 'F3', 'EEG Fz': 'Fz',
+                    'EEG F4': 'F4', 'EEG F8': 'F8', 'EEG T3': 'T3', 'EEG C3': 'C3', 'EEG Cz': 'Cz',
+                    'EEG C4': 'C4', 'EEG T4': 'T4', 'EEG T5': 'T5', 'EEG P3': 'P3', 'EEG Pz': 'Pz',
+                    'EEG P4': 'P4', 'EEG T6': 'T6', 'EEG O1': 'O1', 'EEG O2': 'O2'
+                }
+                montage = mne.channels.make_standard_montage('standard_1020')
+                raw.drop_channels(channels_to_drop)
+                raw.rename_channels(mapping)
+                raw.set_montage(montage, on_missing='ignore')
+
+                # Apply ICA to remove artifacts
+                ica = ICA(n_components=19, random_state=97, max_iter='auto')
+                ica.fit(raw)
+                ica.exclude = [0,1,2,3]  # Set the component to exclude based on visual inspection
+                cleaned_raw = ica.apply(raw.copy())
+                global_raw_ica = cleaned_raw
+
+                # Asymmetry Analysis
+                def detect_asymmetry(data, sfreq, pairs, freq_bands, threshold_factor=1.5):
+                    asymmetry_findings = []
+                    psd, freqs = mne.time_frequency.psd_array_welch(data, sfreq=sfreq, fmin=1, fmax=45, n_fft=2048)
+                    for ch1, ch2 in pairs:
+                        idx1, idx2 = raw.ch_names.index(ch1), raw.ch_names.index(ch2)
+                        for band, (fmin, fmax) in freq_bands.items():
+                            band_idx = (freqs >= fmin) & (freqs < fmax)
+                            psd_diff = np.abs(psd[idx1, band_idx] - psd[idx2, band_idx])
+                            median_band_power = np.median(psd[:, band_idx])
+                            if np.any(psd_diff > threshold_factor * median_band_power):
+                                asymmetry_findings.append((ch1, ch2, band))
+
+                    asymmetry_content = "Asymmetry detected in channels:\n" + ", ".join(f"{ch1}-{ch2} ({band})" for ch1, ch2, band in asymmetry_findings)
+                    fig, ax = plt.subplots()
+                    ax.axis('off')
+                    ax.text(0.5, 0.5, asymmetry_content, fontsize=12, ha='center', va='center', wrap=True)
+                    # ax.set_title('Asymmetry Findings')
+                    return fig
+
+                # Define parameters and run asymmetry analysis
+                asymmetry_pairs = [("F7", "F8"), ("T5", "T6"), ("O1", "O2"), ("F3", "F4")]
+                bands = {"delta": (1.5, 4), "theta": (4, 7.5), "alpha": (7.5, 14), "beta-1": (14, 20), "beta-2": (20, 30), "gamma": (30, 40)}
+                data, times = raw[:]
+                sfreq = raw.info['sfreq']
+                asymmetry_content_fig = detect_asymmetry(data, sfreq, asymmetry_pairs, bands)
                 
-                    # Load the EEG data using MNE
-                    raw = mne.io.read_raw_edf(filepath, preload=True, encoding='latin1')
-                
-                    channel_names = raw.info['ch_names']
-                    print(channel_names)
-
-                    mapping = {ch: ch.replace('EEG ', '') for ch in raw.info['ch_names'] if 'EEG ' in ch}
-                    raw.rename_channels(mapping)
+                # Theta and Alpha Detection and Plotting
+                def detect_and_plot_theta_alpha_summary(data, sfreq, theta_range=(4, 8), alpha_range=(7.5, 14), threshold_factor=1.5):
+                    theta_channels = []
+                    alpha_channels = []
+                    psd, freqs = mne.time_frequency.psd_array_welch(data, sfreq=sfreq, fmin=1, fmax=45, n_fft=2048)
+                    for ch_idx, channel_psd in enumerate(psd):
+                        theta_power = np.sum(channel_psd[(freqs >= theta_range[0]) & (freqs < theta_range[1])])
+                        alpha_power = np.sum(channel_psd[(freqs >= alpha_range[0]) & (freqs < alpha_range[1])])
+                        if theta_power > threshold_factor * np.median(psd):
+                            theta_channels.append(raw.ch_names[ch_idx])
+                        if alpha_power > threshold_factor * np.median(psd):
+                            alpha_channels.append(raw.ch_names[ch_idx])
                     
-                    # Step 1.2: Set non-EEG channels (e.g., ECG, Bio channels)
-                    non_eeg_channels = ['Bio1-2', 'Bio3-4', 'ECG', 'Bio4', 'VSyn', 'ASyn', 'LABEL']
-                    raw.set_channel_types({ch: 'misc' for ch in non_eeg_channels})
-                    
-                    """### Selecting desired 19 channels"""
-                    
-                    desired_channels = [
-                        'Fp1', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8',
-                        'T3', 'C3', 'Cz', 'C4', 'T4', 'T5',
-                        'P3', 'Pz', 'P4', 'T6', 'O1', 'O2'
-                    ]
-                    raw.pick_channels(desired_channels)
-                    
-                    montage = mne.channels.make_standard_montage('standard_1020')
-                    raw.set_montage(montage)
-                    
-                    print(raw.info)
-                    # Define the duration to remove (in seconds)
-                    # remove_duration = 10  # seconds
-
-                    remove_duration = 30  # seconds
-                    
-                    # Define the sampling frequency of your data
-                    sampling_frequency = raw.info['sfreq']  # Get sampling frequency from the raw object
-                    
-                    # Calculate the number of samples to remove
-                    samples_to_remove = int(remove_duration * sampling_frequency)
-                    
-                    # Get the total number of samples in the raw data
-                    total_samples = raw.n_times
-
-                    # Check if the total samples are sufficient
-                    if total_samples > 2 * samples_to_remove:
-                        # Trim the raw data
-                        trimmed_data = raw.copy().crop(tmin=samples_to_remove / sampling_frequency,
-                                                                tmax=(total_samples - samples_to_remove) / sampling_frequency)
-                    
-                        # Optionally, you can update cleaned_raw with the trimmed data
-                        raw = trimmed_data
-                    else:
-                        print("Not enough data to remove the specified duration.")
-
-                    # Print new data info
-                    print(f"New data length: {raw.n_times} samples, "
-                          f"Duration: {raw.times[-1] - raw.times[0]:.2f} seconds")
-                    
-                    """## Filtering"""
-                    
-                    # raw.filter(l_freq=0.53, h_freq=50)
-                    raw.filter(l_freq=0.3, h_freq=50)
-                    raw.notch_filter(freqs=50)  # Assuming notch at 50 Hz to remove power line noise (modify if 50 Hz)
-
-                    global_raw = raw
-
-                    """## ICA"""
-
-                    # ica = ICA(n_components=15, random_state=13, max_iter='auto')
-                    ica = ICA(n_components=17, random_state=800, max_iter='auto')
-                    ica.fit(raw)
-
-                    ica.exclude = [3]
-                    cleaned_raw = ica.apply(raw.copy())  # Apply the ICA to the raw data
-
-                    # Mark Fp1 and Fp2 as bad channels
-                    cleaned_raw.info['bads'] = ['F7']
-                    
-                    # Interpolate bad channels
-                    cleaned_raw.interpolate_bads(reset_bads=True)
-                    # # Manually inspect the ICA components to find additional artifact-related components
-                    # ica.plot_components()
-                    
-                    channel_names = cleaned_raw.info['ch_names']  # List of channel names
-                    channel_dict = {name: idx for idx, name in enumerate(channel_names)}  # Create a dictionary with channel names and their indices
-                
-                    psd_object = cleaned_raw.compute_psd(fmin=0.5, fmax=40, n_fft=1024)  # This returns a PSD object
-                    psds = psd_object.get_data()  # Extract the power spectral density
-                    freqs = psd_object.freqs  # Get the frequency values
-
-                    """# Set Band Frequency"""
-
-                    # Define frequency bands
-                    delta_band = (1.5, 4)      # Delta: 1.5-4 Hz
-                    theta_band = (4, 7.5)      # Theta: 4-7.5 Hz
-                    alpha_band = (7.5, 14)     # Alpha: 7.5- Hz
-                    beta1_band = (14, 20)      # Beta1: 13-20 Hz
-                    beta2_band = (20, 30)      # Beta2: 20-30 Hz
-                    gamma_band = (30, 40)      # Gamma: 30-40 Hz
-
-                    # Calculate power for each band
-                    delta_power = np.mean(psds[:, (freqs >= delta_band[0]) & (freqs <= delta_band[1])], axis=1)
-                    theta_power = np.mean(psds[:, (freqs >= theta_band[0]) & (freqs <= theta_band[1])], axis=1)
-                    alpha_power = np.mean(psds[:, (freqs >= alpha_band[0]) & (freqs <= alpha_band[1])], axis=1)
-                    beta1_power = np.mean(psds[:, (freqs >= beta1_band[0]) & (freqs <= beta1_band[1])], axis=1)
-                    beta2_power = np.mean(psds[:, (freqs >= beta2_band[0]) & (freqs <= beta2_band[1])], axis=1)
-                    gamma_power = np.mean(psds[:, (freqs >= gamma_band[0]) & (freqs <= gamma_band[1])], axis=1)
-
-                    """## Relative Power"""
-
-                    total_power = np.sum(psds, axis=1)
-                    relative_delta_power = (delta_power / total_power) * 100
-                    relative_theta_power = (theta_power / total_power) * 100
-                    relative_alpha_power = (alpha_power / total_power) * 100
-                    relative_beta1_power = (beta1_power / total_power) * 100
-                    relative_beta2_power = (beta2_power / total_power) * 100
-                    relative_gamma_power = (gamma_power / total_power) * 100
-                    zones = {
-                    'Orbital Frontal': ['Fp1', 'Fp2'],
-                    'Frontal': ['F7', 'F3', 'Fz', 'F4', 'F8'],
-                    'Temporal': ['T3', 'T4', 'T5', 'T6'],
-                    'Central': ['C3', 'Cz', 'C4'],
-                    'Parietal': ['P3', 'Pz', 'P4'],
-                    'Occipital': ['O1', 'O2']
+                    # Group channels by region
+                    theta_regions = {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []}
+                    alpha_regions = {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []}
+                                        
+                    region_mapping = {
+                        "Frontal": ["Fp1", "Fp2", "F3", "F4", "Fz"],
+                        "Temporal": ["T3", "T4", "T5", "T6"],
+                        "Central": ["C3", "C4", "Cz"],
+                        "Parietal": ["P3", "P4", "Pz"],
+                        "Occipital": ["O1", "O2"]
                     }
 
-                    """## Increased Power"""
+                    # Collect theta and alpha channels by region
+                    for ch_name in theta_channels:
+                        for region, channels in region_mapping.items():
+                            if ch_name in channels:
+                                theta_regions[region].append(ch_name)
 
-                    def find_increased_power(power_band, threshold_percent=60):
-                        threshold = np.percentile(power_band, threshold_percent)
-                        increased_channels = [ch for ch, power in zip(channel_names, power_band) if power >= threshold]
-                        return increased_channels
+                    for ch_name in alpha_channels:
+                        for region, channels in region_mapping.items():
+                            if ch_name in channels:
+                                alpha_regions[region].append(ch_name)
 
-                    increased_delta = find_increased_power(delta_power)
-                    increased_theta = find_increased_power(theta_power)
-                    increased_alpha = find_increased_power(alpha_power)
-                    increased_beta1 = find_increased_power(beta1_power)
-                    increased_beta2 = find_increased_power(beta2_power)
-                    increased_gamma = find_increased_power(gamma_power)
+                    # Format the summary output to include channel names by region
+                    summary_theta = "% Relative increased theta in " + ", ".join([
+                        f"{region.lower()} {', '.join(channels)}" for region, channels in theta_regions.items() if channels
+                    ])
+                    summary_alpha = "% Relative increase of alpha activity in " + ", ".join([
+                        f"{region.lower()} {', '.join(channels)}" for region, channels in alpha_regions.items() if channels
+                    ])
 
-                    """## Group Findings by Zones"""
-
-                    def map_channels_to_zones(increased_channels):
-                        zone_report = {zone: [] for zone in zones}
-                        for channel in increased_channels:
-                            for zone, zone_channels in zones.items():
-                                if channel in zone_channels:
-                                    zone_report[zone].append(channel)
-                        return zone_report
-
-                    increased_delta_zones = map_channels_to_zones(increased_delta)
-                    increased_theta_zones = map_channels_to_zones(increased_theta)
-                    increased_alpha_zones = map_channels_to_zones(increased_alpha)
-                    increased_beta1_zones = map_channels_to_zones(increased_beta1)
-                    increased_beta2_zones = map_channels_to_zones(increased_beta2)
-                    increased_gamma_zones = map_channels_to_zones(increased_gamma)
-
-                    def generate_report(increased_zones, band_name):
-                        report = f"Increased relative {band_name} power spectra in the "
-                        zones_with_increases = {zone: channels for zone, channels in increased_zones.items() if channels}
-
-                        for i, (zone, channels) in enumerate(zones_with_increases.items()):
-                            channels_str = ', '.join(channels)  # List the channels in the zone
-                            if i == len(zones_with_increases) - 1:
-                                report += f"{zone.lower()} {channels_str} areas."
-                            else:
-                                report += f"{zone.lower()} {channels_str}, "
-                        return report
-
-                    """## Decreased Power"""
-
-                    def find_decreased_power(power_band, threshold_percent=40):
-                        threshold = np.percentile(power_band, threshold_percent)  # Use a lower threshold for decreased power
-                        decreased_channels = [ch for ch, power in zip(channel_names, power_band) if power <= threshold]
-                        return decreased_channels
+                    # Plot summary in a single figure
+                    fig, ax = plt.subplots(figsize=(10, 5))
+                    ax.axis('off')  # Hide axes for a cleaner look
+                    text_content = f"Theta Activity Summary:\n{summary_theta}\n\nAlpha Activity Summary:\n{summary_alpha}"
+                    ax.text(0.5, 0.5, text_content, fontsize=12, ha='center', va='center', wrap=True)
+                    # ax.set_title('Theta/Alpha Findings')
                     
-                    decreased_delta = find_decreased_power(delta_power)
-                    decreased_theta = find_decreased_power(theta_power)
-                    decreased_alpha = find_decreased_power(alpha_power)
-                    decreased_beta1 = find_decreased_power(beta1_power)
-                    decreased_beta2 = find_decreased_power(beta2_power)
-                    decreased_gamma = find_decreased_power(gamma_power)
-
-                    def map_channels_to_zones(decreased_channels):
-                        zone_report = {zone: [] for zone in zones}
-                        for channel in decreased_channels:
-                            for zone, zone_channels in zones.items():
-                                if channel in zone_channels:
-                                    zone_report[zone].append(channel)
-                        return zone_report
-
-                    decreased_delta_zones = map_channels_to_zones(decreased_delta)
-                    decreased_theta_zones = map_channels_to_zones(decreased_theta)
-                    decreased_alpha_zones = map_channels_to_zones(decreased_alpha)
-                    decreased_beta1_zones = map_channels_to_zones(decreased_beta1)
-                    decreased_beta2_zones = map_channels_to_zones(decreased_beta2)
-                    decreased_gamma_zones = map_channels_to_zones(decreased_gamma)
-
-                    def generate_decrease_report(decreased_zones, band_name):
-                        report = f"decreased relative {band_name} power spectra in the "
-                        zones_with_decreases = {zone: channels for zone, channels in decreased_zones.items() if channels}
-
-                        for i, (zone, channels) in enumerate(zones_with_decreases.items()):
-                            channels_str = ', '.join(channels)  # List the channels in the zone
-                            if i == len(zones_with_decreases) - 1:
-                                report += f"{zone.lower()} {channels_str} areas."
-                            else:
-                                report += f"{zone.lower()} {channels_str}, "
-                        return report
-
-                    """## Generate Reports"""
-
-                    delta_report = generate_report(increased_delta_zones, "delta")
-                    theta_report = generate_report(increased_theta_zones, "theta")
-                    alpha_report = generate_report(increased_alpha_zones, "alpha")
-                    beta1_report = generate_report(increased_beta1_zones, "beta1")
-                    beta2_report = generate_report(increased_beta2_zones, "beta2")
-                    gamma_report = generate_report(increased_gamma_zones, "gamma")
-
-                    delta_decrease_report = generate_decrease_report(decreased_delta_zones, "delta")
-                    theta_decrease_report = generate_decrease_report(decreased_theta_zones, "theta")
-                    alpha_decrease_report = generate_decrease_report(decreased_alpha_zones, "alpha")
-                    beta1_decrease_report = generate_decrease_report(decreased_beta1_zones, "beta1")
-                    beta2_decrease_report = generate_decrease_report(decreased_beta2_zones, "beta2")
-                    gamma_decrease_report = generate_decrease_report(decreased_gamma_zones, "gamma")
-
-                    # Sum power across all bands for each channel
-                    combined_power = delta_power + theta_power + alpha_power + beta1_power + beta2_power + gamma_power
-
-                    # Function to find channels with decreased combined power based on a threshold percentile
-                    def find_decreased_power_combined(power, threshold_percent=40):
-                        threshold = np.percentile(power, threshold_percent)
-                        decreased_channels = [ch for ch, power_value in zip(channel_names, power) if power_value <= threshold]
-                        return decreased_channels
-
-                    # Find channels with decreased combined power
-                    decreased_combined = find_decreased_power_combined(combined_power)
-
-                    # Load the standard 10-20 montage for reference
-                    montage = mne.channels.make_standard_montage('standard_1020')
-
-                    # Extract positions for the channels in the montage
-                    custom_channel_positions = {ch: montage.get_positions()['ch_pos'][ch] for ch in channel_names}
-
-                    # Convert channel positions to an array for plotting
-                    positions = np.array([custom_channel_positions[ch] for ch in channel_names])
-
-                    # Function to plot brain activation based on combined decreased power in a single plot
-                    def plot_combined_brain_activation(decreased_channels):
-                        # Create a figure and axis
-                        fig, ax = plt.subplots(figsize=(8, 8))
-                        
-                        # Set axis limits explicitly for more control
-                        ax.set_xlim(-0.2, 0.2)
-                        ax.set_ylim(-0.2, 0.2)
-                        ax.set_aspect('equal')
-
-                        # Draw the head circle
-                        head_circle = plt.Circle((0, 0), 0.12, color='black', fill=False, linewidth=2)
-                        ax.add_patch(head_circle)
-
-                        # Draw perpendicular diameters (dotted lines)
-                        ax.plot([-0.15, 0.15], [0, 0], 'k--', linewidth=1.5)
-                        ax.plot([0, 0], [-0.15, 0.15], 'k--', linewidth=1.5)
-
-                        # Plot each channel's position and label
-                        for i, ch_name in enumerate(channel_names):
-                            pos = positions[i]
-                            ax.text(pos[0], pos[1], ch_name, fontsize=10, ha='center', va='center')
-
-                        # Highlight channels with decreased combined power
-                        for ch_name in decreased_channels:
-                            pos = custom_channel_positions[ch_name]
-                            circle = plt.Circle((pos[0], pos[1]), 0.02, color='red', fill=False, linewidth=1.5)
-                            ax.add_patch(circle)
-
-                        # Title and formatting
-                        ax.set_title('Decreased Combined Power', fontsize=14)
-                        ax.set_xticks([])
-                        ax.set_yticks([])
-                        for spine in ax.spines.values():
-                            spine.set_visible(False)
-
-                        # Return the figure object
-                        return fig
-
-                    # Use the function and store the figure globally
-                    global_decreased_combined_power_fig = plot_combined_brain_activation(decreased_combined)
-
-                    """## R1.1 Decreased Activation Bandwise"""
-
-                    # Function to find decreased power channels based on a threshold percentile
-                    def find_decreased_power(power_band, threshold_percent=40):
-                        threshold = np.percentile(power_band, threshold_percent)  # Use a lower threshold for decreased power
-                        decreased_channels = [ch for ch, power in zip(channel_names, power_band) if power <= threshold]
-                        return decreased_channels
-
-                    # Find increased power channels for all bands
-                    decreased_delta = find_decreased_power(delta_power)
-                    decreased_theta = find_decreased_power(theta_power)
-                    decreased_alpha = find_decreased_power(alpha_power)
-                    decreased_beta1 = find_decreased_power(beta1_power)
-                    decreased_beta2 = find_decreased_power(beta2_power)
-                    decreased_gamma = find_decreased_power(gamma_power)
-
-                    # Create a custom 10-20 EEG montage using only the selected channels
-                    montage = mne.channels.make_standard_montage('standard_1020')
-
-                    # Custom montage with only the relevant channels
-                    custom_channel_positions = {ch: montage.get_positions()['ch_pos'][ch] for ch in channel_names}
-
-                    # Manually extract positions for plotting
-                    positions = np.array([custom_channel_positions[ch] for ch in channel_names])
-
-                    # Helper function to plot brain activation for a specific band in a subplot
-                    def plot_brain_activation(ax, decreased_channels, band_name, type):
-                        ax.set_xlim(-0.2, 0.2)  # Set axis limits explicitly for more control
-                        ax.set_ylim(-0.2, 0.2)
-                        ax.set_aspect('equal')  # Ensure circles are round
-
-                        # Draw the head circle
-                        head_circle = plt.Circle((0, 0), 0.12, color='black', fill=False, linewidth=2)
-                        ax.add_patch(head_circle)
-
-                        # Draw perpendicular diameters (dotted lines)
-                        ax.plot([-0.15, 0.15], [0, 0], 'k--', linewidth=1.5)
-                        ax.plot([0, 0], [-0.15, 0.15], 'k--', linewidth=1.5)
-
-                        # Plot each channel's position and label
-                        for i, ch_name in enumerate(channel_names):
-                            pos = positions[i]
-                            ax.text(pos[0], pos[1], ch_name, fontsize=10, ha='center', va='center')
-
-                        # Highlight channels with decreased activation
-                        for ch_name in decreased_channels:
-                            pos = custom_channel_positions[ch_name]
-                            if type == 'decreased':
-                                colour = 'red'
-                            else:
-                                colour = 'green'
-                            circle = plt.Circle((pos[0], pos[1]), 0.02, color=colour, fill=False, linewidth=1.5)
-                            ax.add_patch(circle)
-
-                        # Add title and remove axis ticks and labels
-                        ax.set_title(f'{band_name} Power', fontsize=14)
-                        ax.set_xticks([])
-                        ax.set_yticks([])
-                        for spine in ax.spines.values():
-                            spine.set_visible(False)
-
-                    # Function to generate and store the figure in global_decreased_activation_bandwise
-                    def plot_decreased_activation_bandwise():
-                        # Create a figure with 2 rows and 3 columns, adjust size
-                        fig, axs = plt.subplots(2, 3, figsize=(15, 10))  # Adjust figure size
-
-                        # Plot brain activation for each frequency band in its respective subplot
-                        plot_brain_activation(axs[0, 0], decreased_delta, 'Delta','decreased')
-                        plot_brain_activation(axs[0, 1], decreased_theta, 'Theta','decreased')
-                        plot_brain_activation(axs[0, 2], decreased_alpha, 'Alpha','decreased')
-                        plot_brain_activation(axs[1, 0], decreased_beta1, 'Beta1','decreased')
-                        plot_brain_activation(axs[1, 1], decreased_beta2, 'Beta2','decreased')
-                        plot_brain_activation(axs[1, 2], decreased_gamma, 'Gamma','decreased')
-
-                        # Add a title for the entire figure
-                        plt.suptitle('Decreased Power', fontsize=16)
-                        # Adjust spacing to reduce space between subplots and improve overall plot size
-                        plt.subplots_adjust(wspace=0.4, hspace=0.4, top=0.9, bottom=0.1, left=0.05, right=0.95)
-
-                        # Return the figure
-                        return fig
-
-                    # Call the function and store the figure globally
-                    global_decreased_activation_bandwise = plot_decreased_activation_bandwise()
-
-
-                    # Function to find increased power channels based on a threshold percentile
-                    def find_increased_power(power_band, threshold_percent=60):
-                        threshold = np.percentile(power_band, threshold_percent)
-                        increased_channels = [ch for ch, power in zip(channel_names, power_band) if power >= threshold]
-                        return increased_channels
-
-                    # Find increased power channels for all bands
-                    increased_delta = find_increased_power(delta_power)
-                    increased_theta = find_increased_power(theta_power)
-                    increased_alpha = find_increased_power(alpha_power)
-                    increased_beta1 = find_increased_power(beta1_power)
-                    increased_beta2 = find_increased_power(beta2_power)
-                    increased_gamma = find_increased_power(gamma_power)
-
-                    # Create a custom 10-20 EEG montage using only the selected channels
-                    montage = mne.channels.make_standard_montage('standard_1020')
-
-                    # Custom montage with only the relevant channels
-                    custom_channel_positions = {ch: montage.get_positions()['ch_pos'][ch] for ch in channel_names}
-
-                    # Manually extract positions for plotting
-                    positions = np.array([custom_channel_positions[ch] for ch in channel_names])
-
-                    # Function to generate and store the figure in global_decreased_activation_bandwise
-                    def plot_increased_activation_bandwise():
-                        # Create a figure with 2 rows and 3 columns, adjust size
-                        fig, axs = plt.subplots(2, 3, figsize=(15, 10))  # Adjust figure size
-
-                        # Plot brain activation for each frequency band in its respective subplot
-                        plot_brain_activation(axs[0, 0], increased_delta, 'Delta','increased')
-                        plot_brain_activation(axs[0, 1], increased_theta, 'Theta','increased')
-                        plot_brain_activation(axs[0, 2], increased_alpha, 'Alpha','increased')
-                        plot_brain_activation(axs[1, 0], increased_beta1, 'Beta1','increased')
-                        plot_brain_activation(axs[1, 1], increased_beta2, 'Beta2','increased')
-                        plot_brain_activation(axs[1, 2], increased_gamma, 'Gamma','increased')
-
-                        # Add a title for the entire figure
-                        plt.suptitle('Increased Power', fontsize=16)
-                        # Adjust spacing to reduce space between subplots and improve overall plot size
-                        plt.subplots_adjust(wspace=0.4, hspace=0.4, top=0.9, bottom=0.1, left=0.05, right=0.95)
-
-                        # Return the figure
-                        return fig
-
-                    # Call the function and store the figure globally
-                    global_increased_activation_bandwise = plot_increased_activation_bandwise()
-
-
-                    # Sum power across all bands for each channel
-                    combined_power = delta_power + theta_power + alpha_power + beta1_power + beta2_power + gamma_power
-
-                    # Function to find channels with increased combined power based on a threshold percentile
-                    def find_increased_power_combined(power, threshold_percent=60):
-                        threshold = np.percentile(power, threshold_percent)
-                        increased_channels = [ch for ch, power_value in zip(channel_names, power) if power_value >= threshold]
-                        return increased_channels
-
-                    # Find channels with increased combined power
-                    increased_combined = find_increased_power_combined(combined_power)
-
-                    # Load the standard 10-20 montage for reference
-                    montage = mne.channels.make_standard_montage('standard_1020')
-
-                    # Extract positions for the channels in the montage
-                    custom_channel_positions = {ch: montage.get_positions()['ch_pos'][ch] for ch in channel_names}
-
-                    # Convert channel positions to an array for plotting
-                    positions = np.array([custom_channel_positions[ch] for ch in channel_names])
-
-
-                    # Function to plot combined brain activation and return the figure
-                    def plot_increased_combined_power():
-                        # Create a figure and axis
-                        fig, ax = plt.subplots(figsize=(8, 8))
-
-                        # Set axis limits explicitly for more control
-                        ax.set_xlim(-0.2, 0.2)
-                        ax.set_ylim(-0.2, 0.2)
-                        ax.set_aspect('equal')
-
-                        # Draw the head circle
-                        head_circle = plt.Circle((0, 0), 0.12, color='black', fill=False, linewidth=2)
-                        ax.add_patch(head_circle)
-
-                        # Draw perpendicular diameters (dotted lines)
-                        ax.plot([-0.15, 0.15], [0, 0], 'k--', linewidth=1.5)
-                        ax.plot([0, 0], [-0.15, 0.15], 'k--', linewidth=1.5)
-
-                        # Plot each channel's position and label
-                        for i, ch_name in enumerate(channel_names):
-                            pos = positions[i]
-                            ax.text(pos[0], pos[1], ch_name, fontsize=10, ha='center', va='center')
-
-                        # Highlight channels with increased combined power
-                        for ch_name in increased_combined:
-                            pos = custom_channel_positions[ch_name]
-                            circle = plt.Circle((pos[0], pos[1]), 0.02, color='green', fill=False, linewidth=1.5)
-                            ax.add_patch(circle)
-
-                        # Title and formatting
-                        ax.set_title('Increased Combined Power', fontsize=14)
-                        ax.set_xticks([])
-                        ax.set_yticks([])
-                        for spine in ax.spines.values():
-                            spine.set_visible(False)
-
-                        # Return the figure object
-                        return fig
-
-                    # Call the function and store the figure globally
-                    global_increased_combined_power_fig = plot_increased_combined_power()
+                    return fig
+
+                # Generate theta and alpha summary figure
+                theta_alpha_content_fig = detect_and_plot_theta_alpha_summary(data, sfreq)
+
+                # (Previous code remains the same until the combined figure section)
+                
+                # Function for Alpha Peak Analysis
+                def alpha_peak_analysis(cleaned_raw):
+                    spectrum = cleaned_raw.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
+                    psds, freqs = spectrum.get_data(return_freqs=True)
+                    occipital_channels = ['O1', 'O2']
+                    alpha_band = (7.5, 14)
+                    occipital_psds = psds[[cleaned_raw.ch_names.index(ch) for ch in occipital_channels], :]
+                    alpha_mask = np.where((freqs >= alpha_band[0]) & (freqs <= alpha_band[1]))[0]
+                    alpha_freqs = freqs[alpha_mask]
+                    occipital_psds_alpha = occipital_psds[:, alpha_mask]
+                    alpha_peaks = {ch: alpha_freqs[np.argmax(occipital_psds_alpha[i])] for i, ch in enumerate(occipital_channels)}
+                    return f"O1 = {alpha_peaks['O1']:.2f} Hz / uV^2, O2 = {alpha_peaks['O2']:.2f} Hz / uV^2"
+
+                # Function for Deviations Analysis
+                def detect_deviations(data, sfreq, bands, threshold_factor=1.5):
+                    deviation_results = []
+                    psd, freqs = mne.time_frequency.psd_array_welch(data, sfreq=sfreq, fmin=1, fmax=45, n_fft=2048)
+                    for ch_idx, ch_name in enumerate(raw.ch_names):
+                        for band, (fmin, fmax) in bands.items():
+                            band_idx = (freqs >= fmin) & (freqs < fmax)
+                            band_power = np.sum(psd[ch_idx, band_idx])
+                            median_band_power = np.median(psd[:, band_idx])
+                            if band_power > threshold_factor * median_band_power:
+                                deviation_results.append((ch_name, band))
+                    return deviation_results
+
+                # Function for Leaky Gut Markers Analysis
+                def detect_leaky_gut_markers(data, sfreq, gut_freq_range=(0.05, 0.1), threshold_factor=1.5):
+                    gut_markers = []
+                    psd, freqs = mne.time_frequency.psd_array_welch(data, sfreq=sfreq, fmin=0.01, fmax=0.5, n_fft=2048)
+                    for ch_idx, channel_psd in enumerate(psd):
+                        gut_power = np.sum(channel_psd[(freqs >= gut_freq_range[0]) & (freqs < gut_freq_range[1])])
+                        if gut_power > threshold_factor * np.median(psd):
+                            gut_markers.append(raw.ch_names[ch_idx])
+                    return gut_markers
+
+                # Function to generate combined figure
+                def plot_combined_analysis():
+                    # Retrieve analysis data
+                    alpha_results = alpha_peak_analysis(global_raw_ica)
+                    deviation_results = detect_deviations(data, sfreq, bands)
+                    leaky_gut_markers = detect_leaky_gut_markers(data, sfreq)
+
+                    # Brodmann mapping for deviations analysis
+                    brodmann_mapping = {
+                        "Fp1": "Brodmann Area 10 (Anterior Prefrontal Cortex)",
+                        "Fp2": "Brodmann Area 10 (Anterior Prefrontal Cortex)",
+                        "F3": "Brodmann Area 8 (Frontal Eye Field)",
+                        "F4": "Brodmann Area 8 (Frontal Eye Field)",
+                        "Fz": "Brodmann Area 6 (Premotor Cortex)",
+                        "F7": "Brodmann Area 9 (Dorsolateral Prefrontal Cortex)",
+                        "F8": "Brodmann Area 9 (Dorsolateral Prefrontal Cortex)",
+                        "T3": "Brodmann Area 21 (Middle Temporal Gyrus)",
+                        "T4": "Brodmann Area 21 (Middle Temporal Gyrus)",
+                        "T5": "Brodmann Area 37 (Occipitotemporal Area)",
+                        "T6": "Brodmann Area 37 (Occipitotemporal Area)",
+                        "C3": "Brodmann Area 4 (Primary Motor Cortex)",
+                        "C4": "Brodmann Area 4 (Primary Motor Cortex)",
+                        "Cz": "Brodmann Area 6 (Premotor Cortex)",
+                        "P3": "Brodmann Area 7 (Superior Parietal Lobule)",
+                        "P4": "Brodmann Area 7 (Superior Parietal Lobule)",
+                        "Pz": "Brodmann Area 39 (Angular Gyrus)",
+                        "O1": "Brodmann Area 17 (Primary Visual Cortex)",
+                        "O2": "Brodmann Area 17 (Primary Visual Cortex)",
+                        "Fpz": "Brodmann Area 11 (Orbital Prefrontal Cortex)",
+                        "T7": "Brodmann Area 22 (Superior Temporal Gyrus)",
+                        "T8": "Brodmann Area 22 (Superior Temporal Gyrus)"
+                    }
+
+                    # Format deviations summary for the figure
+                    deviation_summary = {}
+                    for ch_name, band in deviation_results:
+                        brodmann_area = brodmann_mapping.get(ch_name, "Unknown Area")
+                        if brodmann_area not in deviation_summary:
+                            deviation_summary[brodmann_area] = []
+                        deviation_summary[brodmann_area].append(f"{ch_name} ({band} band)")
+
+                    sorted_deviations = sorted(deviation_summary.items(), key=lambda x: len(x[1]), reverse=True)[:4]
+                    deviations_text = "\n".join([f"{area}: {', '.join(findings)}" for area, findings in sorted_deviations])
+
+                    leaky_gut_text = f"Markers found in channels: {', '.join(leaky_gut_markers)}" if leaky_gut_markers else "No significant markers found for leaky gut syndrome."
+
+
+
+                    # # Display Alpha Peaks
+                    # fig_alpha, ax_alpha = plt.subplots(figsize=(10, 5))
+                    # ax_alpha.axis('off')  # Hide axes for a cleaner look
+                    # text_content_alpha = f"Alpha Peak Frequencies:\n{alpha_results}"
+                    # ax_alpha.text(0.5, 0.5, text_content_alpha, fontsize=12, ha='center', va='center', wrap=True)
+                    # # ax_alpha.set_title('Theta/Alpha Findings')
+
+                    # # Display Deviations Analysis
+                    # fig_dev, ax_dev = plt.subplots(figsize=(10, 5))
+                    # ax_dev.axis('off')  # Hide axes for a cleaner look
+                    # text_content_dev = f"Deviations Analysis:\n{deviations_text}"
+                    # ax_dev.text(0.5, 0.5, text_content_dev, fontsize=12, ha='center', va='center', wrap=True)
+                    # # ax_dev.set_title('Theta/Alpha Findings')
+
+                    # # Display Leaky Gut Analysis
+                    # fig_gut, ax_gut = plt.subplots(figsize=(10, 5))
+                    # ax_gut.axis('off')  # Hide axes for a cleaner look
+                    # text_content_gut = f"Deviations Analysis:\n{deviations_text}"
+                    # ax_gut.text(0.5, 0.5, text_content_gut, fontsize=12, ha='center', va='center', wrap=True)
+                    # ax.set_title('Theta/Alpha Findings')
+
+                    # Create combined figure
+                    fig, axs = plt.subplots(3, 1, figsize=(12, 18))
+
+                    # Display Alpha Peaks
+                    axs[0].axis('off')
+                    axs[0].text(0.5, 0.5, f"Alpha Peak Frequencies:\n{alpha_results}", ha='center', va='center', wrap=True, fontsize=34)
+                    # axs[0].set_title("Alpha Peak Frequencies")
+
+                    # Display Deviations Analysis
+                    axs[1].axis('off')
+                    axs[1].text(0.5, 0.5, f"Deviations Analysis:\n{deviations_text}", ha='center', va='center', wrap=True, fontsize=34)
+                    # axs[1].set_title("Deviations Analysis")
+
+                    # Display Leaky Gut Analysis
+                    axs[2].axis('off')
+                    axs[2].text(0.5, 0.5, leaky_gut_text, ha='center', va='center', wrap=True, fontsize=34)
+                    # axs[2].set_title("Leaky Gut Syndrome Analysis")
+
+                    plt.tight_layout()
+                    fig.suptitle("Combined Analysis: Alpha Peaks, Deviations, and Leaky Gut Markers", fontsize=36)
+                    return fig#fig_alpha, fig_dev, fig_gut
+
+                combined_fig = plot_combined_analysis()
+
+                def plot_combined_analysis():
+                    fig, axs = plt.subplots(3, 1, figsize=(12, 18))
+
+                    def render_fig_to_array(sub_fig):
+                        canvas = FigureCanvas(sub_fig)
+                        canvas.draw()
+                        width, height = canvas.get_width_height()
+                        image = np.frombuffer(canvas.tostring_rgb(), dtype='uint8').reshape(height, width, 3)
+                        return image
+
+                    if asymmetry_content_fig:
+                        asymmetry_img = render_fig_to_array(asymmetry_content_fig)
+                        axs[0].imshow(asymmetry_img)
+                        # axs[0].set_title("Asymmetry Analysis")
+                        axs[0].axis('off')
+
+                    if theta_alpha_content_fig:
+                        theta_alpha_img = render_fig_to_array(theta_alpha_content_fig)
+                        axs[1].imshow(theta_alpha_img)
+                        axs[1].set_title("Theta/Alpha Findings")
+                        axs[1].axis('off')
                     
-                    num_channels = len(channel_names)
-                    # Function to plot relative power lines and return the figure
-                    def plot_absolute_power_lines():
-                        # Determine the number of rows needed for the grid of subplots
-                        # Number of channels
-                        num_channels = len(channel_names)
+                    if combined_fig:
+                        combined_fig_img = render_fig_to_array(combined_fig)
+                        axs[2].imshow(combined_fig_img)
+                        axs[2].set_title("Pathological Sign Detection")
+                        axs[2].axis('off')
+                    # if fig_dev:
+                    #     fig_dev_img = render_fig_to_array(fig_dev)
+                    #     axs[4].imshow(fig_dev_img)
+                    #     axs[4].set_title("Deviations Analysis")
+                    #     axs[4].axis('off')
+                    # if fig_gut:
+                    #     fig_gut_img = render_fig_to_array(fig_gut)
+                    #     axs[5].imshow(fig_gut_img)
+                    #     axs[5].set_title("Leaky Gut Syndrome Analysis")
+                    #     axs[5].axis('off')
+
+                    plt.tight_layout()
+                    fig.suptitle("Combined Analysis: Asymmetry and Theta-Alpha Findings", fontsize=16)
+                    return fig
+
+                combined_fig = plot_combined_analysis()
+
+                return render_template('upload_with_topomap_dropdown.html', max_time=int(raw.times[-1]))
+
+            except Exception as e:
+                print(f"Error processing file: {e}")
+                return "Error processing file", 500
 
-                        
-                        ncols = 3
-                        nrows = (num_channels + ncols - 1) // ncols  # Calculate rows based on number of channels
-
-                        # Create a figure with subplots arranged in a grid
-                        fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(16, 4 * nrows), constrained_layout=True)
-
-                        # Set up normalization manually
-                        vmin, vmax = 0, 15  # Adjust these values as needed
-                        cmap = 'jet'  # Colormap
-
-                        for i, ch_name in enumerate(channel_names):
-                            ax = axs[i // ncols, i % ncols]  # Get the subplot axis
-
-                            # Plot the power spectrum for the current channel
-                            ax.plot(freqs, psds[i], color='black', linewidth=1, label=f'{ch_name} Power Spectrum')
-
-                            # Fill each frequency band with colors
-                            ax.fill_between(freqs, psds[i], where=(freqs >= 0.5) & (freqs <= 4), color='brown', alpha=1.0, label='Delta Band')
-                            ax.fill_between(freqs, psds[i], where=(freqs > 4) & (freqs <= 8), color='orange', alpha=1.0, label='Theta Band')
-                            ax.fill_between(freqs, psds[i], where=(freqs > 8) & (freqs <= 13), color='blue', alpha=1.0, label='Alpha Band')
-                            ax.fill_between(freqs, psds[i], where=(freqs > 13) & (freqs <= 20), color='green', alpha=1.0, label='Beta1 Band')
-                            ax.fill_between(freqs, psds[i], where=(freqs > 20) & (freqs <= 30), color='yellow', alpha=1.0, label='Beta2 Band')
-                            ax.fill_between(freqs, psds[i], where=(freqs > 30) & (freqs <= 40), color='cyan', alpha=1.0, label='Gamma Band')
-
-                            # Add labels and grid for each subplot
-                            ax.set_title(f'Absolute Power Spectrum - {ch_name}')
-                            ax.set_xlabel('Frequency (Hz)')
-                            ax.set_ylabel('Power (uV^2/Hz)')
-                            ax.legend(loc='upper right', fontsize='small')
-                            ax.grid(True)
-
-                        # Hide any unused subplots
-                        for j in range(num_channels, nrows * ncols):
-                            axs[j // ncols, j % ncols].set_visible(False)
-
-                        # Add a main title for the entire figure
-                        plt.suptitle('Absolute Power Spectra for All Channels', fontsize=20)
-
-                        # Return the figure object
-                        return fig
-
-                    # Call the function and store the figure globally
-                    global_abs_power_spectra_lines = plot_absolute_power_lines()
-
-                    # Function to plot absolute power spectra topomaps and return the figure
-                    def plot_absolute_power_spectra():
-                        # Create a figure with 2 rows and 3 columns
-                        fig, axs = plt.subplots(2, 3, figsize=(16, 12))  # Adjusted figure size
-
-                        # Set up normalization and colormap
-                        vmin, vmax = 0, 15  # Adjust these values as needed
-                        cmap = 'jet'
-
-                        # Plot topomaps for each frequency band
-                        mne.viz.plot_topomap(delta_power, cleaned_raw.info, axes=axs[0, 0], show=False, cmap=cmap)
-                        axs[0, 0].set_title('Delta Power')
-                        
-                        mne.viz.plot_topomap(theta_power, cleaned_raw.info, axes=axs[0, 1], show=False, cmap=cmap)
-                        axs[0, 1].set_title('Theta Power')
-                        
-                        mne.viz.plot_topomap(alpha_power, cleaned_raw.info, axes=axs[0, 2], show=False, cmap=cmap)
-                        axs[0, 2].set_title('Alpha Power')
-                        
-                        mne.viz.plot_topomap(beta1_power, cleaned_raw.info, axes=axs[1, 0], show=False, cmap=cmap)
-                        axs[1, 0].set_title('Beta1 Power')
-                        
-                        mne.viz.plot_topomap(beta2_power, cleaned_raw.info, axes=axs[1, 1], show=False, cmap=cmap)
-                        axs[1, 1].set_title('Beta2 Power')
-                        
-                        mne.viz.plot_topomap(gamma_power, cleaned_raw.info, axes=axs[1, 2], show=False, cmap=cmap)
-                        axs[1, 2].set_title('Gamma Power')
-
-                        # Add the main title
-                        plt.suptitle('Absolute Power Spectra', fontsize=16)
-
-                        # Adjust layout to prevent overlap
-                        plt.tight_layout()
-                        plt.subplots_adjust(top=0.90, bottom=0.1, wspace=0.3, hspace=0.4, right=0.85)  # Adjust for colorbar
-
-                        # Create and position the colorbar
-                        cbar_ax = fig.add_axes([0.88, 0.15, 0.02, 0.7])  # Adjusted position for colorbar
-                        norm = plt.Normalize(vmin=vmin, vmax=vmax)
-                        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-                        sm.set_array([])  # Required for ScalarMappable
-                        cbar = fig.colorbar(sm, cax=cbar_ax)
-                        cbar.set_label('Power (µV²)')
-
-                        # Return the figure object
-                        return fig
-
-                    # Call the function and store the figure globally
-                    global_abs_power_spectra_topo = plot_absolute_power_spectra()
-
-
-                    # Function to plot relative power spectra lines and return the figure
-                    def plot_relative_power_spectra_lines():
-                        # Calculate the total power for normalization
-                        total_power = np.sum(psds, axis=1)
-
-                        # Number of channels and grid dimensions
-                        ncols = 3
-                        nrows = (num_channels + ncols - 1) // ncols  # Calculate rows based on number of channels
-
-                        # Create a figure with subplots arranged in a grid
-                        fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(16, 4 * nrows), constrained_layout=True)
-
-                        # Plot relative power spectrum for each channel
-                        for i, ch_name in enumerate(channel_names):
-                            # Calculate relative power spectra as percentage of total power
-                            relative_psd = (psds[i] / total_power[i]) * 100
-
-                            ax = axs[i // ncols, i % ncols]  # Get the subplot axis
-
-                            # Plot the relative power spectrum for the current channel
-                            ax.plot(freqs, relative_psd, color='black', linewidth=1.5, label=f'{ch_name} Relative Power Spectrum (%P)')
-
-                            # Fill each frequency band with colors
-                            ax.fill_between(freqs, relative_psd, where=(freqs >= 0.5) & (freqs <= 4), color='brown', alpha=1.0, label='Delta Band')
-                            ax.fill_between(freqs, relative_psd, where=(freqs > 4) & (freqs <= 8), color='orange', alpha=1.0, label='Theta Band')
-                            ax.fill_between(freqs, relative_psd, where=(freqs > 8) & (freqs <= 13), color='blue', alpha=1.0, label='Alpha Band')
-                            ax.fill_between(freqs, relative_psd, where=(freqs > 13) & (freqs <= 20), color='green', alpha=1.0, label='Beta1 Band')
-                            ax.fill_between(freqs, relative_psd, where=(freqs > 20) & (freqs <= 30), color='yellow', alpha=1.0, label='Beta2 Band')
-                            ax.fill_between(freqs, relative_psd, where=(freqs > 30) & (freqs <= 40), color='cyan', alpha=1.0, label='Gamma Band')
-
-                            # Add labels and grid for each subplot
-                            ax.set_title(f'Relative Power Spectrum (%P) - {ch_name}')
-                            ax.set_xlabel('Frequency (Hz)')
-                            ax.set_ylabel('Relative Power (%P)')
-                            ax.legend(loc='upper right', fontsize='small')
-                            ax.grid(True)
-
-                        # Hide any unused subplots
-                        for j in range(num_channels, nrows * ncols):
-                            axs[j // ncols, j % ncols].set_visible(False)
-
-                        # Add a main title for the entire figure
-                        plt.suptitle('Relative Power Spectra for All Channels', fontsize=20)
-
-                        # Return the figure object
-                        return fig
-
-                    # Call the function and store the figure globally
-                    global_rel_power_spectra_lines = plot_relative_power_spectra_lines()
-
-                    # Function to plot relative power spectra topomaps and return the figure
-                    def plot_relative_power_spectra_topo():
-                        # Create a figure with 2 rows and 3 columns layout
-                        fig, axs = plt.subplots(2, 3, figsize=(18, 12))
-
-                        # Set up normalization and colormap
-                        vmin, vmax = 0, 15  # Adjust these based on your dataset
-                        cmap = 'jet'
-
-                        # Plot topomaps for each frequency band
-                        mne.viz.plot_topomap(relative_delta_power, cleaned_raw.info, axes=axs[0, 0], show=False, cmap=cmap)
-                        axs[0, 0].set_title('Delta Power')
-                        
-                        mne.viz.plot_topomap(relative_theta_power, cleaned_raw.info, axes=axs[0, 1], show=False, cmap=cmap)
-                        axs[0, 1].set_title('Theta Power')
-                        
-                        mne.viz.plot_topomap(relative_alpha_power, cleaned_raw.info, axes=axs[0, 2], show=False, cmap=cmap)
-                        axs[0, 2].set_title('Alpha Power')
-                        
-                        mne.viz.plot_topomap(relative_beta1_power, cleaned_raw.info, axes=axs[1, 0], show=False, cmap=cmap)
-                        axs[1, 0].set_title('Beta1 Power')
-                        
-                        mne.viz.plot_topomap(relative_beta2_power, cleaned_raw.info, axes=axs[1, 1], show=False, cmap=cmap)
-                        axs[1, 1].set_title('Beta2 Power')
-                        
-                        mne.viz.plot_topomap(relative_gamma_power, cleaned_raw.info, axes=axs[1, 2], show=False, cmap=cmap)
-                        axs[1, 2].set_title('Gamma Power')
-
-                        # Add the main title
-                        plt.suptitle('Relative Power Spectra (%P)', fontsize=16)
-
-                        # Adjust layout to avoid overlap with the color bar
-                        plt.tight_layout()
-                        plt.subplots_adjust(top=0.90, bottom=0.1, right=0.85, wspace=0.3, hspace=0.4)  # Adjust for colorbar
-
-                        # Create and position the colorbar
-                        cbar_ax = fig.add_axes([0.88, 0.15, 0.02, 0.7])  # Position for colorbar
-                        norm = plt.Normalize(vmin=vmin, vmax=vmax)
-                        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-                        sm.set_array([])  # Required for ScalarMappable
-                        cbar = fig.colorbar(sm, cax=cbar_ax)
-                        cbar.set_label('Power (%P)')
-
-                        # Return the figure object
-                        return fig
-
-                    # Call the function and store the figure globally
-                    global_rel_power_spectra_topo = plot_relative_power_spectra_topo()
-
-                    # Function to plot the Theta/Beta1 ratio topomap and return the figure
-                    def plot_theta_beta_ratio():
-                        # Calculate Theta/Beta1 ratio for each channel
-                        theta_beta_ratio = theta_power / beta1_power
-
-                        # Create a figure and axis for the topomap
-                        fig, ax = plt.subplots(figsize=(6, 6))
-
-                        # Plot the topomap with the 'jet' colormap
-                        im, _ = mne.viz.plot_topomap(theta_beta_ratio, cleaned_raw.info, axes=ax, show=False, cmap='jet')
-
-                        # Add a color bar to the side
-                        cbar = plt.colorbar(im, ax=ax, orientation='vertical')
-                        cbar.set_label('Theta/Beta1 Ratio')
-
-                        # Add a title
-                        ax.set_title('Theta/Beta1 Ratio (Attention Index)', fontsize=14)
-
-                        # Return the figure object
-                        return fig
-
-                    # Call the function and store the figure globally
-                    global_theta_beta_ratio = plot_theta_beta_ratio()
-
-                    # # Function to plot asymmetry topomaps for each frequency band and return the figure
-                    # def plot_asymmetry():
-                    #     frequency_bands = {
-                    #         'Delta': delta_power,
-                    #         'Theta': theta_power,
-                    #         'Alpha': alpha_power,
-                    #         'Beta1': beta1_power,
-                    #         'Beta2': beta2_power,
-                    #         'Gamma': gamma_power
-                    #     }
-
-                    #     # Define zones: pairs of left and right hemisphere channels
-                    #     zones = {
-                    #         'Frontal': (['F3', 'F7', 'Fp1'], ['F4', 'F8', 'Fp2']),
-                    #         'Central': (['C3'], ['C4']),
-                    #         'Temporal': (['T3', 'T5'], ['T4', 'T6']),
-                    #         'Parietal': (['P3'], ['P4']),
-                    #         'Occipital': (['O1'], ['O2'])
-                    #     }
-
-                    #     # Channel names in the standard 10-20 system
-                    #     channel_names = ['Fp1', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz', 'C4', 'T4', 'T5', 'P3', 'Pz', 'P4', 'T6', 'O1', 'O2']
-
-                    #     # Initialize a figure for the topomaps (2x3 grid for the 6 frequency bands)
-                    #     fig, axs = plt.subplots(2, 3, figsize=(15, 10))
-
-                    #     # Iterate over each frequency band and calculate the asymmetry
-                    #     for i, (band_name, power_data) in enumerate(frequency_bands.items()):
-                    #         # Map power data to channels
-                    #         channel_power_map = dict(zip(channel_names, power_data))
-
-                    #         # Calculate asymmetry for each zone (left-right difference)
-                    #         asymmetry_by_zone = {}
-                    #         for zone_name, (left_channels, right_channels) in zones.items():
-                    #             left_power = np.mean([channel_power_map[ch] for ch in left_channels])
-                    #             right_power = np.mean([channel_power_map[ch] for ch in right_channels])
-                    #             asymmetry_by_zone[zone_name] = left_power - right_power  # Asymmetry = left - right
-
-                    #         # Create an array with the asymmetry values for topomap plotting
-                    #         asymmetry_values = np.zeros(19)
-
-                    #         # Assign asymmetry values to left and right hemisphere channels
-                    #         for zone_name, (left_channels, right_channels) in zones.items():
-                    #             left_asymmetry = asymmetry_by_zone[zone_name]
-                    #             for ch in left_channels:
-                    #                 asymmetry_values[channel_names.index(ch)] = left_asymmetry
-                    #             for ch in right_channels:
-                    #                 asymmetry_values[channel_names.index(ch)] = -left_asymmetry  # Right side gets negative value
-
-                    #         # Plot the asymmetry topomap for the current frequency band
-                    #         ax = axs[i // 3, i % 3]  # Select the subplot for the current frequency band
-                    #         im, _ = mne.viz.plot_topomap(asymmetry_values, cleaned_raw.info, axes=ax, show=False, cmap='jet', contours=4)
-
-                    #         # Set a title for each plot (the name of the frequency band)
-                    #         ax.set_title(f'{band_name} Band', fontsize=14)
-
-                    #     # Add a color bar for the entire figure
-                    #     fig.subplots_adjust(right=0.9)  # Make space on the right for the color bar
-                    #     cbar_ax = fig.add_axes([0.92, 0.15, 0.02, 0.7])  # Position for the color bar
-                    #     fig.colorbar(im, cax=cbar_ax)
-
-                    #     # Add an overall title
-                    #     plt.suptitle('Asymmetry', fontsize=16)
-
-                    #     # Return the figure object
-                    #     return fig
-
-                    # # Call the function and store the figure globally
-                    # global_asymmetry_fig = plot_asymmetry()
-
-                    def plot_asymmetry_with_summary():
-                        # Frequency bands and power data (assuming these are already defined)
-                        frequency_bands = {
-                            'Delta': delta_power,
-                            'Theta': theta_power,
-                            'Alpha': alpha_power,
-                            'Beta1': beta1_power,
-                            'Beta2': beta2_power,
-                            'Gamma': gamma_power
-                        }
-
-                        # Define zones: pairs of left and right hemisphere channels
-                        zones = {
-                            'Frontal': (['F3', 'F7', 'Fp1'], ['F4', 'F8', 'Fp2']),
-                            'Central': (['C3'], ['C4']),
-                            'Temporal': (['T3', 'T5'], ['T4', 'T6']),
-                            'Parietal': (['P3'], ['P4']),
-                            'Occipital': (['O1'], ['O2'])
-                        }
-
-                        # Channel names in the standard 10-20 system
-                        channel_names = ['Fp1', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8', 'T3', 'C3', 'Cz', 'C4', 'T4', 'T5', 'P3', 'Pz', 'P4', 'T6', 'O1', 'O2']
-
-                        # Initialize a set to store zones with significant asymmetry
-                        significant_zones = set()
-
-                        # Generate the asymmetry report for each frequency band
-                        for band_name, power_data in frequency_bands.items():
-                            # Map power data to channels
-                            channel_power_map = dict(zip(channel_names, power_data))
-
-                            # Calculate asymmetry for each zone
-                            for zone_name, (left_channels, right_channels) in zones.items():
-                                left_power = np.mean([channel_power_map[ch] for ch in left_channels])
-                                right_power = np.mean([channel_power_map[ch] for ch in right_channels])
-                                asymmetry = left_power - right_power
-
-                                # If significant asymmetry is found
-                                if abs(asymmetry) > 0.05: # 0.05  # Threshold for asymmetry reporting
-                                    significant_zones.add(zone_name)
-
-                        # Format the report summary
-                        if significant_zones:
-                            zone_list = ', '.join(significant_zones)
-                            summary_text = f"Significant asymmetry over the {zone_list.lower()} areas in a wide frequency range."
-                        else:
-                            summary_text = "No significant asymmetry found in the specified zones."
-
-                        # Plot the asymmetry topomaps
-                        fig, axs = plt.subplots(3, 2, figsize=(15, 16))
-                        fig.subplots_adjust(hspace=0.5, wspace=0.3, top=0.93)  # Adjust spacing for topomaps
-
-                        for i, (band_name, power_data) in enumerate(frequency_bands.items()):
-                            channel_power_map = dict(zip(channel_names, power_data))
-                            asymmetry_values = np.zeros(19)
-
-                            # Calculate and assign asymmetry values for each zone
-                            for zone_name, (left_channels, right_channels) in zones.items():
-                                left_power = np.mean([channel_power_map[ch] for ch in left_channels])
-                                right_power = np.mean([channel_power_map[ch] for ch in right_channels])
-                                asymmetry = left_power - right_power
-
-                                # Assign asymmetry values to channels for left and right zones
-                                for ch in left_channels:
-                                    asymmetry_values[channel_names.index(ch)] = asymmetry
-                                for ch in right_channels:
-                                    asymmetry_values[channel_names.index(ch)] = -asymmetry
-
-                            # Plot each band on the corresponding subplot
-                            ax = axs[i // 2, i % 2]
-                            mne.viz.plot_topomap(asymmetry_values, cleaned_raw.info, axes=ax, show=False, cmap='jet')
-                            ax.set_title(f'{band_name} Band')
-
-                        # Add text as an annotation below the topomaps
-                        fig.text(0.5, 0.05, summary_text, ha='center', va='center', fontsize=26, wrap=True)
-                        # fig.suptitle("Asymmetry Analysis with Summary", fontsize=16)
-
-                        # Return the combined figure
-                        return fig
-
-                    # Call the function and store the figure in a global variable for use in the web app
-                    global_asymmetry_fig = plot_asymmetry_with_summary()
-
-
-                    # Function to plot deviations for each Brodmann area and return the figures in a dictionary
-                    def plot_brodmann_dorsolateral():
-                        # Normative values (assuming you have calculated alpha_power, beta1_power, etc.)
-                        normative_values = {
-                            'Alpha': np.mean(alpha_power),
-                            'Beta1': np.mean(beta1_power),
-                            'Beta2': np.mean(beta2_power),
-                            'Gamma': np.mean(gamma_power),
-                            'Theta': np.mean(theta_power),
-                            'Delta': np.mean(delta_power)
-                        }
-
-                        # Map EEG channels to Brodmann areas
-                        brodmann_mapping = {
-                            'Fp1': 'Brodmann Area 11', 'Fp2': 'Brodmann Area 11', 'F7': 'Brodmann Area 46',
-                            'F3': 'Brodmann Area 46', 'Fz': 'Brodmann Area 9', 'F4': 'Brodmann Area 46',
-                            'F8': 'Brodmann Area 46', 'T3': 'Brodmann Area 21', 'C3': 'Brodmann Area 4',
-                            'Cz': 'Brodmann Area 4', 'C4': 'Brodmann Area 4', 'T4': 'Brodmann Area 21',
-                            'T5': 'Brodmann Area 39', 'P3': 'Brodmann Area 39', 'Pz': 'Brodmann Area 7',
-                            'P4': 'Brodmann Area 39', 'T6': 'Brodmann Area 39', 'O1': 'Brodmann Area 17',
-                            'O2': 'Brodmann Area 17'
-                        }
-
-                        # Initialize dictionary to store average power for each Brodmann area
-                        brodmann_area_power = {area: {band: 0 for band in normative_values.keys()} for area in set(brodmann_mapping.values())}
-
-                        # Calculate average power for each Brodmann area
-                        for area in brodmann_area_power.keys():
-                            area_channels = [ch for ch, mapped_area in brodmann_mapping.items() if mapped_area == area]
-
-                            for band in normative_values.keys():
-                                power_values = []
-                                for channel in area_channels:
-                                    if channel in locals():  # Ensure the power variable exists
-                                        power_values.append(locals()[f"{band.lower()}_power"][cleaned_raw.ch_names.index(channel)])
-
-                                brodmann_area_power[area][band] = np.mean(power_values) if power_values else 0
-
-                        # Calculate deviations from normative values
-                        deviation_results = {}
-                        for area, area_power in brodmann_area_power.items():
-                            deviations = {}
-                            for band, value in area_power.items():
-                                deviation = value - normative_values[band]
-                                deviations[band] = deviation
-                            deviation_results[area] = deviations
-
-                        # Brodmann area descriptions
-                        brodmann_area_descriptions = {
-                            'Brodmann Area 11': 'Orbital Gyrus Frontal Lobe',
-                            'Brodmann Area 4': 'Precentral Gyrus Frontal Lobe',
-                            'Brodmann Area 39': 'Angular Gyrus Parietal Lobe',
-                            'Brodmann Area 21': 'Middle Temporal Gyrus Temporal Lobe',
-                            'Brodmann Area 46': 'Dorsolateral Prefrontal Cortex',
-                            'Brodmann Area 17': 'Primary Visual Cortex',
-                            'Brodmann Area 7': 'Superior Parietal Lobule',
-                            'Brodmann Area 9': 'Dorsolateral Prefrontal Cortex'
-                        }
-
-                        # Dictionary to store the figures
-                        brodmann_figures = {}
-
-                        # Plot deviations for each Brodmann area
-                        for area, deviations in deviation_results.items():
-                            description = brodmann_area_descriptions.get(area, "Description not found")
-                            
-                            # Create a new figure for each Brodmann area
-                            fig, ax = plt.subplots(figsize=(10, 4))
-                            ax.bar(deviations.keys(), deviations.values(), color='skyblue')
-                            ax.set_title(f"{area}: {description}")
-                            ax.set_xlabel("Frequency Band")
-                            ax.set_ylabel("Deviation from Norm")
-                            
-                            # Store the figure in the dictionary
-                            brodmann_figures[area] = fig
-
-                        # Return the dictionary of figures
-                        return brodmann_figures
-
-                    # Call the function and store the result globally
-                    global_brodmann_dorsolateral = plot_brodmann_dorsolateral()
-
-                    # Function to create a combined figure with multiple Brodmann area plots
-                    def plot_combined_brodmann_dorsolateral(brodmann_figures):
-                        num_plots = len(brodmann_figures)
-                        ncols = 3  # Set number of columns (adjustable)
-                        nrows = (num_plots + ncols - 1) // ncols  # Calculate number of rows based on number of plots
-
-                        fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(15, 5 * nrows))  # Adjust the figure size
-
-                        # Flatten the axes array for easy indexing
-                        axs = axs.flatten()
-
-                        # Plot each Brodmann area in a subplot
-                        for i, (area, brodmann_fig) in enumerate(brodmann_figures.items()):
-                            # Extract the bar chart data from each Brodmann area plot
-                            deviations = brodmann_fig.axes[0].containers[0].datavalues
-                            labels = [label.get_text() for label in brodmann_fig.axes[0].get_xticklabels()]
-                            
-                            axs[i].bar(labels, deviations, color='skyblue')
-                            axs[i].set_title(area)
-                            axs[i].set_xlabel("Frequency Band")
-                            axs[i].set_ylabel("Deviation from Norm")
-
-                        # Hide any remaining unused subplots
-                        for j in range(i + 1, len(axs)):
-                            axs[j].axis('off')
-
-                        # Add a main title for the entire combined figure
-                        plt.suptitle("Brodmann Area Deviations", fontsize=16)
-
-                        # Return the combined figure
-                        return fig
-
-                    # Call the function and store the combined figure globally
-                    global_brodmann_dorsolateral_combined = plot_combined_brodmann_dorsolateral(global_brodmann_dorsolateral)
-
-                    #brodmann findings
-                    def generate_brodmann_findings_figure():
-                        # Generate the findings text as before
-                        normative_values = {
-                            'Alpha': np.mean(alpha_power),
-                            'Beta1': np.mean(beta1_power),
-                            'Beta2': np.mean(beta2_power),
-                            'Gamma': np.mean(gamma_power),
-                            'Theta': np.mean(theta_power),
-                            'Delta': np.mean(delta_power)
-                        }
-                        
-
-                        # Map EEG channels to Brodmann areas
-                        brodmann_mapping = {
-                            'Fp1': 'Brodmann Area 11',
-                            'Fp2': 'Brodmann Area 11',
-                            'F7': 'Brodmann Area 46',
-                            'F3': 'Brodmann Area 46',
-                            'Fz': 'Brodmann Area 9',
-                            'F4': 'Brodmann Area 46',
-                            'F8': 'Brodmann Area 46',
-                            'T3': 'Brodmann Area 21',
-                            'C3': 'Brodmann Area 4',
-                            'Cz': 'Brodmann Area 4',
-                            'C4': 'Brodmann Area 4',
-                            'T4': 'Brodmann Area 21',
-                            'T5': 'Brodmann Area 39',
-                            'P3': 'Brodmann Area 39',
-                            'Pz': 'Brodmann Area 7',
-                            'P4': 'Brodmann Area 39',
-                            'T6': 'Brodmann Area 39',
-                            'O1': 'Brodmann Area 17',
-                            'O2': 'Brodmann Area 17',
-                        }
-
-                        brodmann_area_power = {area: {band: 0 for band in normative_values.keys()} for area in set(brodmann_mapping.values())}
-
-                        # Calculate average power for each Brodmann area
-                        for area in brodmann_area_power.keys():
-                            area_channels = [ch for ch, mapped_area in brodmann_mapping.items() if mapped_area == area]
-                            for band in normative_values.keys():
-                                power_values = []
-                                for channel in area_channels:
-                                    if channel in locals():
-                                        power_values.append(locals()[f"{band.lower()}_power"][global_raw.ch_names.index(channel)])
-                                brodmann_area_power[area][band] = np.mean(power_values) if power_values else 0
-
-                        deviation_results = {}
-                        for area, area_power in brodmann_area_power.items():
-                            deviations = {}
-                            for band, value in area_power.items():
-                                deviation = value - normative_values[band]
-                                deviations[band] = deviation
-                            deviation_results[area] = deviations
-
-                        brodmann_area_descriptions = {
-                            'Brodmann Area 11': 'Orbital Gyrus Frontal Lobe',
-                            'Brodmann Area 4': 'Precentral Gyrus Frontal Lobe',
-                            'Brodmann Area 39': 'Angular Gyrus Parietal Lobe',
-                            'Brodmann Area 21': 'Middle Temporal Gyrus Temporal Lobe',
-                            'Brodmann Area 46': 'Dorsolateral Prefrontal Cortex',
-                            'Brodmann Area 17': 'Primary Visual Cortex',
-                            'Brodmann Area 7': 'Superior Parietal Lobule',
-                            'Brodmann Area 9': 'Dorsolateral Prefrontal Cortex'
-                        }
-
-                        adjacent_areas = {
-                            'Brodmann Area 11': ['Brodmann Area 47', 'Brodmann Area 10'],
-                            'Brodmann Area 4': ['Brodmann Area 6', 'Brodmann Area 1', 'Brodmann Area 2', 'Brodmann Area 3'],
-                            'Brodmann Area 39': ['Brodmann Area 40', 'Brodmann Area 7', 'Brodmann Area 19'],
-                            'Brodmann Area 21': ['Brodmann Area 20', 'Brodmann Area 22'],
-                            'Brodmann Area 46': ['Brodmann Area 9', 'Brodmann Area 10'],
-                            'Brodmann Area 17': ['Brodmann Area 18', 'Brodmann Area 19'],
-                            'Brodmann Area 7': ['Brodmann Area 39', 'Brodmann Area 40', 'Brodmann Area 5'],
-                            'Brodmann Area 9': ['Brodmann Area 46', 'Brodmann Area 10']
-                        }
-
-                        # Generate findings text
-                        brodmann_output_results = "Following deviations were calculated:\n\n"
-                        for area, deviations in deviation_results.items():
-                            if deviations:
-                                adjacent_with_deviation = any(
-                                    adjacent in deviation_results and deviation_results[adjacent]
-                                    for adjacent in adjacent_areas.get(area, [])
-                                )
-                                if not adjacent_with_deviation:
-                                    description = brodmann_area_descriptions.get(area, "Description not found")
-                                    brodmann_output_results += f"{area}: {description}\n"
-
-                        # Plot the findings text on a figure
-                        fig, ax = plt.subplots(figsize=(10, 6))
-                        ax.text(0.5, 0.5, brodmann_output_results, ha='center', va='center', fontsize=26, wrap=True)
-                        ax.axis('off')  # Hide the axes for a cleaner look
-                        fig.suptitle("Brodmann Findings", fontsize=26)
-                        return fig
-                    
-                    global_brodmann_findings = generate_brodmann_findings_figure()
-
-                    def pathological_signs_detection(cleaned_raw):
-                        # Threshold for detecting epileptiform activity
-                        epileptiform_threshold = 0.5  # Adjust as necessary based on data
-
-                        # 1. Epileptiform or Altered Activity Detection (Delta and Theta bands)
-                        delta_power = cleaned_raw.copy().filter(l_freq=0.5, h_freq=4).get_data()
-                        theta_power = cleaned_raw.copy().filter(l_freq=4, h_freq=7).get_data()
-                        epileptiform_detected = (
-                            np.any(np.max(delta_power, axis=1) > epileptiform_threshold) or
-                            np.any(np.max(theta_power, axis=1) > epileptiform_threshold)
-                        )
-                        epileptiform_text = "No epileptiform or other type of altered activity observed in the recording."
-                        if epileptiform_detected:
-                            epileptiform_text = "Epileptiform or altered activity detected in the recording."
-
-                        # 2. Occipital Alpha Peaks (Alpha band in O1 and O2 channels)
-                        spectrum = cleaned_raw.compute_psd(method='welch', fmin=1.5, fmax=40., n_fft=2048)
-                        psds, freqs = spectrum.get_data(return_freqs=True)
-                        occipital_channels = ['O1', 'O2']
-                        alpha_band = (7.5, 14)
-                        occipital_psds = psds[[cleaned_raw.ch_names.index(ch) for ch in occipital_channels], :]
-                        alpha_mask = np.where((freqs >= alpha_band[0]) & (freqs <= alpha_band[1]))[0]
-                        alpha_freqs = freqs[alpha_mask]
-                        occipital_psds_alpha = occipital_psds[:, alpha_mask]
-                        alpha_peaks = {}
-                        for idx, ch_name in enumerate(occipital_channels):
-                            alpha_psd = occipital_psds_alpha[idx]
-                            peak_idx = np.argmax(alpha_psd)
-                            alpha_peaks[ch_name] = alpha_freqs[peak_idx]
-                        alpha_results_text = f"O1 = {alpha_peaks['O1']:.2f} Hz / uV^2\nO2 = {alpha_peaks['O2']:.2f} Hz / uV^2"
-
-                        # 3. Markers for Leaky Gut Syndrome (Delta power in temporal regions)
-                        temporal_channels = ['T3', 'T4', 'T5', 'T6']
-                        temporal_delta_data = cleaned_raw.copy().filter(l_freq=0.5, h_freq=4).get_data()
-                        temporal_delta_power = np.mean([np.mean(temporal_delta_data[cleaned_raw.ch_names.index(ch)]) for ch in temporal_channels])
-                        leaky_gut_text = "No markers for leaky gut syndrome detected."
-                        if temporal_delta_power > epileptiform_threshold:
-                            leaky_gut_text = "Yes – increased delta power in temporal regions."
-
-                        # Display findings in a structured layout without a table format
-                        fig, ax = plt.subplots(figsize=(8, 4))
-                        ax.axis('off')
-                        results_text = (
-                            f"Pathological Signs Detection\n\n"
-                            f"{epileptiform_text}\n\n"
-                            f"Occipital peak Alpha frequency and power (Eyes open):\n{alpha_results_text}\n\n"
-                            f"Markers for leaky gut syndrome (slow waves in occipital and temporal regions) (Eyes Open):\n{leaky_gut_text}"
-                        )
-                        ax.text(0.5, 0.5, results_text, ha='center', va='center', fontsize=14, wrap=True, bbox=dict(facecolor='lightgrey', edgecolor='black', boxstyle='round,pad=0.5'))
-
-                        return fig
-
-                    # Call the function and pass in the cleaned_raw EEG data
-                    global_pathological_signs_detection_fig = pathological_signs_detection(cleaned_raw)
-
-
-                    global_channel_dict = channel_dict
-                        
-                    global_raw_ica = cleaned_raw                    
-                    
-                    global_ica = ica
-                    
-                    # import openai
-
-                    # # Initialize OpenAI API
-                    # with open('./apikey.txt', 'r') as file:
-                    #     openai_api_key = file.read().strip()
-
-                    # openai.api_key = openai_api_key
-                    # # Function to generate each summary
-                    # def generate_raw_eeg_summary(raw):
-                    #     duration = raw.times[-1] - raw.times[0]
-                    #     sampling_frequency = raw.info['sfreq']
-                    #     channel_count = len(raw.ch_names)
-                    #     return f"Raw EEG recording with {channel_count} channels, duration of {duration:.2f} seconds, sampled at {sampling_frequency} Hz."
-
-                    # def generate_cleaned_ica_summary(cleaned_ica, excluded_components):
-                    #     return f"ICA-cleaned EEG data. {len(excluded_components)} components were excluded for artifact removal, focusing on eye movement and noise reduction."
-
-                    # def generate_theta_beta_summary(cleaned_raw, theta_power, beta_power):
-                    #     theta_beta_ratio = theta_power / beta_power
-                    #     avg_theta_beta_ratio = np.mean(theta_beta_ratio)
-                    #     return f"Average Theta/Beta ratio: {avg_theta_beta_ratio:.2f}. This ratio is associated with attentional processes."
-
-                    # def generate_bands_summary(bands, delta_power, theta_power, alpha_power, beta1_power, beta2_power, gamma_power):
-                    #     band_powers = {
-                    #         "Delta": np.mean(delta_power),
-                    #         "Theta": np.mean(theta_power),
-                    #         "Alpha": np.mean(alpha_power),
-                    #         "Beta1": np.mean(beta1_power),
-                    #         "Beta2": np.mean(beta2_power),
-                    #         "Gamma": np.mean(gamma_power)
-                    #     }
-                    #     summary = "Band-wise average power: "
-                    #     summary += ", ".join([f"{band}: {power:.2f} µV²" for band, power in band_powers.items()])
-                    #     return summary
-
-                    # def generate_ica_com_summary(ica, excluded_components):
-                    #     summary = "ICA analysis detected artifacts in components: "
-                    #     summary += ", ".join(map(str, excluded_components))
-                    #     summary += ". These components were removed to minimize artifacts."
-                    #     return summary
-
-                    # def generate_rel_spec_summary(relative_delta_power, relative_theta_power, relative_alpha_power,
-                    #                             relative_beta1_power, relative_beta2_power, relative_gamma_power):
-                    #     relative_powers = {
-                    #         "Delta": np.mean(relative_delta_power),
-                    #         "Theta": np.mean(relative_theta_power),
-                    #         "Alpha": np.mean(relative_alpha_power),
-                    #         "Beta1": np.mean(relative_beta1_power),
-                    #         "Beta2": np.mean(relative_beta2_power),
-                    #         "Gamma": np.mean(relative_gamma_power)
-                    #     }
-                    #     summary = "Relative power percentages: "
-                    #     summary += ", ".join([f"{band}: {power:.2f}%" for band, power in relative_powers.items()])
-                    #     return summary
-
-                    # def generate_abs_spec_summary(delta_power, theta_power, alpha_power, beta1_power, beta2_power, gamma_power):
-                    #     abs_powers = {
-                    #         "Delta": np.mean(delta_power),
-                    #         "Theta": np.mean(theta_power),
-                    #         "Alpha": np.mean(alpha_power),
-                    #         "Beta1": np.mean(beta1_power),
-                    #         "Beta2": np.mean(beta2_power),
-                    #         "Gamma": np.mean(gamma_power)
-                    #     }
-                    #     summary = "Absolute power levels (µV²): "
-                    #     summary += ", ".join([f"{band}: {power:.2f}" for band, power in abs_powers.items()])
-                    #     return summary
-
-                    # # Generate summaries based on cleaned EEG data and other variables
-                    # raw_eeg_summary = generate_raw_eeg_summary(global_raw)
-                    # excluded_components = global_ica.exclude
-                    # cleaned_ica_summary = generate_cleaned_ica_summary(global_raw_ica, excluded_components)
-                    # theta_beta_summary = generate_theta_beta_summary(global_raw_ica, theta_power, beta1_power)
-                    # bands_summary = generate_bands_summary(bands, delta_power, theta_power, alpha_power, beta1_power, beta2_power, gamma_power)
-                    # ica_com_summary = generate_ica_com_summary(global_ica, excluded_components)
-                    # rel_spec_summary = generate_rel_spec_summary(relative_delta_power, relative_theta_power, relative_alpha_power,
-                    #                                             relative_beta1_power, relative_beta2_power, relative_gamma_power)
-                    # abs_spec_summary = generate_abs_spec_summary(delta_power, theta_power, alpha_power, beta1_power, beta2_power, gamma_power)
-
-                    # Function to call OpenAI API to generate qEEG Patient Report
-                    # Function to call OpenAI API to generate qEEG Patient Report
-                    # def main_qeeg_rehab(analysis, raw_eeg_summary, cleaned_ica_summary, theta_beta_summary, bands_summary, ica_com_summary,
-                    #                     rel_spec_summary, abs_spec_summary, name, bands, age, gender, known_issues, medications):
-                        
-                    #     response = openai.ChatCompletion.create(
-                    #         # model="gpt-4",
-                    #         # messages=[
-                    #         #     {"role": "system", "content": """You are an expert in neuroscience, specializing in EEG analysis and frequency 
-                    #         #             band interpretation. Moreover, You are a specialist in creating personalized Comprehensive qEEG Analysis and 
-                    #         #             Rehabilitation Guide."""},
-                    #         #     {"role": "user", "content": f""" You need to make a detailed report on: {analysis}. The report should have following
-                    #         #                                 headings only: Introduction, Patient Overview, Assessment of qEEG Data, 
-                    #         #                                 Daily Life and Family Dynamics, Nutrition and Dietary Recommendations,
-                    #         #                                 Sports and Physical Activity Recommendations, Educational and Professional Guidance,
-                    #         #                                 Abilities and Skills Development, Rehabilitation Goals, Intervention Strategies (should have
-                    #         #                                 following sub headings: Cognitive Rehabilitation, Behavioural and Psychological Support,
-                    #         #                                 and Physical Rehabilitation), Lifestyle and Routine Recommendations,
-                    #         #                                 Implementation Plan, Developmental and Age-Related Considerations, Conclusion and
-                    #         #                                 References. I will explain what you need to include in the above mentioned sections:
-                                                            
-                    #         #                                 The Introduction section should contains: Overview of qEEG-Guided Rehabilitation based on
-                    #         #                                 raw EEG findings: {raw_eeg_summary}, ica cleaned EEG findings: {cleaned_ica_summary},
-                    #         #                                 theta beta ratio findings: {theta_beta_summary}, band wise findings: {bands_summary},
-                    #         #                                 (Bands ranges are as follows: {bands}), ica components findings: {ica_com_summary}, Relative
-                    #         #                                 spectra summary {rel_spec_summary} and absolute spectra summary {abs_spec_summary} (Define 
-                    #         #                                 the methods and related studies or literature to the above findings).
-                    #         #                                 After giving the overview, the purpose of the Rehabilitation Plan should be defined.
-                                                            
-                    #         #                                 In Patient Overview secion, the background of patient information such as name: {name},
-                    #         #                                 age: {age}, gender: {gender}, medications: {medications}, and known issues: {known_issues} 
-                    #         #                                 should be defined. Afterwards, Summary of qEEG Findings should be included based on raw 
-                    #         #                                 EEG findings: {raw_eeg_summary}, ica cleaned EEG findings: {cleaned_ica_summary}, theta beta ratio 
-                    #         #                                 findings: {theta_beta_summary}, band wise findings: {bands_summary}, and ica 
-                    #         #                                 components findings: {ica_com_summary}, (Bands ranges are as follows: {bands}). 
-                    #         #                                 Last but not least, Clinical Implications of qEEG Results will be added also in this section.
-                                                            
-                    #         #                                 Please proceed with these guidelines to generate the report in British English."""}
-                    #         # ]
-                    #         model="chatgpt-4o-latest",
-                    #         messages=[
-                    # {"role": "system", "content": """You are an expert in neuroscience, specializing in EEG analysis and frequency 
-                    #   band interpretation. Moreover, You are a specialist in creating personalized Comprehensive qEEG Analysis and 
-                    #   Rehabilitation Guide """},
-                    # {"role": "user", "content": f""" You need to make a detailed report on: {analysis}. The report should have following
-                    #                     headings only: Introduction, Patient Overview, Assessment of qEEG Data, 
-                    #                     Daily Life and Family Dynamics, Nutrition and Dietary Recommendations,
-                    #                     Sports and Physical Activity Recommendations, Educational and Professional Guidance,
-                    #                     Abilities and Skills Development, Rehabilitation Goals,  Intervention Strategies (should have
-                    #                     following sub headings: Cognitive Rehabilitation, Behavioural and Psychological Support,
-                    #                     and Physical Rehabilitation), Lifestyle and Routine Recommendations,
-                    #                     Implementation Plan, Developmental and Age-Related Considerations, Conclusion and
-                    #                     References. I will explain what you need to include in the above mentioned sections:
-                                        
-                    #                     The Introduction section should contains: Overview of qEEG-Guided Rehabilitation based on
-                    #                     raw EEG findings: {raw_eeg_summary}, ica cleaned EEG findings: {cleaned_ica_summary},
-                    #                     theta beta ratio findings: {theta_beta_summary}, band wise findings: {bands_summary},
-                    #                     (Bands ranges are as follows: {bands}), ica components findings: {ica_com_summary}, Relative
-                    #                     spectra summary {rel_spec_summary} and absolute spectra summary {abs_spec_summary}(Define 
-                    #                     the methods and related studies or literature to the above findings)
-                    #                     After giving the overview, the purpose of the Rehabilitation Plan should be defined.
-                                        
-                    #                     In Patient Overview secion, the background of patient information such as name: {name},
-                    #                     age: {age}, gender: {gender}, medications:{medications} and known issues:{known_issues} 
-                    #                     should be defined. Afterwards, Summary of qEEG Findings should be included based on raw 
-                    #                     EEG findings: {raw_eeg_summary}, ica cleaned EEG findings: {cleaned_ica_summary}, theta beta ratio 
-                    #                     findings: {theta_beta_summary} ,band wise findings: {bands_summary}, and ica 
-                    #                     components findings: {ica_com_summary}, (Bands ranges are as follows: {bands}). 
-                    #                     Last but not least Clinical Implications of qEEG Results will be added also in this section.
-                                        
-                    #                     The Assessment of qEEG Data section contains information about: Detailed Analysis of 
-                    #                     qEEG Reports based on bands: {bands},and you can finds the findings of each band wave 
-                    #                     from here: {bands_summary}. 
-                    #                     Based on all the findings please include also the Identification of Dysregulated Brain 
-                    #                     Regions. after this please add detailed information based on the qEEG findings for: 
-                    #                     Visual Cortex Activity and Eye Health:
-                    #                     Auditory Cortex Activity and Hearing Health:
-                    #                     Neural Correlates of Leaky Gut Syndrome:
-                                        
-                    #                     In  Daily Life and Family Dynamics sections, based on the findings you have to include
-                    #                     information about: 
-                    #                     Impact of Findings on Daily Life Activitie, Family Support and Involvement, Relationship 
-                    #                     with Family and Friends, Strategies for Enhancing Family Communication and Support and 
-                    #                     Adjustments to Home Environment for Optimal Rehabilitation. The content should not be
-                    #                     too plain and not like normal content it should give more info related to findings 
-                    #                     and patient suggestins daily life example etc.
-                                        
-                    #                     The section Nutrition and Dietary Recommendations should contains information on: 
-                    #                     Nutrition: Foods to Eat and Foods to Avoid and 
-                    #                     Vitamins to Consume and Their Benefits in detail.
-                                        
-                    #                     In Sports and Physical Activity Recommendations section the following should be included in detail:
-                    #                     Assessment of Physical Abilities, Recommended Sports and Physical Activities,
-                    #                     Tailoring Physical Activities to Support Rehabilitation Goals, and 
-                    #                     Safety Considerations and Precautions.
-                                        
-                    #                     In  Educational and Professional Guidance section should explain the following:
-                    #                     Cognitive and Learning Abilities, Recommendations for Educational Pathways, and 
-                    #                     Professional and Career Counselling
-                                        
-                    #                     In Abilities and Skills Development please exaplain about: Identification of Strengths 
-                    #                     and Areas for Improvement, Skill-Building Exercises for Cognitive and Physical Development,
-                    #                     Encouraging Independence and Self-Efficacy, Long-Term Developmental Goals.
-                                        
-                    #                     In  Rehabilitation Goals please explain the followings: Cognitive Rehabilitation Goals,
-                    #                     Behavioural and Psychological Rehabilitation Goals, Physical Rehabilitation Goals, and
-                    #                     Long-term Outcome Goals
-                                        
-                    #                     In  Intervention Strategies section please define about: 1. Cognitive Rehabilitation in which
-                    #                     you have to explain about Memory and Attention Training Exercises, Executive Function 
-                    #                     Enhancement Exercises. 2. Behavioural and Psychological Support please explain about
-                    #                     Cognitive-Behavioural Therapy (CBT) Techniques and Relaxation and Stress Management Techniques
-                    #                     and 3. Physical Rehabilitation, please write about: Motor Function Rehabilitation Exercises,
-                    #                     Biofeedback Integration
-                                        
-                    #                     in  Lifestyle and Routine Recommendations  section please suggest about: Sleep Routine 
-                    #                     Suggestions, Games and Play Suggestions.
-                                        
-                    #                     In  Implementation Plan please explain in detailed about Multidisciplinary Team Involvement,
-                    #                     Session Scheduling and Duration, Home-Based Exercises and Activities, and 
-                    #                     Patient and Family Education
-                                        
-                    #                     In Developmental and Age-Related Considerations section please explain about: 
-                    #                     Tailoring the Plan for Age and Developmental Stage and Special Considerations for 
-                    #                     Brain Maturation
-                                        
-                    #                     In Conclusion  you have to explain about: Summary of the Rehabilitation Plan,
-                    #                     Expected Outcomes and Importance of Adherence and Follow-Up
-                                        
-                    #                     In References part please list down in detail, List of References and Research Supporting the Plan
-                    #                     and qEEG and Neurofeedback Literature.
-                                        
-                    #                     Please write a detailed and comprehensive report in British English"""}
-                                            
-                    #         ]
-                    #     )
-                    #     return response['choices'][0]['message']['content']
-
-                    # # Call the function to generate the qEEG Patient Report
-                    # qeeg_report_content = main_qeeg_rehab(
-                    #     analysis="qEEG Patient Report",
-                    #     raw_eeg_summary=raw_eeg_summary,
-                    #     cleaned_ica_summary=cleaned_ica_summary,
-                    #     theta_beta_summary=theta_beta_summary,
-                    #     bands_summary=bands_summary,
-                    #     ica_com_summary=ica_com_summary,
-                    #     rel_spec_summary=rel_spec_summary,
-                    #     abs_spec_summary=abs_spec_summary,
-                    #     name=name,
-                    #     bands=bands,
-                    #     age=age,
-                    #     gender=gender,
-                    #     known_issues=known_issues,
-                    #     medications=medications
-                    # )
-
-                    # # Display or save the generated report content
-                    # print(qeeg_report_content)
-
-
-                    # Function to identify channels with increased relative theta and alpha power
-                    def find_relative_increased_activity(power_band, threshold_percent=75):
-                        threshold = np.percentile(power_band, threshold_percent)  # Use 75th percentile as threshold
-                        increased_channels = [ch for ch, power in zip(channel_names, power_band) if power >= threshold]
-                        return increased_channels
-
-                    # Identify channels with increased relative theta and alpha power
-                    increased_theta_channels = find_relative_increased_activity(relative_theta_power)
-                    increased_alpha_channels = find_relative_increased_activity(relative_alpha_power)
-
-                    # Map channels to regions for theta and alpha findings
-                    def map_channels_to_regions(increased_channels):
-                        region_report = {region: [] for region in channel_groups}
-                        for channel in increased_channels:
-                            for region, region_channels in channel_groups.items():
-                                if channel in region_channels:
-                                    region_report[region].append(channel)
-                        return region_report
-
-                    # Generate region-based findings for theta and alpha
-                    theta_region_findings = map_channels_to_regions(increased_theta_channels)
-                    alpha_region_findings = map_channels_to_regions(increased_alpha_channels)
-
-                    # Function to format findings text for display
-                    def generate_activity_findings_text(region_findings, band_name):
-                        findings_text = f"% Relative increase in {band_name} activity in "
-                        regions_with_increase = {region: channels for region, channels in region_findings.items() if channels}
-                        
-                        for i, (region, channels) in enumerate(regions_with_increase.items()):
-                            channels_str = ', '.join(channels)
-                            if i == len(regions_with_increase) - 1:
-                                findings_text += f"{region} {channels_str}."
-                            else:
-                                findings_text += f"{region} {channels_str}, "
-                        return findings_text
-
-                    # Generate findings text for theta and alpha activity
-                    theta_findings_text = generate_activity_findings_text(theta_region_findings, "theta")
-                    alpha_findings_text = generate_activity_findings_text(alpha_region_findings, "alpha")
-
-                    # Combine findings for display in the app
-                    combined_findings_text = f"{theta_findings_text}\n{alpha_findings_text}"
-
-                    # Plot the findings text on a figure (optional, similar to Brodmann findings)
-                    def plot_activity_findings(combined_findings_text):
-                        fig, ax = plt.subplots(figsize=(10, 6))
-                        ax.text(0.5, 0.5, combined_findings_text, ha='center', va='center', fontsize=24, wrap=True)
-                        ax.axis('off')  # Hide axes
-                        fig.suptitle("Relative Increased Theta and Alpha Activity Findings", fontsize=26)
-                        return fig
-
-                    # Generate the findings plot and store it globally for the app
-                    global_relative_activity_findings_fig = plot_activity_findings(combined_findings_text)
-
-                    
-                    def plot_combined_analysis():
-                        # Create a figure with 3 rows and 1 column for the combined view
-                        fig, axs = plt.subplots(4, 1, figsize=(12, 18))  # Adjust figure size if necessary
-
-                        # Helper function to render subfigures as images
-                        def render_fig_to_array(sub_fig):
-                            canvas = FigureCanvas(sub_fig)
-                            canvas.draw()
-                            width, height = canvas.get_width_height()
-                            image = np.frombuffer(canvas.tostring_rgb(), dtype='uint8').reshape(height, width, 3)
-                            return image
-
-                        # Plot Asymmetry Analysis in the first subplot
-                        if global_asymmetry_fig:
-                            asymmetry_img = render_fig_to_array(global_asymmetry_fig)
-                            axs[0].imshow(asymmetry_img)
-                            axs[0].set_title("Asymmetry Analysis")
-                            axs[0].axis('off')
-
-                        # Plot Relative Theta-Alpha Findings in the second subplot
-                        if global_relative_activity_findings_fig:
-                            theta_alpha_img = render_fig_to_array(global_relative_activity_findings_fig)
-                            axs[1].imshow(theta_alpha_img)
-                            axs[1].set_title("Relative Theta-Alpha Findings")
-                            axs[1].axis('off')
-
-                        # Plot Brodmann Findings in the third subplot
-                        if global_brodmann_findings:
-                            brodmann_img = render_fig_to_array(global_brodmann_findings)
-                            axs[2].imshow(brodmann_img)
-                            axs[2].set_title("Brodmann Findings")
-                            axs[2].axis('off')
-                        if global_pathological_signs_detection_fig:
-                            pathological_fig = render_fig_to_array(global_pathological_signs_detection_fig)
-                            axs[3].imshow(pathological_fig)
-                            axs[3].set_title("Pathological Sign Detection")
-                            axs[3].axis('off')
-
-                        # Adjust layout and return the combined figure
-                        plt.tight_layout()
-                        fig.suptitle("Combined Analysis: Asymmetry, Theta-Alpha Findings, Brodmann Findings", fontsize=16)
-                        return fig
-                    combined_fig = plot_combined_analysis()
-
-                    
-
-                    max_time = int(raw.times[-1])
-
-                    # for ch, freqs in decreased_power_channels.items():
-                    #     findings.append(f"Channel {ch}: Decreased power at frequencies {freqs}")
-                    #flash('File successfully uploaded and processed.', 'success')
-                    return render_template('upload_with_topomap_dropdown.html', max_time=max_time)
-
-                except Exception as e:
-                    print(f"Error processing file: {e}")
-                    return "Error processing file", 500
-
-    # If the request method is GET, render the upload page
     return render_template('upload_with_topomap_dropdown.html', max_time=0)
-
-
 
 @socketio.on('slider_update')
 def handle_slider_update(data):
-    global global_raw, global_raw_ica
+    global asymmetry_content_fig
 
     try:
-        start_time = int(data['start_time'])
         plot_type = data['plot_type']
-        plot_url = None  # Initialize plot_url to avoid reference error
-        openai_res = None
-        openai_res_med = None
-        report_content = None
-        fig=None
+        plot_url = None
         
-
-        if plot_type == 'raw' and global_raw:
-            fig = global_raw.plot(start=start_time, duration=4, n_channels=19, show=False,scalings=70e-6)
-        elif plot_type == 'cleaned' and global_raw_ica:
-            scalings = {'eeg': 8e-6}  # Scale EEG channels to 20 µV
-            fig = global_raw_ica.plot(start=start_time, duration=4, show=False,scalings=70e-6)
-        # elif plot_type == "ica_properties":
-        #     # fig = global_ica.plot_properties(global_raw_ica, picks=[0] ,show=False)
-    
-        #     # # Save each figure to an image and send them to the client
-        #     plot_urls = []
-        #     # for chann in ['T3','T4','F7','F8','Fp1','Fp2','Cz']:
-        #     figs = global_ica.plot_properties(global_raw_ica, picks=[0] ,show=False)
-        #     for fig in figs:
-            
-        #         img = BytesIO()
-        #         fig.savefig(img, format='png')
-        #         img.seek(0)
-        #         plot_url = base64.b64encode(img.getvalue()).decode()
-        #         #
-        #         #
-        #         #print (f'this is plot URL: {plot_url}')
-        #         plot_urls.append(plot_url)
-        
-        elif plot_type == 'decrease_brain_power' and global_decreased_combined_power_fig:
-            fig = global_decreased_combined_power_fig
-        elif plot_type == 'decrease_brain_power_bandwise' and global_decreased_activation_bandwise:
-            fig = global_decreased_activation_bandwise
-        elif plot_type == 'increase_brain_power' and global_increased_combined_power_fig:
-            fig = global_increased_combined_power_fig
-        elif plot_type == 'increase_brain_power_bandwise' and global_increased_activation_bandwise:
-            fig = global_increased_activation_bandwise
-        elif plot_type == 'abs_power_spectra_lines' and global_abs_power_spectra_lines:
-            fig = global_abs_power_spectra_lines
-        elif plot_type == 'abs_power_spectra_topo' and global_abs_power_spectra_topo:
-            fig = global_abs_power_spectra_topo
-        elif plot_type == 'rel_power_spectra_lines' and global_rel_power_spectra_lines:
-            fig = global_rel_power_spectra_lines
-        elif plot_type == 'rel_power_spectra_topo' and global_rel_power_spectra_topo:
-            fig = global_rel_power_spectra_topo
-        elif plot_type == 'theta_beta_ratio' and global_theta_beta_ratio:
-            fig = global_theta_beta_ratio
-        elif plot_type == 'asymmetry' and global_asymmetry_fig:
-            fig = global_asymmetry_fig
-        elif plot_type == 'brodmann_dorsolateral' and global_brodmann_dorsolateral_combined:
-            fig = global_brodmann_dorsolateral_combined
-        elif plot_type == 'brodmann_findings' and global_brodmann_findings:
-            fig = global_brodmann_findings
-        elif plot_type == 'pathological_signs_detection' and global_pathological_signs_detection_fig:
-            fig = global_pathological_signs_detection_fig
-        # elif plot_type == 'qEEG_patient_report' and qeeg_report_content:
-        #     report_content = qeeg_report_content
-        elif plot_type == 'relative_theta_alpha_findings' and global_relative_activity_findings_fig:
-            fig = global_relative_activity_findings_fig
-        elif plot_type == 'combined_analysis' and global_asymmetry_fig and global_relative_activity_findings_fig and global_brodmann_findings:
+        fig = None
+        if plot_type == 'combined_analysis' and combined_fig:
             fig = combined_fig
-    
-            
-        else:
-            return  # No action if the plot type is unrecognized or data is not loaded
+
         if fig:
-            # Convert the plot to an image and send it to the client
             img = BytesIO()
             fig.savefig(img, format='png')
             img.seek(0)
             plot_url = base64.b64encode(img.getvalue()).decode()
+            plt.close(fig)
 
-        # Emit the updated plot back to the client
-        #emit('update_plot', {'plot_url': plot_url})
-        # Include raw report to send back
-        emit('update_plot', {'plot_url': plot_url, 'raw_report': report_content, 'raw_medical_report': openai_res_med})
-        
+        emit('update_plot', {'plot_url': plot_url})
     except Exception as e:
         print(f"Error generating plot: {e}")
-        emit('update_plot', {'plot_url': None, 'raw_report': None, 'raw_medical_report': None})  # Send a fallback response in case of error
-        
+        emit('update_plot', {'plot_url': None})
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port= 5000)#, use_reloader=False)
-    # socketio.run(app, debug=False)#, use_reloader=False)
+    socketio.run(app, debug=False, host='0.0.0.0', port=5000)
