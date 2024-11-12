@@ -80,7 +80,7 @@ def upload_file():
                             if np.any(psd_diff > threshold_factor * median_band_power):
                                 asymmetry_findings.append((ch1, ch2, band))
 
-                    asymmetry_content = "Asymmetry detected in channels:\n" + ", ".join(f"{ch1}-{ch2} ({band})" for ch1, ch2, band in asymmetry_findings)
+                    asymmetry_content = "Significant Asymmetry over the:\n" + ", ".join(f"{ch1}-{ch2} ({band})" for ch1, ch2, band in asymmetry_findings)
                     fig, ax = plt.subplots()
                     ax.axis('off')
                     ax.text(0.5, 0.5, asymmetry_content, fontsize=12, ha='center', va='center', wrap=True)
@@ -90,27 +90,236 @@ def upload_file():
                 # Define parameters and run asymmetry analysis
                 asymmetry_pairs = [("F7", "F8"), ("T5", "T6"), ("O1", "O2"), ("F3", "F4")]
                 bands = {"delta": (1.5, 4), "theta": (4, 7.5), "alpha": (7.5, 14), "beta-1": (14, 20), "beta-2": (20, 30), "gamma": (30, 40)}
-                data, times = raw[:]
-                sfreq = raw.info['sfreq']
+                data, times = cleaned_raw[:]
+                sfreq = cleaned_raw.info['sfreq']
                 asymmetry_content_fig = detect_asymmetry(data, sfreq, asymmetry_pairs, bands)
                 
                 # Theta and Alpha Detection and Plotting
-                def detect_and_plot_theta_alpha_summary(data, sfreq, theta_range=(4, 8), alpha_range=(7.5, 14), threshold_factor=1.5):
-                    theta_channels = []
-                    alpha_channels = []
-                    psd, freqs = mne.time_frequency.psd_array_welch(data, sfreq=sfreq, fmin=1, fmax=45, n_fft=2048)
+                # def detect_and_plot_theta_alpha_summary(data, sfreq, theta_range=(4, 8), alpha_range=(7.5, 14),
+                #                                         beta2_range=(20,30), gamma_range = (30,40), threshold_factor=30.0):
+                #     theta_channels = []
+                #     alpha_channels = []
+                #     beta2_channels = []
+                #     gamma_channels = []
+                #     psd, freqs = mne.time_frequency.psd_array_welch(data, sfreq=sfreq, fmin=4, fmax=40, n_fft=2048)
+                #     for ch_idx, channel_psd in enumerate(psd):
+                #         theta_power = np.sum(channel_psd[(freqs >= theta_range[0]) & (freqs < theta_range[1])])
+                #         alpha_power = np.sum(channel_psd[(freqs >= alpha_range[0]) & (freqs < alpha_range[1])])
+                #         beta2_power = np.sum(channel_psd[(freqs >= beta2_range[0]) & (freqs < beta2_range[1])])
+                #         gamma_power = np.sum(channel_psd[(freqs >= gamma_range[0]) & (freqs < gamma_range[1])])
+                #         if theta_power > threshold_factor * np.median(psd):
+                #             theta_channels.append(raw.ch_names[ch_idx])
+                #         if beta2_power > threshold_factor * np.median(psd):
+                #             beta2_channels.append(raw.ch_names[ch_idx])
+                #         if alpha_power > threshold_factor * np.median(psd):
+                #             alpha_channels.append(raw.ch_names[ch_idx])
+                #         if gamma_power > threshold_factor * np.median(psd):
+                #             gamma_channels.append(raw.ch_names[ch_idx])
+                    
+                #     # Group channels by region
+                #     theta_regions = {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []}
+                #     alpha_regions = {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []}
+                #     beta2_regions = {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []}
+                #     gamma_regions = {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []}
+                                        
+                #     region_mapping = {
+                #         "Frontal": ["Fp1", "Fp2", "F3", "F4", "Fz"],
+                #         "Temporal": ["T3", "T4", "T5", "T6"],
+                #         "Central": ["C3", "C4", "Cz"],
+                #         "Parietal": ["P3", "P4", "Pz"],
+                #         "Occipital": ["O1", "O2"]
+                #     }
+
+                #     # Collect theta and alpha channels by region
+                #     for ch_name in theta_channels:
+                #         for region, channels in region_mapping.items():
+                #             if ch_name in channels:
+                #                 theta_regions[region].append(ch_name)
+
+                #     for ch_name in alpha_channels:
+                #         for region, channels in region_mapping.items():
+                #             if ch_name in channels:
+                #                 alpha_regions[region].append(ch_name)
+                #     for ch_name in gamma_channels:
+                #         for region, channels in region_mapping.items():
+                #             if ch_name in channels:
+                #                 gamma_regions[region].append(ch_name)
+                #     for ch_name in beta2_channels:
+                #         for region, channels in region_mapping.items():
+                #             if ch_name in channels:
+                #                 beta2_regions[region].append(ch_name)
+
+                #     # Format the summary output to include channel names by region
+                #     summary_theta = "% Relative increased theta in " + ", ".join([
+                #         f"{region.lower()} {', '.join(channels)}" for region, channels in theta_regions.items() if channels
+                #     ])
+                #     summary_alpha = "% Relative increase of alpha activity in " + ", ".join([
+                #         f"{region.lower()} {', '.join(channels)}" for region, channels in alpha_regions.items() if channels
+                #     ])
+                #     summary_gamma = "% Relative increase of gamma activity in " + ", ".join([
+                #         f"{region.lower()} {', '.join(channels)}" for region, channels in gamma_regions.items() if channels
+                #     ])
+                #     summary_beta2 = "% Relative increase of beta2 activity in " + ", ".join([
+                #         f"{region.lower()} {', '.join(channels)}" for region, channels in beta2_regions.items() if channels
+                #     ])
+
+                #     # Plot summary in a single figure
+                #     fig, ax = plt.subplots(figsize=(10, 5))
+                #     ax.axis('off')  # Hide axes for a cleaner look
+                #     text_content = f"Theta Activity Summary:\n{summary_theta}\n\nAlpha Activity Summary:\n{summary_alpha}\n\nGamma Activity Summary:\n{summary_gamma}\n\nBeta2 Activity Summary:\n{summary_beta2}\n\n"
+                #     ax.text(0.5, 0.5, text_content, fontsize=12, ha='center', va='center', wrap=True)
+                #     # ax.set_title('Theta/Alpha Findings')
+                    
+                #     return fig
+
+                # def detect_and_plot_theta_alpha_summary(data, sfreq, theta_range=(4, 8), alpha_range=(7.5, 14),
+                #                         delta_range=(1, 4), beta1_range=(14, 20), 
+                #                         beta2_range=(20, 30), gamma_range=(30, 40), threshold_factor=30.0):
+    
+                #     # Initialize lists for each frequency band
+                #     theta_channels = []
+                #     alpha_channels = []
+                #     delta_channels = []
+                #     beta1_channels = []
+                #     beta2_channels = []
+                #     gamma_channels = []
+
+                #     # Compute PSD for the data within specified frequency range
+                #     psd, freqs = mne.time_frequency.psd_array_welch(data, sfreq=sfreq, fmin=1, fmax=40, n_fft=2048)
+
+                #     for ch_idx, channel_psd in enumerate(psd):
+                #         # Calculate power for each frequency band
+                #         theta_power = np.sum(channel_psd[(freqs >= theta_range[0]) & (freqs < theta_range[1])])
+                #         alpha_power = np.sum(channel_psd[(freqs >= alpha_range[0]) & (freqs < alpha_range[1])])
+                #         delta_power = np.sum(channel_psd[(freqs >= delta_range[0]) & (freqs < delta_range[1])])
+                #         beta1_power = np.sum(channel_psd[(freqs >= beta1_range[0]) & (freqs < beta1_range[1])])
+                #         beta2_power = np.sum(channel_psd[(freqs >= beta2_range[0]) & (freqs < beta2_range[1])])
+                #         gamma_power = np.sum(channel_psd[(freqs >= gamma_range[0]) & (freqs < gamma_range[1])])
+
+                #         # Compare power to threshold to detect increased activity
+                #         if theta_power > threshold_factor * np.median(psd):
+                #             theta_channels.append(raw.ch_names[ch_idx])
+                #         if alpha_power > threshold_factor * np.median(psd):
+                #             alpha_channels.append(raw.ch_names[ch_idx])
+                #         if delta_power > threshold_factor * np.median(psd):
+                #             delta_channels.append(raw.ch_names[ch_idx])
+                #         if beta1_power > threshold_factor * np.median(psd):
+                #             beta1_channels.append(raw.ch_names[ch_idx])
+                #         if beta2_power > threshold_factor * np.median(psd):
+                #             beta2_channels.append(raw.ch_names[ch_idx])
+                #         if gamma_power > threshold_factor * np.median(psd):
+                #             gamma_channels.append(raw.ch_names[ch_idx])
+
+                #     # Define region mapping for grouping channels
+                #     region_mapping = {
+                #         "Frontal": ["Fp1", "Fp2", "F3", "F4", "Fz"],
+                #         "Temporal": ["T3", "T4", "T5", "T6"],
+                #         "Central": ["C3", "C4", "Cz"],
+                #         "Parietal": ["P3", "P4", "Pz"],
+                #         "Occipital": ["O1", "O2"]
+                #     }
+
+                #     # Initialize dictionaries to hold channels by region for each band
+                #     region_summaries = {
+                #         'theta': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                #         'alpha': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                #         'delta': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                #         'beta1': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                #         'beta2': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                #         'gamma': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []}
+                #     }
+
+                #     # Assign channels to regions for each frequency band
+                #     for band, channels in zip(['theta', 'alpha', 'delta', 'beta1', 'beta2', 'gamma'], 
+                #                             [theta_channels, alpha_channels, delta_channels, beta1_channels, beta2_channels, gamma_channels]):
+                #         for ch_name in channels:
+                #             for region, region_channels in region_mapping.items():
+                #                 if ch_name in region_channels:
+                #                     region_summaries[band][region].append(ch_name)
+
+                #     # Generate summary text for each frequency band by region
+                #     summary_texts = {}
+                #     for band in region_summaries.keys():
+                #         summary_texts[band] = f"% Relative increase of {band} activity in " + ", ".join([
+                #             f"{region.lower()} {', '.join(channels)}" for region, channels in region_summaries[band].items() if channels
+                #         ])
+
+                #     # Plot summary in a single figure
+                #     fig, ax = plt.subplots(figsize=(10, 5))
+                #     ax.axis('off')  # Hide axes for a cleaner look
+                #     text_content = "\n\n".join([
+                #         f"{band.capitalize()} Activity Summary:\n{summary}" for band, summary in summary_texts.items()
+                #     ])
+                #     ax.text(0.5, 0.5, text_content, fontsize=12, ha='center', va='center', wrap=True)
+                #     fig.suptitle("Frequency Band Findings", fontsize=20)
+                    
+                #     return fig
+
+                def detect_and_plot_theta_alpha_summary(data, sfreq, theta_range=(4, 8), alpha_range=(7.5, 14),
+                                        delta_range=(1, 4), beta1_range=(14, 20), 
+                                        beta2_range=(20, 30), gamma_range=(30, 40), 
+                                        threshold_factor=30.0, low_threshold_factor=29.5):
+    
+                    # Initialize lists for increased and decreased activity for each frequency band
+                    theta_increased_channels = []
+                    alpha_increased_channels = []
+                    delta_increased_channels = []
+                    beta1_increased_channels = []
+                    beta2_increased_channels = []
+                    gamma_increased_channels = []
+                    
+                    theta_decreased_channels = []
+                    alpha_decreased_channels = []
+                    delta_decreased_channels = []
+                    beta1_decreased_channels = []
+                    beta2_decreased_channels = []
+                    gamma_decreased_channels = []
+
+                    # Compute PSD for the data within specified frequency range
+                    psd, freqs = mne.time_frequency.psd_array_welch(data, sfreq=sfreq, fmin=1, fmax=40, n_fft=2048)
+                    median_psd = np.median(psd)
+
                     for ch_idx, channel_psd in enumerate(psd):
+                        # Calculate power for each frequency band
                         theta_power = np.sum(channel_psd[(freqs >= theta_range[0]) & (freqs < theta_range[1])])
                         alpha_power = np.sum(channel_psd[(freqs >= alpha_range[0]) & (freqs < alpha_range[1])])
-                        if theta_power > threshold_factor * np.median(psd):
-                            theta_channels.append(raw.ch_names[ch_idx])
-                        if alpha_power > threshold_factor * np.median(psd):
-                            alpha_channels.append(raw.ch_names[ch_idx])
-                    
-                    # Group channels by region
-                    theta_regions = {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []}
-                    alpha_regions = {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []}
-                                        
+                        delta_power = np.sum(channel_psd[(freqs >= delta_range[0]) & (freqs < delta_range[1])])
+                        beta1_power = np.sum(channel_psd[(freqs >= beta1_range[0]) & (freqs < beta1_range[1])])
+                        beta2_power = np.sum(channel_psd[(freqs >= beta2_range[0]) & (freqs < beta2_range[1])])
+                        gamma_power = np.sum(channel_psd[(freqs >= gamma_range[0]) & (freqs < gamma_range[1])])
+
+                        # Compare power to thresholds for increased and decreased activity
+                        if theta_power > threshold_factor * median_psd:
+                            theta_increased_channels.append(raw.ch_names[ch_idx])
+                        elif theta_power < low_threshold_factor * median_psd:
+                            theta_decreased_channels.append(raw.ch_names[ch_idx])
+
+                        if alpha_power > threshold_factor * median_psd:
+                            alpha_increased_channels.append(raw.ch_names[ch_idx])
+                        elif alpha_power < low_threshold_factor * median_psd:
+                            alpha_decreased_channels.append(raw.ch_names[ch_idx])
+
+                        if delta_power > threshold_factor * median_psd:
+                            delta_increased_channels.append(raw.ch_names[ch_idx])
+                        elif delta_power < low_threshold_factor * median_psd:
+                            delta_decreased_channels.append(raw.ch_names[ch_idx])
+
+                        if beta1_power > threshold_factor * median_psd:
+                            beta1_increased_channels.append(raw.ch_names[ch_idx])
+                        elif beta1_power < low_threshold_factor * median_psd:
+                            beta1_decreased_channels.append(raw.ch_names[ch_idx])
+
+                        if beta2_power > threshold_factor * median_psd:
+                            beta2_increased_channels.append(raw.ch_names[ch_idx])
+                        elif beta2_power < low_threshold_factor * median_psd:
+                            beta2_decreased_channels.append(raw.ch_names[ch_idx])
+
+                        if gamma_power > threshold_factor * median_psd:
+                            gamma_increased_channels.append(raw.ch_names[ch_idx])
+                        elif gamma_power < low_threshold_factor * median_psd:
+                            gamma_decreased_channels.append(raw.ch_names[ch_idx])
+
+                    # Define region mapping for grouping channels
                     region_mapping = {
                         "Frontal": ["Fp1", "Fp2", "F3", "F4", "Fz"],
                         "Temporal": ["T3", "T4", "T5", "T6"],
@@ -119,31 +328,53 @@ def upload_file():
                         "Occipital": ["O1", "O2"]
                     }
 
-                    # Collect theta and alpha channels by region
-                    for ch_name in theta_channels:
-                        for region, channels in region_mapping.items():
-                            if ch_name in channels:
-                                theta_regions[region].append(ch_name)
+                    # Initialize dictionaries to hold channels by region for each band and activity type
+                    region_summaries = {
+                        'theta_increased': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                        'theta_decreased': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                        'alpha_increased': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                        'alpha_decreased': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                        'delta_increased': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                        'delta_decreased': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                        'beta1_increased': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                        'beta1_decreased': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                        'beta2_increased': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                        'beta2_decreased': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                        'gamma_increased': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                        'gamma_decreased': {"Frontal": [], "Temporal": [], "Central": [], "Parietal": [], "Occipital": []},
+                    }
 
-                    for ch_name in alpha_channels:
-                        for region, channels in region_mapping.items():
-                            if ch_name in channels:
-                                alpha_regions[region].append(ch_name)
+                    # Assign channels to regions for increased and decreased activity
+                    for band, channels in zip(
+                        ['theta_increased', 'theta_decreased', 'alpha_increased', 'alpha_decreased', 
+                        'delta_increased', 'delta_decreased', 'beta1_increased', 'beta1_decreased', 
+                        'beta2_increased', 'beta2_decreased', 'gamma_increased', 'gamma_decreased'], 
+                        [theta_increased_channels, theta_decreased_channels, alpha_increased_channels, alpha_decreased_channels,
+                        delta_increased_channels, delta_decreased_channels, beta1_increased_channels, beta1_decreased_channels,
+                        beta2_increased_channels, beta2_decreased_channels, gamma_increased_channels, gamma_decreased_channels]):
+                        
+                        for ch_name in channels:
+                            for region, region_channels in region_mapping.items():
+                                if ch_name in region_channels:
+                                    region_summaries[band][region].append(ch_name)
 
-                    # Format the summary output to include channel names by region
-                    summary_theta = "% Relative increased theta in " + ", ".join([
-                        f"{region.lower()} {', '.join(channels)}" for region, channels in theta_regions.items() if channels
-                    ])
-                    summary_alpha = "% Relative increase of alpha activity in " + ", ".join([
-                        f"{region.lower()} {', '.join(channels)}" for region, channels in alpha_regions.items() if channels
-                    ])
+                    # Generate summary text for each frequency band by region and activity type
+                    summary_texts = {}
+                    for band in region_summaries.keys():
+                        activity = "increase" if "increased" in band else "decrease"
+                        freq_band = band.split('_')[0].capitalize()
+                        summary_texts[band] = f"% Relative {activity} of {freq_band} activity in " + ", ".join([
+                            f"{region.lower()} {', '.join(channels)}" for region, channels in region_summaries[band].items() if channels
+                        ])
 
                     # Plot summary in a single figure
-                    fig, ax = plt.subplots(figsize=(10, 5))
+                    fig, ax = plt.subplots(figsize=(10, 10))
                     ax.axis('off')  # Hide axes for a cleaner look
-                    text_content = f"Theta Activity Summary:\n{summary_theta}\n\nAlpha Activity Summary:\n{summary_alpha}"
-                    ax.text(0.5, 0.5, text_content, fontsize=12, ha='center', va='center', wrap=True)
-                    # ax.set_title('Theta/Alpha Findings')
+                    text_content = "\n\n".join([
+                        f"{summary}" for summary in summary_texts.values() if summary.split()[-1] != "in"
+                    ])
+                    ax.text(0.5, 0.5, text_content, fontsize=14, ha='center', va='center', wrap=True)
+                    fig.suptitle("Frequency Band Findings - Increased and Decreased Activity", fontsize=16)
                     
                     return fig
 
@@ -166,7 +397,7 @@ def upload_file():
                     return f"O1 = {alpha_peaks['O1']:.2f} Hz / uV^2, O2 = {alpha_peaks['O2']:.2f} Hz / uV^2"
 
                 # Function for Deviations Analysis
-                def detect_deviations(data, sfreq, bands, threshold_factor=1.5):
+                def detect_deviations(data, sfreq, bands, threshold_factor=50.5):
                     deviation_results = []
                     psd, freqs = mne.time_frequency.psd_array_welch(data, sfreq=sfreq, fmin=1, fmax=45, n_fft=2048)
                     for ch_idx, ch_name in enumerate(raw.ch_names):
@@ -258,31 +489,172 @@ def upload_file():
                     # ax.set_title('Theta/Alpha Findings')
 
                     # Create combined figure
-                    fig, axs = plt.subplots(3, 1, figsize=(12, 18))
+                    # fig, axs = plt.subplots(3, 1, figsize=(12, 18))
+                    fig, axs = plt.subplots(2, 1, figsize=(12, 18))
 
                     # Display Alpha Peaks
                     axs[0].axis('off')
                     axs[0].text(0.5, 0.5, f"Alpha Peak Frequencies:\n{alpha_results}", ha='center', va='center', wrap=True, fontsize=34)
                     # axs[0].set_title("Alpha Peak Frequencies")
 
-                    # Display Deviations Analysis
-                    axs[1].axis('off')
-                    axs[1].text(0.5, 0.5, f"Deviations Analysis:\n{deviations_text}", ha='center', va='center', wrap=True, fontsize=34)
-                    # axs[1].set_title("Deviations Analysis")
+                    # # Display Deviations Analysis
+                    # axs[1].axis('off')
+                    # axs[1].text(0.5, 0.5, f"Deviations Analysis:\n{deviations_text}", ha='center', va='center', wrap=True, fontsize=34)
+                    # # axs[1].set_title("Deviations Analysis")
 
                     # Display Leaky Gut Analysis
-                    axs[2].axis('off')
-                    axs[2].text(0.5, 0.5, leaky_gut_text, ha='center', va='center', wrap=True, fontsize=34)
+                    # axs[2].axis('off')
+                    # axs[2].text(0.5, 0.5, leaky_gut_text, ha='center', va='center', wrap=True, fontsize=34)
+                    axs[1].axis('off')
+                    axs[1].text(0.5, 0.5, leaky_gut_text, ha='center', va='center', wrap=True, fontsize=34)
                     # axs[2].set_title("Leaky Gut Syndrome Analysis")
 
                     plt.tight_layout()
-                    fig.suptitle("Combined Analysis: Alpha Peaks, Deviations, and Leaky Gut Markers", fontsize=36)
+                    # fig.suptitle("Combined Analysis: Alpha Peaks, Deviations, and Leaky Gut Markers", fontsize=36)
                     return fig#fig_alpha, fig_dev, fig_gut
 
                 combined_fig = plot_combined_analysis()
 
+                # psd_object = cleaned_raw.compute_psd(fmin=0.5, fmax=45, n_fft=1024)  # This returns a PSD object
+                psd_object = cleaned_raw.compute_psd(fmin=1.5, fmax=40, n_fft=2048)  # This returns a PSD object
+                psds = psd_object.get_data()  # Extract the power spectral density
+                freqs = psd_object.freqs  # Get the frequency values
+
+                """# Set Band Frequency"""
+
+                #Define frequency bands
+                delta_band = (1.5, 4)      # Delta: 1.5-4 Hz
+                theta_band = (4, 7.5)      # Theta: 4-7.5 Hz
+                alpha_band = (7.5, 14)     # Alpha: 7.5- Hz
+                beta1_band = (14, 20)      # Beta1: 13-20 Hz
+                beta2_band = (20, 30)      # Beta2: 20-30 Hz
+                gamma_band = (30, 40)      # Gamma: 30-40 Hz
+
+                # delta_band = (1, 4)      # Delta: 1.5-4 Hz
+                # theta_band = (4, 8)      # Theta: 4-7.5 Hz
+                # alpha_band = (8, 13)     # Alpha: 7.5- Hz
+                # beta1_band = (13, 30)      # Beta1: 13-20 Hz
+                # # beta2_band = (20, 30)      # Beta2: 20-30 Hz
+                # # gamma_band = (30, 40)      # Gamma: 30-40 Hz
+
+                # Calculate power for each band
+                delta_power = np.mean(psds[:, (freqs >= delta_band[0]) & (freqs <= delta_band[1])], axis=1)
+                theta_power = np.mean(psds[:, (freqs >= theta_band[0]) & (freqs <= theta_band[1])], axis=1)
+                alpha_power = np.mean(psds[:, (freqs >= alpha_band[0]) & (freqs <= alpha_band[1])], axis=1)
+                beta1_power = np.mean(psds[:, (freqs >= beta1_band[0]) & (freqs <= beta1_band[1])], axis=1)
+                beta2_power = np.mean(psds[:, (freqs >= beta2_band[0]) & (freqs <= beta2_band[1])], axis=1)
+                gamma_power = np.mean(psds[:, (freqs >= gamma_band[0]) & (freqs <= gamma_band[1])], axis=1)
+
+                #brodmann findings
+                def generate_brodmann_findings_figure():
+                    # Generate the findings text as before
+                    # normative_values = {
+                    #     'Alpha': np.mean(alpha_power),
+                    #     'Beta1': np.mean(beta1_power),
+                    #     'Beta2': np.mean(beta2_power),
+                    #     'Gamma': np.mean(gamma_power),
+                    #     'Theta': np.mean(theta_power),
+                    #     'Delta': np.mean(delta_power)
+                    # }
+
+                    normative_values = {
+                        'Alpha': alpha_power,
+                        'Beta1': beta1_power,
+                        'Beta2': beta2_power,
+                        'Gamma': gamma_power,
+                        'Theta': theta_power,
+                        'Delta': delta_power
+                    }
+                    
+
+                    # Map EEG channels to Brodmann areas
+                    brodmann_mapping = {
+                        'Fp1': 'Brodmann Area 11',
+                        'Fp2': 'Brodmann Area 11',
+                        'F7': 'Brodmann Area 46',
+                        'F3': 'Brodmann Area 46',
+                        'Fz': 'Brodmann Area 9',
+                        'F4': 'Brodmann Area 46',
+                        'F8': 'Brodmann Area 46',
+                        'T3': 'Brodmann Area 21',
+                        'C3': 'Brodmann Area 4',
+                        'Cz': 'Brodmann Area 4',
+                        'C4': 'Brodmann Area 4',
+                        'T4': 'Brodmann Area 21',
+                        'T5': 'Brodmann Area 39',
+                        'P3': 'Brodmann Area 39',
+                        'Pz': 'Brodmann Area 7',
+                        'P4': 'Brodmann Area 39',
+                        'T6': 'Brodmann Area 39',
+                        'O1': 'Brodmann Area 17',
+                        'O2': 'Brodmann Area 17',
+                    }
+
+                    brodmann_area_power = {area: {band: 0 for band in normative_values.keys()} for area in set(brodmann_mapping.values())}
+
+                    # Calculate average power for each Brodmann area
+                    for area in brodmann_area_power.keys():
+                        area_channels = [ch for ch, mapped_area in brodmann_mapping.items() if mapped_area == area]
+                        for band in normative_values.keys():
+                            power_values = []
+                            for channel in area_channels:
+                                if channel in locals():
+                                    power_values.append(locals()[f"{band.lower()}_power"][global_raw.ch_names.index(channel)])
+                            brodmann_area_power[area][band] = np.mean(power_values) if power_values else 0
+
+                    deviation_results = {}
+                    for area, area_power in brodmann_area_power.items():
+                        deviations = {}
+                        for band, value in area_power.items():
+                            deviation = value - normative_values[band]
+                            deviations[band] = deviation
+                        deviation_results[area] = deviations
+
+                    brodmann_area_descriptions = {
+                        'Brodmann Area 11': 'Orbital Gyrus Frontal Lobe',
+                        'Brodmann Area 4': 'Precentral Gyrus Frontal Lobe',
+                        'Brodmann Area 39': 'Angular Gyrus Parietal Lobe',
+                        'Brodmann Area 21': 'Middle Temporal Gyrus Temporal Lobe',
+                        'Brodmann Area 46': 'Dorsolateral Prefrontal Cortex',
+                        'Brodmann Area 17': 'Primary Visual Cortex',
+                        'Brodmann Area 7': 'Superior Parietal Lobule',
+                        'Brodmann Area 9': 'Dorsolateral Prefrontal Cortex'
+                    }
+
+                    adjacent_areas = {
+                        'Brodmann Area 11': ['Brodmann Area 47', 'Brodmann Area 10'],
+                        'Brodmann Area 4': ['Brodmann Area 6', 'Brodmann Area 1', 'Brodmann Area 2', 'Brodmann Area 3'],
+                        'Brodmann Area 39': ['Brodmann Area 40', 'Brodmann Area 7', 'Brodmann Area 19'],
+                        'Brodmann Area 21': ['Brodmann Area 20', 'Brodmann Area 22'],
+                        'Brodmann Area 46': ['Brodmann Area 9', 'Brodmann Area 10'],
+                        'Brodmann Area 17': ['Brodmann Area 18', 'Brodmann Area 19'],
+                        'Brodmann Area 7': ['Brodmann Area 39', 'Brodmann Area 40', 'Brodmann Area 5'],
+                        'Brodmann Area 9': ['Brodmann Area 46', 'Brodmann Area 10'],
+                    }
+
+                    # Generate findings text
+                    brodmann_output_results = "Following deviations were calculated:\n\n"
+                    for area, deviations in deviation_results.items():
+                        if deviations:
+                            adjacent_with_deviation = any(
+                                adjacent in deviation_results and deviation_results[adjacent]
+                                for adjacent in adjacent_areas.get(area, [])
+                            )
+                            if not adjacent_with_deviation:
+                                description = brodmann_area_descriptions.get(area, "Description not found")
+                                brodmann_output_results += f"{area}: {description}\n"
+
+                    # Plot the findings text on a figure
+                    fig, ax = plt.subplots(figsize=(10, 6))
+                    ax.text(0.5, 0.5, brodmann_output_results, ha='center', va='center', fontsize=26, wrap=True)
+                    ax.axis('off')  # Hide the axes for a cleaner look
+                    fig.suptitle("Brodmann Findings", fontsize=26)
+                    return fig
+                    
+                global_brodmann_findings = generate_brodmann_findings_figure()
+
                 def plot_combined_analysis():
-                    fig, axs = plt.subplots(3, 1, figsize=(12, 18))
+                    fig, axs = plt.subplots(4, 1, figsize=(12, 18))
 
                     def render_fig_to_array(sub_fig):
                         canvas = FigureCanvas(sub_fig)
@@ -300,7 +672,7 @@ def upload_file():
                     if theta_alpha_content_fig:
                         theta_alpha_img = render_fig_to_array(theta_alpha_content_fig)
                         axs[1].imshow(theta_alpha_img)
-                        axs[1].set_title("Theta/Alpha Findings")
+                        axs[1].set_title("Power Spectra Findings")
                         axs[1].axis('off')
                     
                     if combined_fig:
@@ -308,6 +680,11 @@ def upload_file():
                         axs[2].imshow(combined_fig_img)
                         axs[2].set_title("Pathological Sign Detection")
                         axs[2].axis('off')
+                    if global_brodmann_findings:
+                        global_brodmann_findings_img = render_fig_to_array(global_brodmann_findings)
+                        axs[3].imshow(global_brodmann_findings_img)
+                        axs[3].set_title("Brodmann Findings test")
+                        axs[3].axis('off')
                     # if fig_dev:
                     #     fig_dev_img = render_fig_to_array(fig_dev)
                     #     axs[4].imshow(fig_dev_img)
